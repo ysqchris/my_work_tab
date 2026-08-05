@@ -1,0 +1,467 @@
+{
+  "updated_at": "2026-08-04T17:49:00+08:00",
+  "items": [
+    {
+      "product": "WorkBuddy",
+      "type": "产品动态",
+      "date": "2026-08-04",
+      "title": "WorkBuddy / CodeBuddy：Hy3 模型免费调用延长至 8 月 31 日",
+      "points": [
+        "WorkBuddy 与 CodeBuddy 宣布将腾讯混元 Hy3 的模型调用限时免费活动延长至 2026 年 8 月 31 日；此前截止日为 8 月 5 日。",
+        "Hy3 于 7 月 6 日发布并开源，采用快慢思考融合的 MoE 架构：总参数 295B、激活参数 21B、最大支持 256K 上下文。",
+        "本次是面向既有产品内模型能力的试用/商业化策略调整，而非 WorkBuddy 功能版本发布。"
+      ],
+      "view": "WorkBuddy 通过延长高性能模型的免费调用期降低用户试用门槛，意在加速真实协作任务中的模型验证与留存。对 imate 而言，除了能力本身，也应关注模型套餐、免费额度与长上下文任务成本如何服务于数字同事的持续使用。",
+      "url": "https://finance.sina.com.cn/tech/digi/2026-08-04/doc-inimctri5754997.shtml",
+      "img": "",
+      "id": "8ce58c3f04a8",
+      "created_at": "2026-08-04T17:49:00+08:00"
+    },
+    {
+      "product": "CrewAI",
+      "type": "产品动态",
+      "date": "2026-07-31",
+      "title": "CrewAI 发布 v1.15.10：新增 Skill 使用事件采集",
+      "points": [
+        "v1.15.10 于 7 月 31 日发布，新增对 Skill usage events（技能使用事件）的采集。",
+        "本次同时清理已迁移的 AMP 文档，并更新安全问题报告指引与 v1.15.9 的快照/变更记录。",
+        "核心信号是将 Skill 调用纳入事件数据：为后续使用分析、可观测性与治理建立基础。"
+      ],
+      "view": "CrewAI 开始显式沉淀 Skill 使用遥测，说明多 Agent 产品的竞争焦点正从“能否调用工具”转向“调用是否可观测、可分析、可治理”。imate 的数字同事若面向企业协作，应同步建设 Skill/工具调用的事件模型、使用漏斗和异常审计，避免能力扩展后形成黑箱。",
+      "url": "https://docs.crewai.com/en/changelog",
+      "img": "",
+      "id": "b602e5f5af5b",
+      "created_at": "2026-08-03T17:50:04+08:00"
+    },
+    {
+      "product": "Jira (Atlassian)",
+      "type": "产品动态",
+      "date": "2026-07-29",
+      "title": "Jira 2026 Summer Release：Delivery Agent 上线 + Rovo 生成空间 + Loom 会议自动入 Jira",
+      "points": [
+        "新增开箱即用 Agent「Delivery Agent」：自动跑健康巡检、站会摘要、干系人状态更新等重复性协调工作，并在 Jira Summary 视图内置自动化模板一键配置",
+        "用自然语言描述工作方式（或附 Context）即可让 Rovo 生成完整 Jira 空间（工作流、工作类型、视图、首批工作项）",
+        "Loom 会议录音处理后，Rovo 将决策与行动项映射到具体工作项并给出建议更新，免去站会后逐条补票",
+        "工作项摘要卡：任意工作项顶部可一键生成 AI 摘要（背景/进展/涉及人/下一步）；底层性能提升（工作项加载快 57%、列表搜索快 60%），MCP 工具与 Teamwork Graph CLI 已 GA"
+      ],
+      "view": "Jira 把 Agent 进一步做成「项目协作里的常驻数字同事」（Delivery Agent 主动巡检与汇报），并用 Rovo 把自然语言直接落成项目结构——这正是 imate 在「项目协作型数字同事」方向的对标：从被动应答走向主动协调、从对话走向空间生成。",
+      "url": "https://community.atlassian.com/forums/Jira-articles/Introducing-the-Jira-2026-Summer-Release/ba-p/3268349",
+      "img": "",
+      "id": "b2b8ec2bae8f",
+      "created_at": "2026-08-02T17:49:21+08:00"
+    },
+    {
+      "product": "Multica",
+      "type": "产品动态",
+      "date": "2026-07-31",
+      "title": "Multica v0.4.16 发布：Agent Chat 快捷操作 + 自定义头像 + 运行时可见",
+      "points": [
+        "新增 Agent 生成的 Chat 快捷操作（agent-generated Chat quick actions），让 Agent 在对话中主动给出可执行动作",
+        "支持为 Agent 设置 emoji 头像（pick an emoji as the agent avatar），并展示每个 Agent 由哪个 runtime 支撑（show which runtime backs an agent）",
+        "新增 Qoder CN CLI runtime，并通过 ACP 协议自动发现 CodeBuddy 模型（替代原先 scrape --help 的方式）",
+        "默认模型切换为 gpt-5.6-luna；修复时间线截断丢最新条目、自托管后端端口单一来源等问题；许可证正式命名为 Multica License"
+      ],
+      "view": "Multica 持续在「人+Agent 协作界面」上下功夫（Chat 快捷操作、头像、运行时可见），降低多 Agent 并行管理的心智负担；这与 imate 数字同事要做「可被一眼认出、可被一眼调度」的协作体方向一致，可借鉴其 runtime 透明化与快捷操作设计。",
+      "url": "https://github.com/multica-ai/multica/releases/tag/v0.4.16",
+      "img": "",
+      "id": "3e3f29c06e2d",
+      "created_at": "2026-08-02T17:49:21+08:00"
+    },
+    {
+      "product": "WorkBuddy",
+      "type": "产品动态",
+      "date": "2026-07-30",
+      "title": "WorkBuddy V5.3.5 推出「人机双写」协同编辑：与腾讯文档同文件实时共创",
+      "points": [
+        "联合腾讯文档正式推出面向 Agent 时代的「人机双写」协同编辑能力，行业首次实现人人、人机、机机多端同步协同",
+        "用户在打开腾讯文档或本地 Word/Excel/PPT/Markdown 时，AI 在当前页面随时待命，与用户在同一文件内共同创作、修改并实时协作",
+        "兼容本地 Office 文件与腾讯文档，将 AI 能力无缝嵌入文档编辑环境，推动 Office 进入 AI 原生协作时代",
+        "不到两周内相继在移动端、PC端、软件端完成三次迭代，落地「人机混编」团队协作场景"
+      ],
+      "view": "WorkBuddy 把 AI 同事直接压进文档编辑现场、与用户同文件实时共创，是把「数字同事」从对话窗拉进生产工具的关键一步；imate 数字同事在协作场景也需考虑把能力嵌入文档/表格等真实工作载体，而非仅停留在对话或独立任务流。",
+      "url": "https://news.qq.com/rain/a/20260730A05NPU00",
+      "img": "",
+      "id": "7626762cd2f2",
+      "created_at": "2026-08-02T17:49:21+08:00"
+    },
+    {
+      "product": "Microsoft Copilot",
+      "type": "产品动态",
+      "date": "2026-07-29",
+      "title": "M365 Copilot 7/29 发布：回复内联富媒体 + OneNote Copilot Notebooks 重设计",
+      "points": [
+        "Copilot 回复现可在正文直接内联展示来自文件与会议的相关图片，提升信息密度与理解效率（Windows/Web）",
+        "OneNote 的 Copilot Notebooks Overview 重设计：更清晰的 AI 摘要布局、关键洞察与一键可创建的工件",
+        "采用安全部署模型，先向租户子集灰度再全量推开，保持 Microsoft 365 合规与数据安全性"
+      ],
+      "view": "微软把「富媒体内联」做成 Copilot 默认体验，说明办公套件内嵌 AI 同事正从纯文本走向多模态；imate 数字同事在协作场景也需补齐内联富媒体呈现，避免被办公巨头在体验维度拉开差距",
+      "url": "https://learn.microsoft.com/en-us/microsoft-365/copilot/release-notes",
+      "img": "",
+      "id": "07a6a030862c",
+      "created_at": "2026-08-01T17:48:51+08:00"
+    },
+    {
+      "product": "狍子AI",
+      "type": "产品动态",
+      "date": "2026-07-02",
+      "title": "狍子AI 发布 0.94.0 版本公告（版本日期 2026-06-26）",
+      "points": [
+        "发布 0.94.0 版本公告，版本日期 2026-06-26，延续高频双周版本化迭代节奏",
+        "公告以功能更新、优化与修复的逐条列举形式发布（发版文集 10575 的标准版本公告）"
+      ],
+      "view": "狍子AI 作为腾讯内部数字同事产品保持高频版本迭代，是 imate 在内部生态的直接对标参考；可关注其版本节奏与功能演进方向，作为自身路线图与能力成熟度的对照。",
+      "url": "https://km.woa.com/articles/show/664397",
+      "img": "",
+      "id": "b47a8dab0c27",
+      "created_at": "2026-07-31T17:47:25+08:00"
+    },
+    {
+      "product": "Box-AI",
+      "type": "深度分析",
+      "date": "2026-07-30",
+      "title": "BOX 工作流：把复杂 SOP 变成可恢复、可复用的任务执行系统（DAG + 人工验收）",
+      "points": [
+        "BOX 工作流将 SOP 转化为可控、可恢复、可复用的任务执行系统，采用 DAG 执行模型，节点可以是 Agent 或脚本（异质执行体）",
+        "支持自然语言生成 + 画布拖拽创建模板；串并行依赖编排，上游未完成下游不启动，无依赖分支可并行",
+        "关键环节可设人工验收节点（流程暂停通知发起人，确认后继续）+ 局部重试（只重跑最早受影响环节，前序产物复用）",
+        "跑顺的模板可上传团队空间复用，沉淀的是一整套「执行资产」（分工/依赖/验收标准），而非单次结果",
+        "定位边界：Prompt=这次做什么 / Skill=这类怎么做 / 定时任务=何时再跑 / BOX 工作流=多环节稳定共同完成任务"
+      ],
+      "view": "BOX 工作流直击长程任务「Lost in the Middle」状态退化痛点，用 DAG + 文件传递上下文解耦单次对话历史，并强调人工验收与局部重试——正是 imate 数字同事做复杂 SOP 落地可借鉴的范式；其与 Skill/定时任务的能力分层也提示 imate 在能力边界划分上的设计取舍。",
+      "url": "https://km.woa.com/articles/show/666264",
+      "img": "",
+      "id": "1acecf0ad726",
+      "created_at": "2026-07-31T17:47:19+08:00"
+    },
+    {
+      "product": "CrewAI",
+      "type": "产品动态",
+      "date": "2026-07-29",
+      "title": "CrewAI 发布 v1.15.9：工具失败显性上报 + FlowFailedEvent + Skills 渐进式披露",
+      "points": [
+        "工具调用失败不再被误报为成功，Agent 能感知真实错误并调整策略（可靠性关键修正）",
+        "Flow 执行失败时发出 FlowFailedEvent，编排层可订阅失败事件做监控与自动补救",
+        "实现 Skills 渐进式披露（progressive disclosure）：按需向模型暴露技能细节，降低上下文占用"
+      ],
+      "view": "这版三个特性都指向「生产可观测性」：失败显性化 + 失败事件流 + 技能按需加载，是多 Agent 系统从 demo 走向企业值守的标配。imate 的数字同事若要 7x24 值守，同样需要把工具失败、流程失败做成一等公民事件，供管理端告警与复盘；技能渐进式披露也是控制长会话成本的可借鉴做法。",
+      "url": "https://docs.crewai.com/en/changelog",
+      "img": "",
+      "id": "c21bc4a8834e",
+      "created_at": "2026-07-30T17:49:34+08:00"
+    },
+    {
+      "product": "Multica",
+      "type": "产品动态",
+      "date": "2026-07-29",
+      "title": "Multica v0.4.14 发布：Agent CLI 热识别 + 环境变量自助管理 + 一批协作稳定性修复",
+      "points": [
+        "启动后新安装的 Agent CLI 自动被识别，无需重启 daemon；Agent 拥有者可自行查看/更新自己 Agent 的环境变量",
+        "Issue 表格重构：缩放/排序/加载/滚动更流畅，CJK 标题与斜体排版优化，运行时切换模型列表加载显著加速",
+        "修复多智能体协作细节：@all 不再抢占被显式 @ 的 Agent、ACP Agent 频道回复只保留最终答案、成员不再看到他人私有 Agent 的用量分布",
+        "会话可靠性：Provider 拒绝损坏会话历史时任务自动恢复；Hermes 会话在 daemon 重启后可续接；Windows 上 OpenClaw 静默失败改为给出排查提示"
+      ],
+      "view": "Multica 连续日更（0.4.12→0.4.14），重点全在「多 Agent 团队日常运维体验」：环境变量自助管理、私有 Agent 隔离、@mention 语义修正，说明其企业多人协作场景已进入打磨深水区。imate 做数字同事编队时，@指派语义、Agent 权限隔离、会话断点续接这三件事同样是必答题，可直接对照其 changelog 查缺。",
+      "url": "https://multica.ai/changelog",
+      "img": "",
+      "id": "398005ee0d8b",
+      "created_at": "2026-07-30T17:49:33+08:00"
+    },
+    {
+      "product": "Taskade",
+      "type": "产品动态",
+      "date": "2026-07-26",
+      "title": "Taskade 7月下旬更新：签名 Webhook 注册 API + 托管 MCP 创建/编排工具 + 生成应用文件上传全链路",
+      "points": [
+        "7/21 Action API v2 新增 REST 风格 Webhook Registration API：HMAC-SHA256 签名投递（X-Taskade-Signature），支持按工作区 scope，Pro 及以上可用",
+        "7/21 托管 Taskade MCP 新增 11 个 create-and-orchestrate 工具，外部 Agent 可直接在 Taskade 内创建与编排任务",
+        "7/25 文档 OCR 兜底 + EVE Flows 结构化输出 Schema 具体化",
+        "7/26 Genesis 生成应用支持文件上传进 Flow 全链路（端到端）并修复一批问题"
+      ],
+      "view": "Taskade 正把自己做成「Agent 可编程的工作操作系统」：签名 Webhook + 托管 MCP 编排工具意味着第三方 Agent 能安全地驱动其任务流。imate 若要成为企业协作中枢，同样需要对外暴露受治理的 Agent 编排接口（MCP/Webhook），否则会被此类开放平台反向集成。",
+      "url": "https://docs.taskade.com/changelog/changelog-2026/july-2026",
+      "img": "",
+      "id": "c3639b7a0ceb",
+      "created_at": "2026-07-29T17:49:39+08:00"
+    },
+    {
+      "product": "Multica",
+      "type": "产品动态",
+      "date": "2026-07-28",
+      "title": "Multica v0.4.13 发布：Claude Code 缓存续跑修复 + Agent 用量洞察",
+      "points": [
+        "Usage 面板新增错误趋势、失败类型分析，可定位需要关注的 Agent",
+        "支持从 GitHub App 安装一次性导入多个仓库",
+        "创建 Agent 时可选思考强度（thinking level）与 Codex 速度档位",
+        "父 Issue 显示子任务上有多少 Agent 正在工作，强化人管多 Agent 视图",
+        "修复 Claude Code 续跑长 Issue 时重复约 95% 缓存写入的问题；Slack/Lark 只推送最终答案"
+      ],
+      "view": "Multica 连续日更（7月已发13个版本），核心方向是「把编码 Agent 当员工管理」：用量/失败率洞察相当于给 Agent 做绩效面板。imate 的数字同事管理视图可参考其错误趋势与多 Agent 任务归属的呈现方式。",
+      "url": "https://multica.ai/changelog",
+      "img": "",
+      "id": "c7f853c6d29c",
+      "created_at": "2026-07-29T17:49:17+08:00"
+    },
+    {
+      "product": "CrewAI",
+      "type": "产品动态",
+      "date": "2026-07-28",
+      "title": "CrewAI 发布 v1.15.8：新增 WaitTool 支持长任务暂停等待",
+      "points": [
+        "新增 WaitTool，Agent 可在长时间运行的任务上暂停等待，增强异步/长任务编排能力",
+        "修复 FileWriterTool 写文件问题，打磨文件工具的边缘场景",
+        "E2B 工具明确要求 E2B_API_KEY 环境变量，沙箱工具链配置更规范",
+        "文档更新模型可用性指引"
+      ],
+      "view": "WaitTool 补齐了 CrewAI 在长任务值守场景的编排原语，多 Agent 框架正逐步向 7x24 数字同事的任务生命周期管理靠拢；imate 在长任务暂停/恢复、任务状态可视化上需保持体验领先。",
+      "url": "https://docs.crewai.com/en/changelog",
+      "img": "",
+      "id": "41f1831dc297",
+      "created_at": "2026-07-29T17:49:17+08:00"
+    },
+    {
+      "product": "Coze (扣子)",
+      "type": "产品动态",
+      "date": "2026-07-15",
+      "title": "扣子平台动态：企业自动创建上线；豆包 7/15 下线用户自建智能体、平台定位分化",
+      "points": [
+        "扣子 7 月新增「创建企业」：购买团队版后系统自动创建企业实体",
+        "字节豆包 7/15 正式下线 C 端用户自建智能体功能（响应五部委拟人化互动监管），Coze 作为开发者平台承接定位进一步分化",
+        "6 月扣子 3.0 多人协作 AI 编程、多会话等能力延续推进"
+      ],
+      "view": "监管压力下字节把智能体能力向 B 端/开发者平台（Coze）集中，企业侧竞争密度上升；imate 在合规与企业实体管理上可参考其「企业自动创建」路径",
+      "url": "https://docs.coze.cn/guides_release_note",
+      "img": "",
+      "id": "1b34f6963276",
+      "created_at": "2026-07-28T17:51:13+08:00"
+    },
+    {
+      "product": "ClickUp",
+      "type": "产品动态",
+      "date": "2026-07-02",
+      "title": "ClickUp 推出 Super Agents：驻留工作区的类人 AI 同事",
+      "points": [
+        "Super Agents 定位为「住在 ClickUp 里的第一批类人 AI Agent」，像真实队友一样与团队协作，而非聊天机器人",
+        "基于 6 月发布的 Brain2 平台：全工作区上下文感知，自动路由 Claude/GPT/Gemini 多模型",
+        "可生成演示文稿、仪表盘、网站等可执行产物"
+      ],
+      "view": "ClickUp 从「AI 助手」直接跳到「AI 同事」叙事，Super Agents 与 imate 数字同事的产品心智几乎一致，需跟踪其协作边界与定价",
+      "url": "https://releasebot.io/updates/clickup",
+      "img": "",
+      "id": "d17a8093e773",
+      "created_at": "2026-07-28T17:51:13+08:00"
+    },
+    {
+      "product": "Jira (Atlassian)",
+      "type": "产品动态",
+      "date": "2026-07-28",
+      "title": "Jira Spring 2026 捆绑发布：工作项内直接 @ Agent + Rovo 技能库 + 管理员 AI 技能",
+      "points": [
+        "可在 Jira 工作项中直接分配任务给 Agent 或 @mention Agent，支持接入 GitHub Copilot、Cursor、Canva 等第三方 Agent 或自建 Agent",
+        "Agent 可按状态流转自动接单干活（工作项进入指定状态即触发）",
+        "Rovo 技能库：自动生成状态更新、合并重复项、清理过期 feature flag 等",
+        "新增管理员专属 Rovo 技能：工作流、权限与配置管理"
+      ],
+      "view": "Atlassian 把「Agent 当团队成员分派任务」做进了主流项目协作工具，与 imate 数字同事进项目组干活的核心场景正面竞争，需重点研究其 Agent 接入开放策略",
+      "url": "https://www.atlassian.com/software/jira/release",
+      "img": "",
+      "id": "c8d98b73ade2",
+      "created_at": "2026-07-28T17:51:13+08:00"
+    },
+    {
+      "product": "Taskade",
+      "type": "产品动态",
+      "date": "2026-07-08",
+      "title": "Taskade 7月连发：TSK-1 系统内核 + Multi-Select 字段 + 新 MCP 工具",
+      "points": [
+        "7/4 发布 TSK-1（Taskade System Kernel）：AI 智能层自动在四档能力层间路由，所有 AI 功能底层统一",
+        "7/8 新增 Multi-Select 字段类型、Agent/Team/Automation 侧边栏 Tab、两个新 MCP 工具与扩展的 automade 触发器目录",
+        "7/2 Workspace DNA 上线 + EVE agent 自动行级作用域；7/1 接入 Claude Sonnet 5"
+      ],
+      "view": "Taskade 以「内核级模型路由 + MCP 生态」加速平台化，其 EVE agent 与工作区深度绑定的思路与 imate 数字同事嵌入协作场景的方向相同",
+      "url": "https://docs.taskade.com/changelog/changelog-2026/july-2026",
+      "img": "",
+      "id": "ecf79dfa5573",
+      "created_at": "2026-07-28T17:51:13+08:00"
+    },
+    {
+      "product": "Microsoft Copilot",
+      "type": "产品动态",
+      "date": "2026-07-15",
+      "title": "M365 Copilot 7月官方 Release Notes：Agent Store 受治理发布 + 租户级 Prompt Gallery",
+      "points": [
+        "Agent Builder 创建的 Agent 可提交至 Agent Store「Built by your org」板块，经管理员审批后全租户可发现使用",
+        "Copilot Prompt Gallery 支持企业自建提示词集合并全租户分发",
+        "Copilot Cowork 模式 GA，7月累计 40+ 项更新，新增 Claude 模型支持"
+      ],
+      "view": "微软把「企业内 Agent 分发治理」做成标准流程（提交-审批-上架），imate 在企业级数字同事的管控/分发链路上应尽早对齐这一范式",
+      "url": "https://learn.microsoft.com/en-us/microsoft-365/copilot/release-notes",
+      "img": "",
+      "id": "45bf2ff4165d",
+      "created_at": "2026-07-28T17:51:13+08:00"
+    },
+    {
+      "product": "CrewAI",
+      "type": "产品动态",
+      "date": "2026-07-26",
+      "title": "CrewAI 发布 v1.15.7：registry skills 解析修复 + GPT-5.6 工具链适配",
+      "points": [
+        "修复通过 CrewAI+ 运行时客户端解析 registry skills 的问题",
+        "适配 GPT-5.6 tools 与 reasoning_effort 参数的异常恢复",
+        "PyPI 已发布 1.15.7（7/26），保持每周迭代节奏"
+      ],
+      "view": "开源多 Agent 编排框架持续快速跟进新模型能力，imate 可借鉴其 skill registry 与模型适配层设计",
+      "url": "https://docs.crewai.com/en/changelog",
+      "img": "",
+      "id": "8e2fc77cb51b",
+      "created_at": "2026-07-28T17:50:42+08:00"
+    },
+    {
+      "product": "Multica",
+      "type": "产品动态",
+      "date": "2026-07-27",
+      "title": "Multica v0.4.12 发布：Lark 媒体附件接入 + Agent 任务自恢复",
+      "points": [
+        "Lark（飞书）聊天中的图片/视频可直接作为附件带入任务",
+        "PR 卡片实时 CI 状态，直接显示是否 Ready to Merge",
+        "Agent 任务异常后可自动恢复会话；取消任务可完全终止 Agent",
+        "图片附件预览支持平移缩放；项目选择器支持搜索"
+      ],
+      "view": "Multica 保持日更节奏（7月已发 20 个版本），IM 生态（Lark）+ 代码协作闭环推进快，是 imate 多 Agent 协作方向最需盯紧的直接竞品",
+      "url": "https://multica.ai/changelog",
+      "img": "",
+      "id": "47f81f9095c6",
+      "created_at": "2026-07-28T17:50:42+08:00"
+    },
+    {
+      "product": "WorkBuddy",
+      "type": "产品动态",
+      "date": "2026-07-25",
+      "title": "WorkBuddy 5.3.5 发布：Buddy AI 国内升配（订阅计费）",
+      "points": [
+        "Buddy AI 国内升配，转为订阅计费模式",
+        "修复扩展插件 Hook 代理问题"
+      ],
+      "view": "计费模式转订阅制说明其商业化进入常态运营阶段，imate 可关注其定价与配额策略",
+      "url": "https://www.codebuddy.cn/docs/workbuddy/Changelog",
+      "img": "",
+      "id": "527abedd7bb3",
+      "created_at": "2026-07-28T17:50:42+08:00"
+    },
+    {
+      "product": "WorkBuddy",
+      "type": "产品动态",
+      "date": "2026-07-21",
+      "title": "WorkBuddy 5.3.3 发布：项目计划板块重构 + 企业智能体 + 腾讯文档深度集成",
+      "points": [
+        "项目计划板块重构升级：待办富文本编辑、评论图片粘贴上传、动态留言",
+        "新增企业智能体能力：身份配置、欢迎语与推荐问题自定义",
+        "腾讯文档深度集成：AI 引擎、桌面端编辑/预览与 MCP 本地服务",
+        "新增 PPT 生成内置插件（生成前预览）、快捷键云同步、本地长期记忆展示与编辑",
+        "意图识别胶囊位可推荐内置 Skill/Plugin/Connector"
+      ],
+      "view": "WorkBuddy 向「项目协作 + 企业智能体」纵深推进，与 imate 数字同事定位高度重叠；其腾讯文档/乐享等内部生态整合速度值得对标",
+      "url": "https://www.codebuddy.cn/docs/workbuddy/Changelog",
+      "img": "",
+      "id": "93ff9799ab0b",
+      "created_at": "2026-07-28T17:50:42+08:00"
+    },
+    {
+      "id": "seed-crewai",
+      "product": "CrewAI",
+      "type": "产品动态",
+      "date": "2026-07-24",
+      "title": "CrewAI 更新至 v1.15.6，角色化多Agent协作框架持续迭代",
+      "points": [
+        "已确认版本推进至 v1.15.6，与最新 GitHub release 对齐",
+        "强化角色化 Agent 协作编排能力"
+      ],
+      "view": "开源多Agent协作框架标杆，imate 可借鉴其角色化任务分发机制",
+      "url": "",
+      "img": ""
+    },
+    {
+      "id": "seed-dify",
+      "product": "Dify",
+      "type": "产品动态",
+      "date": "2026-07-21",
+      "title": "Dify 发布 v1.16.0，开发者自建型数字同事平台",
+      "points": [
+        "最新 GitHub release 为 v1.16.0",
+        "持续强化工作流编排与 Agent 构建能力"
+      ],
+      "view": "开发者自建赛道头部，与 imate 在企业自建场景存在竞争",
+      "url": "",
+      "img": ""
+    },
+    {
+      "id": "seed-multica",
+      "product": "Multica",
+      "type": "产品动态",
+      "date": "2026-07-25",
+      "title": "Multica 多智能体协作平台动态更新",
+      "points": [
+        "页面记录更新至 7/25，多智能体团队协作方向活跃",
+        "聚焦 agent 团队协作编排"
+      ],
+      "view": "多Agent协作直接竞品，需持续跟踪其协作范式",
+      "url": "",
+      "img": ""
+    },
+    {
+      "id": "seed-qoderwake",
+      "product": "QoderWake",
+      "type": "产品动态",
+      "date": "2026-07-24",
+      "title": "QoderWake（阿里）生产级AI数字员工平台",
+      "points": [
+        "Harness-First 架构，7x24 自主值守",
+        "页面记录更新至 7/24"
+      ],
+      "view": "阿里系数字员工平台，企业级自主值守是 imate 可参考方向",
+      "url": "",
+      "img": ""
+    },
+    {
+      "id": "seed-taskade",
+      "product": "Taskade",
+      "type": "产品动态",
+      "date": "2026-07-20",
+      "title": "Taskade 多Agent并行协作平台",
+      "points": [
+        "页面记录更新至 7/20",
+        "项目管理 + EVE agent 并行协作"
+      ],
+      "view": "协同办公 + 多Agent 结合，与 imate 协作定位相近",
+      "url": "",
+      "img": ""
+    },
+    {
+      "id": "seed-dust",
+      "product": "Dust.tt",
+      "type": "产品动态",
+      "date": "2026-07-22",
+      "title": "Dust.tt 企业知识型 AI 员工",
+      "points": [
+        "页面记录更新至 7/22",
+        "面向企业的 AI 员工/知识助手"
+      ],
+      "view": "企业知识助手方向，可参考其企业接入范式",
+      "url": "",
+      "img": ""
+    },
+    {
+      "id": "seed-mscopilot",
+      "product": "Microsoft Copilot",
+      "type": "产品动态",
+      "date": "2026-07-22",
+      "title": "Microsoft Copilot 企业级 AI 助理",
+      "points": [
+        "页面记录更新至 7/22",
+        "M365 Copilot / Copilot Studio 持续迭代"
+      ],
+      "view": "办公套件内嵌 AI 同事的标杆，imate 需关注其生态位",
+      "url": "",
+      "img": ""
+    }
+  ]
+}

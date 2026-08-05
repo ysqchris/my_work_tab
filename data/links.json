@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "title": "Building a personal knowledge system",
+      "url": "https://example.com",
+      "source": "手动保存",
+      "status": "稍后阅读",
+      "topic": "个人系统",
+      "id": "b5c62d10d569",
+      "created_at": "2026-08-05T12:28:22+08:00",
+      "date": "2026-08-05"
+    }
+  ],
+  "updated_at": "2026-08-05T12:28:22+08:00"
+}
