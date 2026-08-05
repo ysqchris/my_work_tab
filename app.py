@@ -11,13 +11,17 @@ import os
 import threading
 import uuid
 import datetime
+from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_from_directory
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(BASE, "data")
+FILES = os.path.join(DATA, "files")
 STATIC = os.path.join(BASE, "static")
 
 app = Flask(__name__, static_folder=STATIC, template_folder=os.path.join(BASE, "templates"))
+os.makedirs(FILES, exist_ok=True)
+app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024  # 64MB
 
 # 文件锁，防止并发写损坏 JSON
 _locks = {}
@@ -88,6 +92,12 @@ def make_crud(resource):
         item["created_at"] = _now()
         if "date" not in item and "date_collected" not in item:
             item["date"] = _now()[:10]
+        if R == "knowledge":
+            item["kind"] = item.get("kind") or (
+                "file" if item.get("stored_name") else
+                "document" if item.get("content") and not item.get("url") else
+                "link"
+            )
         data["items"].insert(0, item)
         data["updated_at"] = _now()
         with _lock_for(R):
@@ -114,23 +124,133 @@ def make_crud(resource):
     @app.route(f"/api/{R}/<item_id>", endpoint=f"delete_{R}", methods=["DELETE"])
     def delete_item(item_id):
         data = read_json(R, {"items": []})
-        before = len(data["items"])
-        data["items"] = [it for it in data["items"] if str(it.get("id")) != str(item_id)]
-        if len(data["items"]) == before:
+        removed = [it for it in data["items"] if str(it.get("id")) == str(item_id)]
+        if not removed:
             return jsonify({"error": "not found"}), 404
+        data["items"] = [it for it in data["items"] if str(it.get("id")) != str(item_id)]
         data["updated_at"] = _now()
         with _lock_for(R):
             write_json(R, data)
+        if R == "knowledge":
+            for it in removed:
+                _delete_knowledge_file(it)
         touch_meta()
         return jsonify({"ok": True})
 
-# 通用内容对象：情报、行动、资料与思考均可独立存储并在前端关联。
+# 通用内容对象：情报、行动、知识库与思考均可独立存储。
 make_crud("articles")
 make_crud("products_updates")
 make_crud("tasks")
 make_crud("notes")
-make_crud("links")
+make_crud("knowledge")
 make_crud("inbox")
+
+# ---------------------------------------------------------------------------
+# 知识库：链接 / 文档 / 文件；旧 links.json 自动迁移
+# ---------------------------------------------------------------------------
+def _infer_knowledge_kind(it):
+    if it.get("kind") in ("link", "document", "file"):
+        return it["kind"]
+    if it.get("stored_name") or it.get("filename"):
+        return "file"
+    if it.get("content") and not it.get("url"):
+        return "document"
+    return "link"
+
+def _delete_knowledge_file(it):
+    name = it.get("stored_name")
+    if not name:
+        return
+    path = os.path.join(FILES, name)
+    if os.path.isfile(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+def _migrate_links_to_knowledge():
+    kp, lp = _path("knowledge"), _path("links")
+    if os.path.exists(kp):
+        data = read_json("knowledge", {"items": []})
+        changed = False
+        for it in data.get("items", []):
+            kind = _infer_knowledge_kind(it)
+            if it.get("kind") != kind:
+                it["kind"] = kind
+                changed = True
+        if changed:
+            with _lock_for("knowledge"):
+                write_json("knowledge", data)
+        return
+    if not os.path.exists(lp):
+        write_json("knowledge", {"items": [], "updated_at": _now()})
+        return
+    data = read_json("links", {"items": []})
+    for it in data.get("items", []):
+        it["kind"] = _infer_knowledge_kind(it)
+    data["updated_at"] = _now()
+    write_json("knowledge", data)
+
+_migrate_links_to_knowledge()
+
+@app.route("/api/knowledge/upload", methods=["POST"])
+def upload_knowledge_file():
+    """上传文件到知识库。form-data: file, 可选 topic/title。"""
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"error": "file required"}), 400
+    original = f.filename
+    safe = secure_filename(original) or "file"
+    stored = f"{uuid.uuid4().hex[:12]}_{safe}"
+    path = os.path.join(FILES, stored)
+    f.save(path)
+    size = os.path.getsize(path)
+    title = (request.form.get("title") or "").strip() or original
+    topic = (request.form.get("topic") or "").strip()
+    item = {
+        "id": uuid.uuid4().hex[:12],
+        "kind": "file",
+        "title": title,
+        "filename": original,
+        "stored_name": stored,
+        "mime": f.mimetype or "application/octet-stream",
+        "size": size,
+        "topic": topic,
+        "source": "本地上传",
+        "created_at": _now(),
+        "date": _now()[:10],
+    }
+    data = read_json("knowledge", {"items": []})
+    data["items"].insert(0, item)
+    data["updated_at"] = _now()
+    with _lock_for("knowledge"):
+        write_json("knowledge", data)
+    touch_meta()
+    return jsonify(item), 201
+
+def _is_image_meta(meta, filename=""):
+    mime = (meta or {}).get("mime") or ""
+    name = (meta or {}).get("filename") or filename or ""
+    if mime.startswith("image/"):
+        return True
+    return name.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"))
+
+@app.route("/api/knowledge/files/<stored_name>", methods=["GET"])
+def download_knowledge_file(stored_name):
+    """预览或下载知识库文件；图片默认内联展示，?download=1 强制下载。"""
+    safe = os.path.basename(stored_name)
+    path = os.path.join(FILES, safe)
+    if not os.path.isfile(path):
+        return jsonify({"error": "not found"}), 404
+    data = read_json("knowledge", {"items": []})
+    meta = next((it for it in data.get("items", []) if it.get("stored_name") == safe), None)
+    force_download = request.args.get("download") == "1"
+    return send_from_directory(
+        FILES,
+        safe,
+        as_attachment=force_download or not _is_image_meta(meta, safe),
+        download_name=(meta or {}).get("filename") or safe,
+    )
 
 # ---------------------------------------------------------------------------
 # products（好品集）— 扁平结构 {products: [...]}，

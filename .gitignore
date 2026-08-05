@@ -6,3 +6,5 @@ server.log
 *.swp
 .idea/
 .vscode/
+data/files/
+data/*.tmp
