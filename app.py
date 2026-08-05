@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AI情报站 — 本地信息聚合站后端
+"""工作台 — 本地信息聚合站后端
 
 提供：
   - 静态页面（index.html）
@@ -58,7 +58,7 @@ def write_json(name, data):
     os.replace(tmp, p)
 
 def touch_meta():
-    meta = read_json("meta", {"site_name": "AI情报站"})
+    meta = read_json("meta", {"site_name": "工作台"})
     meta["updated_at"] = _now()
     write_json("meta", meta)
 
@@ -192,6 +192,22 @@ def _migrate_links_to_knowledge():
     write_json("knowledge", data)
 
 _migrate_links_to_knowledge()
+
+@app.route("/api/upload", methods=["POST"])
+def generic_upload():
+    """通用文件上传（如待办配图），只存文件、不落库，返回 stored_name 供业务方自行引用。"""
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"error": "file required"}), 400
+    safe = secure_filename(f.filename) or "file"
+    stored = f"{uuid.uuid4().hex[:12]}_{safe}"
+    f.save(os.path.join(FILES, stored))
+    return jsonify({
+        "stored_name": stored,
+        "filename": f.filename,
+        "mime": f.mimetype or "application/octet-stream",
+        "size": os.path.getsize(os.path.join(FILES, stored)),
+    }), 201
 
 @app.route("/api/knowledge/upload", methods=["POST"])
 def upload_knowledge_file():

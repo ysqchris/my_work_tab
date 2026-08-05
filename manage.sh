@@ -1,5 +1,5 @@
 #!/bin/bash
-# AI情报站服务管理脚本
+# 工作台服务管理脚本
 # 用法: ./manage.sh start | stop | restart | status
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -10,10 +10,10 @@ LOG="$DIR/server.log"
 
 start() {
   if curl -s "http://localhost:$PORT/healthz" >/dev/null 2>&1; then
-    echo "AI情报站已在运行 (port $PORT)"
+    echo "工作台已在运行 (port $PORT)"
     return 0
   fi
-  echo "启动 AI情报站…"
+  echo "启动 工作台…"
   source "$VENV"
   nohup python3 app.py > "$LOG" 2>&1 &
   sleep 2
