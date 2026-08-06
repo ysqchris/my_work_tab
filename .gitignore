@@ -1,0 +1,8 @@
+# Python virtual environments and local runtime output
+.venv/
+__pycache__/
+*.py[cod]
+server.log
+
+# Atomic write leftovers
+data/*.tmp

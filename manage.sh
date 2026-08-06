@@ -1,5 +1,5 @@
 #!/bin/bash
-# AI情报站服务管理脚本
+# 情报站 · 个人工作台服务管理脚本
 # 用法: ./manage.sh start | stop | restart | status
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
