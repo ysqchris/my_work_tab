@@ -8,9 +8,13 @@
 """
 import json
 import os
+import re
+import html
 import threading
 import uuid
 import datetime
+import urllib.request
+import urllib.parse
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_from_directory
 
@@ -144,6 +148,7 @@ make_crud("tasks")
 make_crud("notes")
 make_crud("knowledge")
 make_crud("inbox")
+make_crud("bookmarks")
 
 # ---------------------------------------------------------------------------
 # 知识库：链接 / 文档 / 文件；旧 links.json 自动迁移
@@ -192,6 +197,55 @@ def _migrate_links_to_knowledge():
     write_json("knowledge", data)
 
 _migrate_links_to_knowledge()
+
+# ---------------------------------------------------------------------------
+# 书签：抓取网页 <title> 和 favicon，新建书签时自动填充
+# ---------------------------------------------------------------------------
+_TITLE_RE = re.compile(rb"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_LINK_TAG_RE = re.compile(rb"<link\b[^>]*>", re.IGNORECASE)
+_ATTR_RE = re.compile(rb'([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*["\']([^"\']*)["\']')
+_ICON_RELS = {"icon", "shortcut icon", "apple-touch-icon", "apple-touch-icon-precomposed"}
+
+def _extract_favicon(raw):
+    """逐个解析 <link> 标签的属性字典再取 rel/href，避免 data-base-href 这类属性名里也带 'href=' 而被误匹配。"""
+    for tag in _LINK_TAG_RE.findall(raw):
+        attrs = {}
+        for am in _ATTR_RE.finditer(tag):
+            attrs[am.group(1).decode("ascii", "ignore").lower()] = am.group(2)
+        rel = (attrs.get("rel") or b"").decode("utf-8", "ignore").strip().lower()
+        href = attrs.get("href")
+        if rel in _ICON_RELS and href:
+            return href.decode("utf-8", "ignore").strip()
+    return None
+
+@app.route("/api/bookmarks/fetch-meta", methods=["GET"])
+def fetch_bookmark_meta():
+    """抓取网页标题和 favicon，用于新建书签自动填充。抓取失败时静默降级（返回空标题+兜底图标），不阻塞创建。"""
+    url = (request.args.get("url") or "").strip()
+    if not url or not url.lower().startswith(("http://", "https://")):
+        return jsonify({"error": "invalid url"}), 400
+    parsed = urllib.parse.urlsplit(url)
+    favicon = f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
+    title = ""
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml",
+        })
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            raw = resp.read(300 * 1024)
+            charset = resp.headers.get_content_charset() or "utf-8"
+        m = _TITLE_RE.search(raw)
+        if m:
+            title = html.unescape(m.group(1).decode(charset, errors="ignore"))
+            title = re.sub(r"\s+", " ", title).strip()
+        href = _extract_favicon(raw)
+        if href:
+            favicon = urllib.parse.urljoin(url, href)
+    except Exception:
+        pass
+    return jsonify({"title": title, "favicon": favicon})
 
 def _save_upload_file(f, default_name="paste.bin"):
     """保存上传文件；兼容剪贴板无文件名的 blob。"""
