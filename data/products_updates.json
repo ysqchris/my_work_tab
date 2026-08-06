@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-04T17:49:00+08:00",
+  "updated_at": "2026-08-06T11:11:31+08:00",
   "items": [
     {
       "product": "WorkBuddy",
@@ -364,104 +364,6 @@
       "img": "",
       "id": "93ff9799ab0b",
       "created_at": "2026-07-28T17:50:42+08:00"
-    },
-    {
-      "id": "seed-crewai",
-      "product": "CrewAI",
-      "type": "产品动态",
-      "date": "2026-07-24",
-      "title": "CrewAI 更新至 v1.15.6，角色化多Agent协作框架持续迭代",
-      "points": [
-        "已确认版本推进至 v1.15.6，与最新 GitHub release 对齐",
-        "强化角色化 Agent 协作编排能力"
-      ],
-      "view": "开源多Agent协作框架标杆，imate 可借鉴其角色化任务分发机制",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-dify",
-      "product": "Dify",
-      "type": "产品动态",
-      "date": "2026-07-21",
-      "title": "Dify 发布 v1.16.0，开发者自建型数字同事平台",
-      "points": [
-        "最新 GitHub release 为 v1.16.0",
-        "持续强化工作流编排与 Agent 构建能力"
-      ],
-      "view": "开发者自建赛道头部，与 imate 在企业自建场景存在竞争",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-multica",
-      "product": "Multica",
-      "type": "产品动态",
-      "date": "2026-07-25",
-      "title": "Multica 多智能体协作平台动态更新",
-      "points": [
-        "页面记录更新至 7/25，多智能体团队协作方向活跃",
-        "聚焦 agent 团队协作编排"
-      ],
-      "view": "多Agent协作直接竞品，需持续跟踪其协作范式",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-qoderwake",
-      "product": "QoderWake",
-      "type": "产品动态",
-      "date": "2026-07-24",
-      "title": "QoderWake（阿里）生产级AI数字员工平台",
-      "points": [
-        "Harness-First 架构，7x24 自主值守",
-        "页面记录更新至 7/24"
-      ],
-      "view": "阿里系数字员工平台，企业级自主值守是 imate 可参考方向",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-taskade",
-      "product": "Taskade",
-      "type": "产品动态",
-      "date": "2026-07-20",
-      "title": "Taskade 多Agent并行协作平台",
-      "points": [
-        "页面记录更新至 7/20",
-        "项目管理 + EVE agent 并行协作"
-      ],
-      "view": "协同办公 + 多Agent 结合，与 imate 协作定位相近",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-dust",
-      "product": "Dust.tt",
-      "type": "产品动态",
-      "date": "2026-07-22",
-      "title": "Dust.tt 企业知识型 AI 员工",
-      "points": [
-        "页面记录更新至 7/22",
-        "面向企业的 AI 员工/知识助手"
-      ],
-      "view": "企业知识助手方向，可参考其企业接入范式",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-mscopilot",
-      "product": "Microsoft Copilot",
-      "type": "产品动态",
-      "date": "2026-07-22",
-      "title": "Microsoft Copilot 企业级 AI 助理",
-      "points": [
-        "页面记录更新至 7/22",
-        "M365 Copilot / Copilot Studio 持续迭代"
-      ],
-      "view": "办公套件内嵌 AI 同事的标杆，imate 需关注其生态位",
-      "url": "",
-      "img": ""
     }
   ]
 }
