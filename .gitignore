@@ -1,4 +1,5 @@
 # Python virtual environments and local runtime output
+.venv
 .venv/
 __pycache__/
 *.py[cod]
