@@ -1,0 +1,192 @@
+{
+  "products": [
+    {
+      "id": "paozi",
+      "name": "狍子AI",
+      "company": "腾讯",
+      "type": "腾讯内部",
+      "source": "km",
+      "keywords": [
+        "狍子",
+        "狍子AI"
+      ],
+      "official_url": "",
+      "km_knowledge_id": 10575,
+      "km_knowledge_url": "https://km.woa.com/knowledge/10575/node/2",
+      "note": "发版公告文集，优先从此文集拉取版本更新"
+    },
+    {
+      "id": "workbuddy",
+      "name": "WorkBuddy",
+      "company": "腾讯",
+      "type": "腾讯内部",
+      "source": "web",
+      "keywords": [
+        "WorkBuddy",
+        "workbuddy"
+      ],
+      "official_url": "https://www.codebuddy.cn/docs/workbuddy/Changelog",
+      "note": "更新日志：codebuddy.cn/docs/workbuddy/Changelog；KM无官方发版文集，走外网搜索"
+    },
+    {
+      "id": "box-ai",
+      "name": "Box-AI",
+      "company": "腾讯",
+      "type": "腾讯内部",
+      "source": "km",
+      "keywords": [
+        "Box-AI",
+        "BoxAI",
+        "box ai"
+      ],
+      "official_url": "https://box-ai.woa.com/docs/%E6%9B%B4%E6%96%B0%E6%97%A5%E5%BF%97.html",
+      "km_knowledge_id": 10814,
+      "km_knowledge_url": "https://km.woa.com/knowledge/10814",
+      "note": "更新日志：box-ai.woa.com/docs/更新日志.html"
+    },
+    {
+      "id": "qoderwake",
+      "name": "QoderWake",
+      "company": "阿里",
+      "type": "协同办公",
+      "source": "web",
+      "keywords": [
+        "QoderWake",
+        "Qoder",
+        "阿里数字员工",
+        "qoder.com"
+      ],
+      "official_url": "https://qoder.com",
+      "note": "阿里生产级AI数字员工平台，Harness-First架构，7x24自主值守"
+    },
+    {
+      "id": "dingtalk-ai",
+      "name": "钉钉 AI 助理",
+      "company": "阿里",
+      "type": "协同办公",
+      "source": "web",
+      "keywords": [
+        "钉钉AI",
+        "钉钉智能助理",
+        "DingTalk AI",
+        "钉钉悟空"
+      ],
+      "official_url": "https://www.dingtalk.com",
+      "note": ""
+    },
+    {
+      "id": "ms-copilot",
+      "name": "Microsoft Copilot",
+      "company": "微软",
+      "type": "协同办公",
+      "source": "web",
+      "keywords": [
+        "Microsoft Copilot",
+        "Copilot Studio",
+        "M365 Copilot"
+      ],
+      "official_url": "https://copilot.microsoft.com",
+      "note": ""
+    },
+    {
+      "id": "coze",
+      "name": "Coze (扣子)",
+      "company": "字节",
+      "type": "协同办公",
+      "source": "web",
+      "keywords": [
+        "Coze",
+        "扣子",
+        "字节扣子",
+        "Coze 3.0"
+      ],
+      "official_url": "https://www.coze.cn",
+      "note": ""
+    },
+    {
+      "id": "multica",
+      "name": "Multica",
+      "company": "Multica",
+      "type": "多Agent协作",
+      "source": "web",
+      "keywords": [
+        "Multica",
+        "multica.ai",
+        "多智能体协作"
+      ],
+      "official_url": "https://multica.ai",
+      "note": ""
+    },
+    {
+      "id": "crewai",
+      "name": "CrewAI",
+      "company": "CrewAI",
+      "type": "多Agent协作",
+      "source": "web",
+      "keywords": [
+        "CrewAI",
+        "Crew AI",
+        "crewai"
+      ],
+      "official_url": "https://www.crewai.com",
+      "note": "开源角色化多Agent协作框架"
+    },
+    {
+      "id": "taskade",
+      "name": "Taskade",
+      "company": "Taskade",
+      "type": "多Agent协作",
+      "source": "web",
+      "keywords": [
+        "Taskade",
+        "Taskade AI",
+        "EVE agent"
+      ],
+      "official_url": "https://www.taskade.com",
+      "note": "项目管理+多Agent并行协作平台"
+    },
+    {
+      "id": "9e06370bad",
+      "name": "Lindy AI",
+      "company": "Lindy",
+      "type": "多Agent协作",
+      "source": "web",
+      "keywords": [
+        "Lindy",
+        "Lindy AI"
+      ],
+      "official_url": "https://www.lindy.ai",
+      "note": "AI 邮箱/日程数字同事"
+    },
+    {
+      "id": "jira",
+      "name": "Jira (Atlassian)",
+      "company": "Atlassian",
+      "type": "项目协作",
+      "source": "web",
+      "keywords": [
+        "Jira AI",
+        "Atlassian Intelligence",
+        "Rovo",
+        "Agents in Jira"
+      ],
+      "official_url": "https://www.atlassian.com/software/jira/release",
+      "note": "项目协作平台；AI方向：Jira AI agents、Rovo skills、Atlassian Intelligence"
+    },
+    {
+      "id": "clickup",
+      "name": "ClickUp",
+      "company": "ClickUp",
+      "type": "项目协作",
+      "source": "web",
+      "keywords": [
+        "ClickUp AI",
+        "Brain2",
+        "ClickUp Brain",
+        "ClickUp AI Agent"
+      ],
+      "official_url": "https://clickup.com/learn/topic/project-management/tools/clickup/news/",
+      "note": "项目协作平台；AI方向：Brain2 AI平台、ClickUp Brain、AI Agent"
+    }
+  ]
+}
