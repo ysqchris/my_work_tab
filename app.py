@@ -193,21 +193,42 @@ def _migrate_links_to_knowledge():
 
 _migrate_links_to_knowledge()
 
+def _save_upload_file(f, default_name="paste.bin"):
+    """保存上传文件；兼容剪贴板无文件名的 blob。"""
+    if not f:
+        return None
+    original = (f.filename or "").strip() or default_name
+    # 按 mime 补扩展名，避免 secure_filename 把空名吃掉
+    mime = (f.mimetype or "").lower()
+    if "." not in original:
+        ext = {
+            "image/png": ".png",
+            "image/jpeg": ".jpg",
+            "image/jpg": ".jpg",
+            "image/gif": ".gif",
+            "image/webp": ".webp",
+            "image/bmp": ".bmp",
+        }.get(mime, "")
+        original = (original if original != "blob" else "paste") + ext
+    safe = secure_filename(original) or ("paste" + (".png" if mime.startswith("image/") else ".bin"))
+    stored = f"{uuid.uuid4().hex[:12]}_{safe}"
+    path = os.path.join(FILES, stored)
+    f.save(path)
+    return {
+        "stored_name": stored,
+        "filename": original,
+        "mime": f.mimetype or "application/octet-stream",
+        "size": os.path.getsize(path),
+    }
+
 @app.route("/api/upload", methods=["POST"])
 def generic_upload():
-    """通用文件上传（如待办配图），只存文件、不落库，返回 stored_name 供业务方自行引用。"""
+    """通用文件上传（如待办/记录配图），只存文件、不落库，返回 stored_name。"""
     f = request.files.get("file")
-    if not f or not f.filename:
+    saved = _save_upload_file(f, "paste.png")
+    if not saved:
         return jsonify({"error": "file required"}), 400
-    safe = secure_filename(f.filename) or "file"
-    stored = f"{uuid.uuid4().hex[:12]}_{safe}"
-    f.save(os.path.join(FILES, stored))
-    return jsonify({
-        "stored_name": stored,
-        "filename": f.filename,
-        "mime": f.mimetype or "application/octet-stream",
-        "size": os.path.getsize(os.path.join(FILES, stored)),
-    }), 201
+    return jsonify(saved), 201
 
 @app.route("/api/knowledge/upload", methods=["POST"])
 def upload_knowledge_file():
