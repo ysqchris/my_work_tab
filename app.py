@@ -407,6 +407,10 @@ def list_types():
 def index():
     return send_from_directory(BASE, "index.html")
 
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(STATIC, "favicon-32.png", mimetype="image/png")
+
 @app.route("/api/meta", methods=["GET"])
 def get_meta():
     return jsonify(read_json("meta", {}))

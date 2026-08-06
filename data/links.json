@@ -1,15 +1,16 @@
 {
   "items": [
     {
-      "title": "Building a personal knowledge system",
-      "url": "https://example.com",
-      "source": "手动保存",
+      "title": "AI Coding 时代，研发项目管理新范式探索与实践",
+      "url": "https://km.woa.com/articles/show/666612",
+      "source": "KM 好文",
       "status": "稍后阅读",
-      "topic": "个人系统",
-      "id": "b5c62d10d569",
-      "created_at": "2026-08-05T12:28:22+08:00",
-      "date": "2026-08-05"
+      "topic": "AI 研效",
+      "id": "2fc1e743146c",
+      "created_at": "2026-08-05T17:58:43+08:00",
+      "date": "2026-08-05",
+      "kind": "link"
     }
   ],
-  "updated_at": "2026-08-05T12:28:22+08:00"
+  "updated_at": "2026-08-06T11:11:31+08:00"
 }

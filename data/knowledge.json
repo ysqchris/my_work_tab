@@ -14,28 +14,6 @@
       "date": "2026-08-05"
     },
     {
-      "kind": "document",
-      "title": "竞品分析草稿",
-      "content": "这是一篇知识库文档。",
-      "topic": "竞品",
-      "id": "db1f096c156a",
-      "created_at": "2026-08-05T18:32:01+08:00",
-      "date": "2026-08-05"
-    },
-    {
-      "id": "f697e903bdf7",
-      "kind": "file",
-      "title": "kb-test.txt",
-      "filename": "kb-test.txt",
-      "stored_name": "d3279c36dcad_kb-test.txt",
-      "mime": "text/plain",
-      "size": 16,
-      "topic": "",
-      "source": "本地上传",
-      "created_at": "2026-08-05T18:32:01+08:00",
-      "date": "2026-08-05"
-    },
-    {
       "title": "AI Coding 时代，研发项目管理新范式探索与实践",
       "url": "https://km.woa.com/articles/show/666612",
       "source": "KM 好文",
@@ -45,18 +23,7 @@
       "created_at": "2026-08-05T17:58:43+08:00",
       "date": "2026-08-05",
       "kind": "link"
-    },
-    {
-      "title": "Building a personal knowledge system",
-      "url": "https://example.com",
-      "source": "手动保存",
-      "status": "稍后阅读",
-      "topic": "个人系统",
-      "id": "b5c62d10d569",
-      "created_at": "2026-08-05T12:28:22+08:00",
-      "date": "2026-08-05",
-      "kind": "link"
     }
   ],
-  "updated_at": "2026-08-05T18:33:33+08:00"
+  "updated_at": "2026-08-06T11:11:31+08:00"
 }

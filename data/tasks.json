@@ -1,32 +1,4 @@
 {
-  "items": [
-    {
-      "title": "梳理 MVP 功能边界",
-      "priority": "高",
-      "today": true,
-      "project": "工作台升级",
-      "id": "3bfe88bcc596",
-      "created_at": "2026-08-05T12:29:29+08:00",
-      "date": "2026-08-05"
-    },
-    {
-      "title": "完成个人工作台首页原型",
-      "priority": "高",
-      "today": true,
-      "project": "工作台升级",
-      "id": "812ee6042d02",
-      "created_at": "2026-08-05T12:29:29+08:00",
-      "date": "2026-08-05"
-    },
-    {
-      "title": "整理本周情报与判断",
-      "priority": "中",
-      "today": true,
-      "project": "每周回顾",
-      "id": "d6227ca49686",
-      "created_at": "2026-08-05T12:28:22+08:00",
-      "date": "2026-08-05"
-    }
-  ],
-  "updated_at": "2026-08-06T00:48:00+08:00"
+  "items": [],
+  "updated_at": "2026-08-06T11:11:31+08:00"
 }
