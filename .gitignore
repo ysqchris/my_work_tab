@@ -2,9 +2,12 @@
 __pycache__/
 *.pyc
 server.log
+server.pid
 .DS_Store
 *.swp
 .idea/
-.vscode/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
 data/files/
 data/*.tmp
