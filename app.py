@@ -19,7 +19,8 @@ from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_from_directory
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(BASE, "data")
+# 用户数据放在代码仓库之外的持久目录；未配置时兼容本地开发。
+DATA = os.environ.get("WORKTAB_DATA_DIR", os.path.join(BASE, "data"))
 FILES = os.path.join(DATA, "files")
 STATIC = os.path.join(BASE, "static")
 
@@ -165,7 +166,25 @@ _DOUBAN_DOMAIN = {
 }
 _douban_hot_cache = {}
 _douban_hot_lock = threading.Lock()
-_DOUBAN_CACHE_TTL = 30 * 60  # seconds
+_DOUBAN_HOT_CACHE_NAME = "douban_hot"
+
+
+def _shanghai_date():
+    return datetime.datetime.now(
+        datetime.timezone(datetime.timedelta(hours=8))
+    ).date().isoformat()
+
+
+def _load_douban_hot_cache():
+    """读取每天中午任务写入的持久缓存，服务重启后仍可复用。"""
+    saved = read_json(_DOUBAN_HOT_CACHE_NAME, {"date": "", "items": {}})
+    if not isinstance(saved, dict) or not isinstance(saved.get("items"), dict):
+        return {"date": "", "items": {}}
+    return saved
+
+
+def _save_douban_hot_cache(cache):
+    write_json(_DOUBAN_HOT_CACHE_NAME, cache)
 
 def _normalize_douban_item(raw, subtype):
     """把 Rexxar subject 条目映射成前端统一结构。"""
@@ -243,16 +262,24 @@ def _fetch_douban_collection(collection, count=20):
 
 @app.route("/api/media/douban-hot", methods=["GET"])
 def media_douban_hot():
-    """代理豆瓣热门榜；失败时返回空列表，不阻塞个人库。"""
+    """返回每日中午更新一次的豆瓣热门榜；首次运行才按需初始化。"""
     subtype = (request.args.get("type") or "movie").strip().lower()
     if subtype not in _DOUBAN_HOT_TYPES:
         return jsonify({"error": "invalid type", "items": []}), 400
-    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+
+    # refresh=1 仅由每日 12:00 的本地定时任务调用。
+    force_refresh = request.args.get("refresh") == "1"
+    today = _shanghai_date()
     with _douban_hot_lock:
-        cached = _douban_hot_cache.get(subtype)
-        if cached and now - cached["ts"] < _DOUBAN_CACHE_TTL:
-            return jsonify({"items": cached["items"], "cached": True, "error": None})
-        stale = cached
+        saved = _load_douban_hot_cache()
+        cached_items = saved.get("items", {}).get(subtype)
+        # 页面访问始终只读取缓存，不再每 30 分钟向豆瓣发请求。
+        if cached_items is not None and not force_refresh:
+            return jsonify({"items": cached_items, "cached": True, "updated_at": saved.get("updated_at"), "error": None})
+        # 首次部署尚无缓存时，允许初始化一次，避免页面空白。
+        if cached_items is not None and saved.get("date") == today:
+            return jsonify({"items": cached_items, "cached": True, "updated_at": saved.get("updated_at"), "error": None})
+
     error = None
     items = []
     try:
@@ -263,15 +290,56 @@ def media_douban_hot():
                 items.append(mapped)
     except Exception as e:
         error = str(e)
-        items = []
+
     with _douban_hot_lock:
+        saved = _load_douban_hot_cache()
         if items:
-            _douban_hot_cache[subtype] = {"ts": now, "items": items}
-        elif stale:
-            return jsonify({"items": stale["items"], "cached": True, "error": error})
-    return jsonify({"items": items, "cached": False, "error": error})
+            saved.setdefault("items", {})[subtype] = items
+            saved["date"] = today
+            saved["updated_at"] = _now()
+            _save_douban_hot_cache(saved)
+            return jsonify({"items": items, "cached": False, "updated_at": saved["updated_at"], "error": None})
+        # 更新失败时继续返回上一版缓存，页面不受影响。
+        stale = saved.get("items", {}).get(subtype, [])
+        return jsonify({"items": stale, "cached": True, "updated_at": saved.get("updated_at"), "error": error})
 
 make_crud("media")
+
+# ---------------------------------------------------------------------------
+# 豆瓣封面图片代理：豆瓣图片域名对无 Referer/UA 的请求返回 418，
+# 前端直连会被拦截导致封面加载失败，这里由后端转发一次。
+# ---------------------------------------------------------------------------
+from flask import Response
+
+_ALLOWED_IMG_HOST_SUFFIX = ".doubanio.com"
+
+
+@app.route("/api/media/img-proxy", methods=["GET"])
+def media_img_proxy():
+    src = (request.args.get("url") or "").strip()
+    if not src:
+        return "missing url", 400
+    try:
+        parsed = urllib.parse.urlparse(src)
+    except Exception:
+        return "bad url", 400
+    host = parsed.hostname or ""
+    if parsed.scheme not in ("http", "https") or not (host == "doubanio.com" or host.endswith(_ALLOWED_IMG_HOST_SUFFIX)):
+        return "host not allowed", 400
+    req = urllib.request.Request(src, headers={
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+                      "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+        "Referer": "https://movie.douban.com/",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = resp.read()
+            content_type = resp.headers.get("Content-Type", "image/jpeg")
+    except Exception as e:
+        return f"fetch failed: {e}", 502
+    return Response(data, mimetype=content_type, headers={
+        "Cache-Control": "public, max-age=86400",
+    })
 
 # ---------------------------------------------------------------------------
 # 知识库：链接 / 文档 / 文件；旧 links.json 自动迁移
