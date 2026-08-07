@@ -151,6 +151,129 @@ make_crud("inbox")
 make_crud("bookmarks")
 
 # ---------------------------------------------------------------------------
+# 书影音：豆瓣热门代理（须在 media CRUD 之前注册，避免被 <id> 吃掉）
+# ---------------------------------------------------------------------------
+_DOUBAN_HOT_TYPES = {
+    "movie": "movie_real_time_hotest",
+    "tv": "tv_real_time_hotest",
+    "show": "show_chinese_best_weekly",
+    "music": "music_single",
+    "book": "book_hot",
+}
+_DOUBAN_DOMAIN = {
+    "movie": "av", "tv": "av", "show": "av", "music": "av", "book": "book",
+}
+_douban_hot_cache = {}
+_douban_hot_lock = threading.Lock()
+_DOUBAN_CACHE_TTL = 30 * 60  # seconds
+
+def _normalize_douban_item(raw, subtype):
+    """把 Rexxar subject 条目映射成前端统一结构。"""
+    if not isinstance(raw, dict):
+        return None
+    # collection items 常包一层 subject
+    sub = raw.get("subject") if isinstance(raw.get("subject"), dict) else raw
+    douban_id = str(sub.get("id") or raw.get("id") or "").strip()
+    title = (sub.get("title") or raw.get("title") or "").strip()
+    if not title and not douban_id:
+        return None
+    rating = sub.get("rating") or raw.get("rating") or {}
+    if isinstance(rating, dict):
+        score = rating.get("value") or rating.get("average") or None
+    else:
+        score = rating
+    try:
+        score = float(score) if score not in (None, "", 0, "0") else None
+    except (TypeError, ValueError):
+        score = None
+    cover = ""
+    for key in ("cover", "pic", "images"):
+        val = sub.get(key) or raw.get(key)
+        if isinstance(val, dict):
+            cover = val.get("large") or val.get("normal") or val.get("medium") or val.get("small") or ""
+        elif isinstance(val, str):
+            cover = val
+        if cover:
+            break
+    url = (sub.get("url") or raw.get("url") or "").strip()
+    if not url and douban_id:
+        if subtype == "book":
+            url = f"https://book.douban.com/subject/{douban_id}/"
+        elif subtype == "music":
+            url = f"https://music.douban.com/subject/{douban_id}/"
+        else:
+            url = f"https://movie.douban.com/subject/{douban_id}/"
+    year = str(sub.get("year") or raw.get("year") or "").strip()
+    card_subtitle = (
+        sub.get("card_subtitle")
+        or raw.get("card_subtitle")
+        or sub.get("subtitle")
+        or ""
+    )
+    if isinstance(card_subtitle, list):
+        card_subtitle = " / ".join(str(x) for x in card_subtitle if x)
+    return {
+        "douban_id": douban_id,
+        "title": title or douban_id,
+        "cover": cover,
+        "rating": score,
+        "url": url,
+        "year": year,
+        "card_subtitle": str(card_subtitle).strip(),
+        "subtype": subtype,
+        "domain": _DOUBAN_DOMAIN.get(subtype, "av"),
+        "source": "douban",
+    }
+
+def _fetch_douban_collection(collection, count=20):
+    url = (
+        f"https://m.douban.com/rexxar/api/v2/subject_collection/{collection}/items"
+        f"?start=0&count={count}&items_only=1&for_mobile=1"
+    )
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+                      "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+        "Referer": f"https://m.douban.com/subject_collection/{collection}",
+        "Accept": "application/json, text/plain, */*",
+    })
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    items = payload.get("subject_collection_items") or payload.get("items") or []
+    return items if isinstance(items, list) else []
+
+@app.route("/api/media/douban-hot", methods=["GET"])
+def media_douban_hot():
+    """代理豆瓣热门榜；失败时返回空列表，不阻塞个人库。"""
+    subtype = (request.args.get("type") or "movie").strip().lower()
+    if subtype not in _DOUBAN_HOT_TYPES:
+        return jsonify({"error": "invalid type", "items": []}), 400
+    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+    with _douban_hot_lock:
+        cached = _douban_hot_cache.get(subtype)
+        if cached and now - cached["ts"] < _DOUBAN_CACHE_TTL:
+            return jsonify({"items": cached["items"], "cached": True, "error": None})
+        stale = cached
+    error = None
+    items = []
+    try:
+        raw_items = _fetch_douban_collection(_DOUBAN_HOT_TYPES[subtype])
+        for raw in raw_items:
+            mapped = _normalize_douban_item(raw, subtype)
+            if mapped:
+                items.append(mapped)
+    except Exception as e:
+        error = str(e)
+        items = []
+    with _douban_hot_lock:
+        if items:
+            _douban_hot_cache[subtype] = {"ts": now, "items": items}
+        elif stale:
+            return jsonify({"items": stale["items"], "cached": True, "error": error})
+    return jsonify({"items": items, "cached": False, "error": error})
+
+make_crud("media")
+
+# ---------------------------------------------------------------------------
 # 知识库：链接 / 文档 / 文件；旧 links.json 自动迁移
 # ---------------------------------------------------------------------------
 def _infer_knowledge_kind(it):
@@ -277,7 +400,7 @@ def _save_upload_file(f, default_name="paste.bin"):
 
 @app.route("/api/upload", methods=["POST"])
 def generic_upload():
-    """通用文件上传（如待办/记录配图），只存文件、不落库，返回 stored_name。"""
+    """通用文件上传（如待办/笔记配图），只存文件、不落库，返回 stored_name。"""
     f = request.files.get("file")
     saved = _save_upload_file(f, "paste.png")
     if not saved:
