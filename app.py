@@ -169,6 +169,48 @@ _douban_hot_lock = threading.Lock()
 _DOUBAN_HOT_CACHE_NAME = "douban_hot"
 
 
+# ---------------------------------------------------------------------------
+# 天气：代理 weatherapi.com，前端小时钟/天气小标题用，缓存 20 分钟避免频繁请求。
+# ---------------------------------------------------------------------------
+_WEATHER_API_KEY = "d92b0294d0ee41e587933457260603"
+_weather_cache = {"data": None, "ts": 0}
+_weather_lock = threading.Lock()
+
+
+@app.route("/api/weather", methods=["GET"])
+def get_weather():
+    city = (request.args.get("city") or "深圳").strip()
+    now_ts = datetime.datetime.now().timestamp()
+    with _weather_lock:
+        cached = _weather_cache.get("data")
+        if cached and cached.get("city") == city and now_ts - _weather_cache.get("ts", 0) < 1200:
+            return jsonify(cached)
+    try:
+        import ssl as _ssl
+        params = urllib.parse.urlencode({"q": city, "days": "1", "key": _WEATHER_API_KEY})
+        url = f"https://api.weatherapi.com/v1/forecast.json?{params}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        ctx = _ssl._create_unverified_context()
+        with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
+            payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+        result = {
+            "city": city,
+            "temp_c": payload["current"]["temp_c"],
+            "condition": payload["current"]["condition"]["text"],
+            "icon": payload["current"]["condition"].get("icon", ""),
+            "error": None,
+        }
+        with _weather_lock:
+            _weather_cache["data"] = result
+            _weather_cache["ts"] = now_ts
+        return jsonify(result)
+    except Exception as e:
+        stale = _weather_cache.get("data")
+        if stale:
+            return jsonify(stale)
+        return jsonify({"city": city, "temp_c": None, "condition": "", "icon": "", "error": str(e)})
+
+
 def _shanghai_date():
     return datetime.datetime.now(
         datetime.timezone(datetime.timedelta(hours=8))
@@ -396,6 +438,7 @@ _migrate_links_to_knowledge()
 # 书签：抓取网页 <title> 和 favicon，新建书签时自动填充
 # ---------------------------------------------------------------------------
 _TITLE_RE = re.compile(rb"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_META_TAG_RE = re.compile(rb"<meta\b[^>]*>", re.IGNORECASE)
 _LINK_TAG_RE = re.compile(rb"<link\b[^>]*>", re.IGNORECASE)
 _ATTR_RE = re.compile(rb'([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*["\']([^"\']*)["\']')
 _ICON_RELS = {"icon", "shortcut icon", "apple-touch-icon", "apple-touch-icon-precomposed"}
@@ -412,34 +455,241 @@ def _extract_favicon(raw):
             return href.decode("utf-8", "ignore").strip()
     return None
 
+def _extract_summary(raw):
+    """从 <meta name="description"> 或 og:description 抽一句话摘要，抽不到就留空，不阀阻创建。"""
+    best = None
+    for tag in _META_TAG_RE.findall(raw):
+        attrs = {}
+        for am in _ATTR_RE.finditer(tag):
+            attrs[am.group(1).decode("ascii", "ignore").lower()] = am.group(2)
+        name = (attrs.get("name") or attrs.get("property") or b"").decode("utf-8", "ignore").strip().lower()
+        content = attrs.get("content")
+        if not content:
+            continue
+        text = html.unescape(content.decode("utf-8", "ignore")).strip()
+        text = re.sub(r"\s+", " ", text)
+        if not text:
+            continue
+        if name == "description":
+            return text[:160]
+        if name in ("og:description", "twitter:description") and not best:
+            best = text[:160]
+    return best or ""
+
+
+# 内网 SSO 登录相关域名/标题关键词：服务端抓取时没有用户浏览器的登录态，
+# 需要登录的内网页面（如 git.woa.com 仓库）会被重定向到这些域名，
+# 抓到的 <title> 只会是登录页标题（如“OA登录”），不能当作真实标题使用。
+_SSO_HOST_HINTS = ("passport.", "login.", "sso.", "oa.", "auth.")
+_SSO_TITLE_HINTS = ("oa登录", "登录", "login", "sign in", "signin", "统一身份认证", "passport")
+
+
+def _looks_like_sso_redirect(final_url, title):
+    """判断抓取结果是否命中了 SSO/登录跳转页，而不是目标页面本身。"""
+    host = urllib.parse.urlsplit(final_url).netloc.lower()
+    if any(hint in host for hint in _SSO_HOST_HINTS):
+        return True
+    t = (title or "").strip().lower()
+    if t and any(hint in t for hint in _SSO_TITLE_HINTS) and len(t) <= 12:
+        return True
+    return False
+
+
+def _fallback_title_from_url(url):
+    """当抓取到的标题不可信（命中登录页）时，从 URL 路径里拼一个可读的兜底标题。
+    例如 https://git.woa.com/Design/imate_project_cooperation -> "Design/imate_project_cooperation · git.woa.com"
+    """
+    parsed = urllib.parse.urlsplit(url)
+    path = parsed.path.strip("/")
+    path = urllib.parse.unquote(path)
+    if path:
+        return f"{path} · {parsed.netloc}"
+    return parsed.netloc or url
+
+
+# 特定域名的书签固定使用本地静态图标，不依赖实时抓取（内网站点常因登录态/网络策略导致favicon抓取失败或不清晰）。
+# key 为域名后缀匹配（endswith），value 为 /static/ 下的图标路径。
+_DOMAIN_ICON_OVERRIDES = {
+    "git.woa.com": "/static/bookmark-icons/gongfeng.png",  # 工蜂仓库，用户指定固定图标
+}
+
+
+def _domain_icon_override(url):
+    host = urllib.parse.urlsplit(url).netloc.lower()
+    for domain, icon in _DOMAIN_ICON_OVERRIDES.items():
+        if host == domain or host.endswith("." + domain):
+            return icon
+    return None
+
+
 @app.route("/api/bookmarks/fetch-meta", methods=["GET"])
 def fetch_bookmark_meta():
-    """抓取网页标题和 favicon，用于新建书签自动填充。抓取失败时静默降级（返回空标题+兜底图标），不阻塞创建。"""
+    """抓取网页标题和 favicon，用于新建书签自动填充。抓取失败时静默降级（返回空标题+兜底图标），不阻塞创建。
+    内网需要登录的页面，服务端请求没有用户浏览器的登录 Cookie，会被重定向到 SSO 登录页；
+    此时抓到的标题（如“OA登录”）不可信，改用 URL 路径拼出的兜底标题，避免误导用户。
+    """
     url = (request.args.get("url") or "").strip()
     if not url or not url.lower().startswith(("http://", "https://")):
         return jsonify({"error": "invalid url"}), 400
     parsed = urllib.parse.urlsplit(url)
     favicon = f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
     title = ""
+    summary = ""
+    final_url = url
     try:
         req = urllib.request.Request(url, headers={
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
                           "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml",
+            "Accept-Encoding": "identity",
         })
         with urllib.request.urlopen(req, timeout=6) as resp:
             raw = resp.read(300 * 1024)
+            if resp.headers.get("Content-Encoding", "").lower() == "gzip":
+                import gzip as _gzip
+                try:
+                    raw = _gzip.decompress(raw)
+                except Exception:
+                    pass
             charset = resp.headers.get_content_charset() or "utf-8"
+            final_url = resp.geturl() or url
         m = _TITLE_RE.search(raw)
         if m:
             title = html.unescape(m.group(1).decode(charset, errors="ignore"))
             title = re.sub(r"\s+", " ", title).strip()
+        summary = _extract_summary(raw)
         href = _extract_favicon(raw)
         if href:
             favicon = urllib.parse.urljoin(url, href)
     except Exception:
         pass
-    return jsonify({"title": title, "favicon": favicon})
+    if _looks_like_sso_redirect(final_url, title):
+        title = _fallback_title_from_url(url)
+        summary = ""
+    override_icon = _domain_icon_override(url)
+    if override_icon:
+        favicon = override_icon
+    return jsonify({"title": title, "favicon": favicon, "summary": summary})
+
+
+@app.route("/api/bookmarks/reorder", methods=["POST"])
+def reorder_bookmarks():
+    """拖拽排序后持久化。请求体 {"ids": ["id1","id2",...]} 是同一 kind（常用/备忘）子集内的新顺序。
+    实现方式：在原数组中找到这些 id 首次出现的位置，整体替换为新顺序，其他 kind 的元素保持原有相对位置不变。
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    ids = body.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        return jsonify({"error": "ids required"}), 400
+    data = read_json("bookmarks", {"items": []})
+    items = data["items"]
+    by_id = {str(it.get("id")): it for it in items}
+    ids = [str(i) for i in ids if str(i) in by_id]
+    if not ids:
+        return jsonify({"error": "no matching ids"}), 400
+    id_set = set(ids)
+    new_items = []
+    inserted = False
+    for it in items:
+        iid = str(it.get("id"))
+        if iid in id_set:
+            if not inserted:
+                new_items.extend(by_id[i] for i in ids)
+                inserted = True
+            # 已在上面一次性插入过，跳过重复
+        else:
+            new_items.append(it)
+    if not inserted:
+        new_items.extend(by_id[i] for i in ids)
+    data["items"] = new_items
+    data["updated_at"] = _now()
+    with _lock_for("bookmarks"):
+        write_json("bookmarks", data)
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# 书签分组：支持新建/重命名/删除，首次请求时自动初始化默认分组（内部/外部）。
+# 删除分组时需要同步清除书签中引用该分组的 group 字段，回退到“未分组”，所以不用通用 make_crud。
+# ---------------------------------------------------------------------------
+
+def _default_bookmark_groups():
+    now = _now()
+    return {
+        "items": [
+            {"id": "internal", "name": "内部", "created_at": now},
+            {"id": "external", "name": "外部", "created_at": now},
+        ],
+        "updated_at": now,
+    }
+
+
+@app.route("/api/bookmark-groups", methods=["GET"])
+def list_bookmark_groups():
+    data = read_json("bookmark_groups", None)
+    if not data or not data.get("items"):
+        data = _default_bookmark_groups()
+        with _lock_for("bookmark_groups"):
+            write_json("bookmark_groups", data)
+    return jsonify(data)
+
+
+@app.route("/api/bookmark-groups", methods=["POST"])
+def create_bookmark_group():
+    data = read_json("bookmark_groups", None) or _default_bookmark_groups()
+    body = request.get_json(force=True, silent=True) or {}
+    name = (body.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    item = {"id": uuid.uuid4().hex[:10], "name": name, "created_at": _now()}
+    data["items"].append(item)
+    data["updated_at"] = _now()
+    with _lock_for("bookmark_groups"):
+        write_json("bookmark_groups", data)
+    return jsonify(item), 201
+
+
+@app.route("/api/bookmark-groups/<group_id>", methods=["PUT", "PATCH"])
+def update_bookmark_group(group_id):
+    data = read_json("bookmark_groups", None) or _default_bookmark_groups()
+    for i, it in enumerate(data["items"]):
+        if str(it.get("id")) == str(group_id):
+            body = request.get_json(force=True, silent=True) or {}
+            if "name" in body:
+                name = (body.get("name") or "").strip()
+                if not name:
+                    return jsonify({"error": "name required"}), 400
+                it["name"] = name
+            data["items"][i] = it
+            data["updated_at"] = _now()
+            with _lock_for("bookmark_groups"):
+                write_json("bookmark_groups", data)
+            return jsonify(it)
+    return jsonify({"error": "not found"}), 404
+
+
+@app.route("/api/bookmark-groups/<group_id>", methods=["DELETE"])
+def delete_bookmark_group(group_id):
+    data = read_json("bookmark_groups", None) or _default_bookmark_groups()
+    before = len(data["items"])
+    data["items"] = [it for it in data["items"] if str(it.get("id")) != str(group_id)]
+    if len(data["items"]) == before:
+        return jsonify({"error": "not found"}), 404
+    data["updated_at"] = _now()
+    with _lock_for("bookmark_groups"):
+        write_json("bookmark_groups", data)
+    # 回收引用该分组的书签，回退为未分组
+    bdata = read_json("bookmarks", {"items": []})
+    changed = False
+    for it in bdata["items"]:
+        if str(it.get("group") or "") == str(group_id):
+            it["group"] = None
+            changed = True
+    if changed:
+        bdata["updated_at"] = _now()
+        with _lock_for("bookmarks"):
+            write_json("bookmarks", bdata)
+    return jsonify({"ok": True})
 
 def _save_upload_file(f, default_name="paste.bin"):
     """保存上传文件；兼容剪贴板无文件名的 blob。"""
