@@ -83,6 +83,16 @@ def make_crud(resource):
             if not it.get("id"):
                 it["id"] = uuid.uuid5(uuid.NAMESPACE_URL, str(it.get("url") or it.get("title") or uuid.uuid4().hex)).hex[:12]
                 changed = True
+        if R == "bookmarks":
+            # 内网 <站点>.woa.com 书签，若本地已有对应图标文件则自动纠正（既可修新书签，旧书签图标固定后也能跟着生效）
+            for it in data["items"]:
+                url = it.get("url") or ""
+                if not url:
+                    continue
+                override_icon = _domain_icon_override(url) or _woa_site_icon(url)
+                if override_icon and it.get("favicon") != override_icon:
+                    it["favicon"] = override_icon
+                    changed = True
         if changed:
             with _lock_for(R):
                 write_json(R, data)
@@ -514,6 +524,25 @@ _DOMAIN_ICON_OVERRIDES = {
 }
 
 
+def _woa_site_icon(url):
+    """通用规则：内网 <站点名>.woa.com 的链接，若本地已有 static/bookmark-icons/<站点名>.png 图标，直接用它。
+    例如 with.woa.com -> static/bookmark-icons/with.png；km.woa.com -> .../km.png。
+    比 _DOMAIN_ICON_OVERRIDES 更通用，不需要逐个域名手动登记，只要放对应文件名的图标进 bookmark-icons/ 目录即可生效。
+    """
+    host = urllib.parse.urlsplit(url).netloc.lower()
+    if not host.endswith(".woa.com"):
+        return None
+    site = host[: -len(".woa.com")]
+    # 去掉常见的二级子域前缀干扰（如 portal.learn -> learn），只取最后一段作为站点名
+    site = site.rsplit(".", 1)[-1]
+    if not site:
+        return None
+    icon_path = os.path.join(STATIC, "bookmark-icons", f"{site}.png")
+    if os.path.isfile(icon_path):
+        return f"/static/bookmark-icons/{site}.png"
+    return None
+
+
 def _domain_icon_override(url):
     host = urllib.parse.urlsplit(url).netloc.lower()
     for domain, icon in _DOMAIN_ICON_OVERRIDES.items():
@@ -566,7 +595,7 @@ def fetch_bookmark_meta():
     if _looks_like_sso_redirect(final_url, title):
         title = _fallback_title_from_url(url)
         summary = ""
-    override_icon = _domain_icon_override(url)
+    override_icon = _domain_icon_override(url) or _woa_site_icon(url)
     if override_icon:
         favicon = override_icon
     return jsonify({"title": title, "favicon": favicon, "summary": summary})
@@ -897,6 +926,35 @@ def list_types():
         if t and t not in seen:
             seen.append(t)
     return jsonify(seen)
+
+# ---------------------------------------------------------------------------
+# 腾讯学堂直播预告：由 cron 定时任务调用 QLearning MCP 抓取后写入，前端首页展示
+# ---------------------------------------------------------------------------
+@app.route("/api/qlearning-lives", methods=["GET"])
+def get_qlearning_lives():
+    data = read_json("qlearning_lives", {"items": []})
+    return jsonify(data)
+
+@app.route("/api/qlearning-lives/sync", methods=["POST"])
+def sync_qlearning_lives():
+    body = request.get_json(force=True, silent=True) or {}
+    items = body.get("items", [])
+    if not isinstance(items, list):
+        return jsonify({"error": "items must be a list"}), 400
+    cleaned = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        item = dict(it)
+        if not item.get("id"):
+            seed = str(item.get("href") or item.get("title") or uuid.uuid4().hex)
+            item["id"] = uuid.uuid5(uuid.NAMESPACE_URL, seed).hex[:12]
+        cleaned.append(item)
+    cleaned.sort(key=lambda x: x.get("startTime") or "")
+    with _lock_for("qlearning_lives"):
+        write_json("qlearning_lives", {"items": cleaned, "updated_at": _now()})
+    touch_meta()
+    return jsonify({"ok": True, "count": len(cleaned)})
 
 # ---------------------------------------------------------------------------
 # 静态页面
