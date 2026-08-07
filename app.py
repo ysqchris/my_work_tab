@@ -209,7 +209,10 @@ def _normalize_douban_item(raw, subtype):
     for key in ("cover", "pic", "images"):
         val = sub.get(key) or raw.get(key)
         if isinstance(val, dict):
-            cover = val.get("large") or val.get("normal") or val.get("medium") or val.get("small") or ""
+            cover = (
+                val.get("large") or val.get("normal") or val.get("medium")
+                or val.get("small") or val.get("url")
+            )
         elif isinstance(val, str):
             cover = val
         if cover:
@@ -277,7 +280,7 @@ def media_douban_hot():
         if cached_items is not None and not force_refresh:
             return jsonify({"items": cached_items, "cached": True, "updated_at": saved.get("updated_at"), "error": None})
         # 首次部署尚无缓存时，允许初始化一次，避免页面空白。
-        if cached_items is not None and saved.get("date") == today:
+        if cached_items is not None and not force_refresh and saved.get("date") == today:
             return jsonify({"items": cached_items, "cached": True, "updated_at": saved.get("updated_at"), "error": None})
 
     error = None
