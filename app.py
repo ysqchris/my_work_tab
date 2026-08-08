@@ -155,6 +155,9 @@ def make_crud(resource):
 # 通用内容对象：情报、行动、知识库与思考均可独立存储。
 make_crud("articles")
 make_crud("products_updates")
+# 新闻动态：由外部专门的抓取 Agent 通过 POST /api/news 写入，本服务只负责存储与展示。
+# 期望字段：title(必填) / url / topic(专题，用于分组) / summary(摘要) / source(来源) / date(YYYY-MM-DD)
+make_crud("news")
 make_crud("tasks")
 make_crud("notes")
 make_crud("knowledge")
