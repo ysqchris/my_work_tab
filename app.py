@@ -229,15 +229,34 @@ def refresh_news():
     return jsonify({"ok": True, "count": len(items), "updated_at": _now()})
 
 
-# 后台定时抓取线程：服务启动后每 30 分钟自动刷新新闻动态
-_NEWS_REFRESH_INTERVAL = 30 * 60  # 秒
+# 后台定时抓取线程：每天早/中/晚各刷新一次新闻动态
+_NEWS_REFRESH_HOURS = (8, 13, 20)  # 东八区：早 8:00 / 中 13:00 / 晚 20:00
 _NEWS_FETCHER_LOCK = threading.Lock()
 
 
+def _next_refresh_delay_seconds():
+    """计算到下一个目标时刻（东八区）的秒数。"""
+    tz = datetime.timezone(datetime.timedelta(hours=8))
+    now = datetime.datetime.now(tz)
+    today = now.date()
+    candidates = []
+    for h in _NEWS_REFRESH_HOURS:
+        target = datetime.datetime(today.year, today.month, today.day, h, 0, 0, tzinfo=tz)
+        if target > now:
+            candidates.append(target)
+    if not candidates:  # 今天的都过了，取明天第一个
+        tomorrow = today + datetime.timedelta(days=1)
+        first_h = _NEWS_REFRESH_HOURS[0]
+        candidates.append(datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day,
+                                             first_h, 0, 0, tzinfo=tz))
+    return int((min(candidates) - now).total_seconds())
+
+
 def _news_scheduler_loop():
-    """后台守护线程：周期性调用本地抓取，失败仅记录不中断。"""
+    """后台守护线程：按固定时刻（早/中/晚）调用本地抓取，失败仅记录不中断。"""
     while True:
-        time.sleep(_NEWS_REFRESH_INTERVAL)
+        delay = _next_refresh_delay_seconds()
+        time.sleep(delay)
         with _NEWS_FETCHER_LOCK:
             try:
                 mod = _load_news_fetcher()
@@ -254,7 +273,8 @@ def _news_scheduler_loop():
 def _start_news_scheduler():
     t = threading.Thread(target=_news_scheduler_loop, name="news-scheduler", daemon=True)
     t.start()
-    print("[news_scheduler] 已启动，每 30 分钟自动刷新新闻动态", flush=True)
+    hm = "/".join(f"{h}:00" for h in _NEWS_REFRESH_HOURS)
+    print(f"[news_scheduler] 已启动，每日 {hm}（东八区）自动刷新新闻动态", flush=True)
 make_crud("tasks")
 make_crud("notes")
 make_crud("knowledge")
