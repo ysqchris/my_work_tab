@@ -2,8 +2,8 @@
 """新闻动态本地抓取模块（工作台自带，不依赖外部 Agent）。
 
 数据源：
-  - IT之家 RSS  (https://www.ithome.com/rss/)         -> 科技快讯
-  - GitHub Trending (https://github.com/trending)      -> 热门开源项目
+  - AIhot (https://aihot.virxact.com)  公开的「精选(selected)」AI 资讯，取最关键 20 条
+  - GitHub Trending (https://github.com/trending)  取最热的前 5 个仓库
 
 输出：与 news.json 结构一致的 items 列表，字段对齐前端展示：
   title / url / date / desc / source / topic / id / created_at
@@ -13,20 +13,24 @@ import re
 import html
 import datetime
 import urllib.request
-import urllib.parse
-import xml.etree.ElementTree as ET
+import urllib.error
+import uuid
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+_AIHOT_UA = "Mozilla/5.0 (compatible; aihot-skill/0.2.0)"
 
 # 各源的专题（topic）与来源名（source）
-IT_HOME_TOPIC = "科技快讯"
-IT_HOME_SOURCE = "IT之家"
+AIHOT_TOPIC = "AI热点"
+AIHOT_SOURCE = "AI HOT"
 GH_TOPIC = "GitHub 热榜"
 GH_SOURCE = "GitHub Trending"
 
-_ITHOME_RSS = "https://www.ithome.com/rss/"
+_AIHOT_ITEMS = "https://aihot.virxact.com/api/public/items"
 _GH_TRENDING = "https://github.com/trending"
+
+_AIHOT_LIMIT = 20
+_GH_LIMIT = 5
 
 
 def _now():
@@ -37,11 +41,10 @@ def _today():
     return _now()[:10]
 
 
-def _get(url, timeout=15):
-    req = urllib.request.Request(url, headers={"User-Agent": _UA})
+def _get(url, timeout=15, ua=None):
+    req = urllib.request.Request(url, headers={"User-Agent": ua or _UA})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         raw = resp.read()
-    # 尝试按声明编码解码，失败则按 utf-8 容错
     enc = resp.headers.get_content_charset() or "utf-8"
     try:
         return raw.decode(enc, errors="replace")
@@ -58,67 +61,73 @@ def _strip_tags(s):
 
 
 def _gen_id(seed):
-    import uuid
     return uuid.uuid5(uuid.NAMESPACE_URL, str(seed)).hex[:12]
 
 
-def fetch_ithome(limit=8):
-    """抓取 IT之家 RSS，返回 items。"""
+def _to_local_date(iso_utc):
+    """把 ISO UTC 时间转成东八区 YYYY-MM-DD。"""
+    if not iso_utc:
+        return _today()
+    try:
+        s = iso_utc.replace("Z", "+00:00")
+        dt = datetime.datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        dt = dt.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
+        return dt.strftime("%Y-%m-%d")
+    except Exception:
+        return _today()
+
+
+def fetch_aihot(limit=_AIHOT_LIMIT):
+    """抓取 AIhot 精选 AI 资讯，取最关键 limit 条。"""
     items = []
     try:
-        xml_text = _get(_ITHOME_RSS)
-        root = ET.fromstring(xml_text)
-        # RSS 2.0: rss/channel/item
-        channel = root.find("channel")
-        if channel is None:
-            return items
-        for entry in channel.findall("item")[:limit]:
-            title_el = entry.find("title")
-            link_el = entry.find("link")
-            desc_el = entry.find("description")
-            pub_el = entry.find("pubDate")
-            title = _strip_tags(_elem_text(title_el))
-            url = _strip_tags(_elem_text(link_el))
-            desc = _strip_tags(_elem_text(desc_el))
+        url = f"{_AIHOT_ITEMS}?mode=selected&take={limit}"
+        txt = _get(url, ua=_AIHOT_UA)
+        data = json.loads(txt)
+        raw_items = data.get("items", []) if isinstance(data, dict) else data
+        for it in raw_items[:limit]:
+            title = _strip_tags(it.get("title") or it.get("title_en") or "")
+            # 优先用 aihot 站内 permalink（稳定、可点击），无则回退原始 url
+            url_ = it.get("permalink") or it.get("url") or ""
+            # desc：优先 summary，去掉多余空白
+            desc = _strip_tags(it.get("summary") or "")
             if desc:
-                desc = desc[:160]
-            date = _parse_rfc822(pub_el.text) if pub_el is not None and pub_el.text else _today()
-            if not title or not url:
+                desc = re.sub(r"\s+", " ", desc).strip()[:160]
+            date = _to_local_date(it.get("publishedAt"))
+            if not title or not url_:
                 continue
             items.append({
                 "title": title,
-                "url": url,
+                "url": url_,
                 "date": date,
                 "desc": desc,
-                "source": IT_HOME_SOURCE,
-                "topic": IT_HOME_TOPIC,
-                "id": _gen_id(url or title),
+                "source": AIHOT_SOURCE,
+                "topic": AIHOT_TOPIC,
+                "id": _gen_id(url_ or title),
                 "created_at": _now(),
             })
     except Exception as e:
-        print(f"[news_fetcher] IT之家抓取失败: {e}")
+        print(f"[news_fetcher] AIhot 抓取失败: {e}")
     return items
 
 
-def fetch_github_trending(limit=8):
-    """抓取 GitHub Trending，返回 items。"""
+def fetch_github_trending(limit=_GH_LIMIT):
+    """抓取 GitHub Trending，取最热的前 limit 个仓库。"""
     items = []
     try:
         html_text = _get(_GH_TRENDING)
-        # 每个仓库卡片：<article class="Box-row">
         blocks = re.findall(r"<article class=\"Box-row\">(.*?)</article>", html_text, re.S)
         for block in blocks[:limit]:
-            # 仓库名：<h2 class="h3 lh-condensed"> ... <a href="/owner/repo"> ...
             m = re.search(r"<h2[^>]*>.*?<a[^>]*href=\"([^\"]+)\"", block, re.S)
             if not m:
                 continue
             repo_path = m.group(1).strip()
             if repo_path.startswith("/"):
                 repo_path = repo_path[1:]
-            # 描述
             dm = re.search(r"<p class=\"col-9 color-fg-muted my-1 pr-4\">\s*(.*?)\s*</p>", block, re.S)
             desc = _strip_tags(dm.group(1)) if dm else ""
-            # 语言
             lm = re.search(r"<span itemprop=\"programmingLanguage\">([^<]+)</span>", block)
             lang = lm.group(1).strip() if lm else ""
             title = repo_path
@@ -141,30 +150,11 @@ def fetch_github_trending(limit=8):
     return items
 
 
-def _elem_text(el):
-    if el is None:
-        return ""
-    return "".join(el.itertext())
-
-
-def _parse_rfc822(text):
-    """把 RSS 的 RFC822 时间转成 YYYY-MM-DD（按东八区当天近似，简单截断日期）。"""
-    try:
-        from email.utils import parsedate_to_datetime
-        dt = parsedate_to_datetime(text)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=datetime.timezone.utc)
-        dt = dt.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
-        return dt.strftime("%Y-%m-%d")
-    except Exception:
-        return _today()
-
-
 def fetch_all():
     """汇总所有源，去重后返回 items（最新在前）。"""
     items = []
-    items += fetch_ithome(limit=8)
-    items += fetch_github_trending(limit=8)
+    items += fetch_aihot(limit=_AIHOT_LIMIT)      # 最关键 20 条 AI 资讯
+    items += fetch_github_trending(limit=_GH_LIMIT)  # 最热前 5 仓库
     # 去重：同 url 或同 title 只保留第一条
     seen = set()
     cleaned = []
@@ -174,8 +164,9 @@ def fetch_all():
             continue
         seen.add(key)
         cleaned.append(it)
-    # 倒序：date 新的在前
-    cleaned.sort(key=lambda x: (x.get("date") or "", x.get("created_at") or ""), reverse=True)
+    # 倒序：date 新的在前，其次 AI 资讯在前（保持专题分组感）
+    cleaned.sort(key=lambda x: (x.get("date") or "", x.get("topic") or "", x.get("created_at") or ""),
+                 reverse=True)
     return cleaned
 
 
@@ -183,4 +174,4 @@ if __name__ == "__main__":
     import sys
     data = fetch_all()
     print(json.dumps(data, ensure_ascii=False, indent=2))
-    print(f"\n共抓取 {len(data)} 条", file=sys.stderr)
+    print(f"\n共抓取 {len(data)} 条（AIhot {_AIHOT_LIMIT} + GitHub {_GH_LIMIT}）", file=sys.stderr)
