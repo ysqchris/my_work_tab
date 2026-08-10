@@ -1,0 +1,138 @@
+{
+  "date": "2026-08-09",
+  "items": {
+    "movie": [
+      {
+        "douban_id": "35811064",
+        "title": "欢迎来龙餐馆",
+        "cover": "https://img1.doubanio.com/view/photo/m_ratio_poster/public/p2934698009.jpg",
+        "rating": null,
+        "url": "https://m.douban.com/movie/subject/35811064/",
+        "year": "2026",
+        "card_subtitle": "2026 / 中国大陆 / 剧情 喜剧 战争 / 文牧野 / 沈腾 蒋奇明",
+        "subtype": "movie",
+        "domain": "av",
+        "source": "douban",
+        "release_date": "2026-08-11"
+      },
+      {
+        "douban_id": "36808876",
+        "title": "奥德赛",
+        "cover": "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p2933569626.jpg",
+        "rating": 8.3,
+        "url": "https://m.douban.com/movie/subject/36808876/",
+        "year": "2026",
+        "card_subtitle": "2026 / 美国 英国 / 动作 历史 奇幻 冒险 / 克里斯托弗·诺兰 / 马特·达蒙 汤姆·霍兰德",
+        "subtype": "movie",
+        "domain": "av",
+        "source": "douban",
+        "release_date": "2026-08-14"
+      },
+      {
+        "douban_id": "36246195",
+        "title": "蜘蛛侠：崭新之日",
+        "cover": "https://img3.doubanio.com/view/photo/m_ratio_poster/public/p2934276912.jpg",
+        "rating": 7.8,
+        "url": "https://m.douban.com/movie/subject/36246195/",
+        "year": "2026",
+        "card_subtitle": "2026 / 美国 加拿大 英国 德国 / 动作 科幻 冒险 / 德斯汀·丹尼尔·克雷顿 / 汤姆·霍兰德 赞达亚",
+        "subtype": "movie",
+        "domain": "av",
+        "source": "douban",
+        "release_date": "2026-07-29"
+      },
+      {
+        "douban_id": "35275131",
+        "title": "去你的岛",
+        "cover": "https://img1.doubanio.com/view/photo/m_ratio_poster/public/p2934742318.jpg",
+        "rating": null,
+        "url": "https://m.douban.com/movie/subject/35275131/",
+        "year": "2026",
+        "card_subtitle": "2026 / 中国大陆 / 爱情 动画 奇幻 / 周浩然 / 杨茜云 张福正",
+        "subtype": "movie",
+        "domain": "av",
+        "source": "douban",
+        "release_date": "2026-08-07"
+      },
+      {
+        "douban_id": "36882191",
+        "title": "八仙！",
+        "cover": "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p2934074566.jpg",
+        "rating": 8.2,
+        "url": "https://m.douban.com/movie/subject/36882191/",
+        "year": "2026",
+        "card_subtitle": "2026 / 中国大陆 / 喜剧 动画 奇幻 冒险 / 牟正洋 / 陈浩 李绍哲",
+        "subtype": "movie",
+        "domain": "av",
+        "source": "douban",
+        "release_date": "2026-07-18"
+      },
+      {
+        "douban_id": "37450627",
+        "title": "痴迷",
+        "cover": "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p2934049524.jpg",
+        "rating": 7.6,
+        "url": "https://m.douban.com/movie/subject/37450627/",
+        "year": "2025",
+        "card_subtitle": "2025 / 美国 / 恐怖 奇幻 / 库里·巴克 / 迈克尔·约翰斯顿 印达·纳瓦雷特",
+        "subtype": "movie",
+        "domain": "av",
+        "source": "douban",
+        "release_date": "2026-07-24"
+      },
+      {
+        "douban_id": "36850814",
+        "title": "年会不能停！2",
+        "cover": "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p2934583425.jpg",
+        "rating": 6.7,
+        "url": "https://m.douban.com/movie/subject/36850814/",
+        "year": "2026",
+        "card_subtitle": "2026 / 中国大陆 / 喜剧 / 董润年 / 张若昀 白客",
+        "subtype": "movie",
+        "domain": "av",
+        "source": "douban",
+        "release_date": "2026-08-01"
+      },
+      {
+        "douban_id": "36452545",
+        "title": "功夫女足",
+        "cover": "https://img3.doubanio.com/view/photo/m_ratio_poster/public/p2933860063.jpg",
+        "rating": 6.4,
+        "url": "https://m.douban.com/movie/subject/36452545/",
+        "year": "2026",
+        "card_subtitle": "2026 / 中国大陆 中国香港 / 剧情 喜剧 运动 / 周星驰 / 张小斐 迪丽热巴",
+        "subtype": "movie",
+        "domain": "av",
+        "source": "douban",
+        "release_date": "2026-07-11"
+      },
+      {
+        "douban_id": "36752981",
+        "title": "三国第一部：争洛阳",
+        "cover": "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p2931601084.jpg",
+        "rating": 8.0,
+        "url": "https://m.douban.com/movie/subject/36752981/",
+        "year": "2026",
+        "card_subtitle": "2026 / 中国大陆 / 动画 历史 / 谢君伟 / 王凯 魏超",
+        "subtype": "movie",
+        "domain": "av",
+        "source": "douban",
+        "release_date": "2026-07-10"
+      },
+      {
+        "douban_id": "36877284",
+        "title": "最后孤屋",
+        "cover": "https://img1.doubanio.com/view/photo/m_ratio_poster/public/p2933347329.jpg",
+        "rating": null,
+        "url": "https://m.douban.com/movie/subject/36877284/",
+        "year": "2026",
+        "card_subtitle": "2026 / 英国 法国 美国 / 动作 科幻 悬疑 惊悚 恐怖 / 路易斯·莱特里尔 / 格蕾塔·李 瓦格纳·马拉",
+        "subtype": "movie",
+        "domain": "av",
+        "source": "douban",
+        "release_date": "2026-08-07"
+      }
+    ]
+  },
+  "updated_at": "2026-08-09T11:04:12+08:00"
+}
