@@ -11,10 +11,12 @@ import os
 import re
 import html
 import threading
+import time
 import uuid
 import datetime
 import urllib.request
 import urllib.parse
+import importlib.util
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_from_directory
 
@@ -155,9 +157,104 @@ def make_crud(resource):
 # 通用内容对象：情报、行动、知识库与思考均可独立存储。
 make_crud("articles")
 make_crud("products_updates")
-# 新闻动态：由外部专门的抓取 Agent 通过 POST /api/news 写入，本服务只负责存储与展示。
-# 期望字段：title(必填) / url / topic(专题，用于分组) / summary(摘要) / source(来源) / date(YYYY-MM-DD)
+# 新闻动态：由工作台后端自带抓取线程定时更新（不再依赖外部 Agent）。
+# 支持两种写入方式：
+#   - POST /api/news        单条累加（insert(0, item)），会持续膨胀，不推荐
+#   - POST /api/news/sync   整批覆盖（推荐），把"当前应展示的全部新闻"整体传过来
+#   - POST /api/news/refresh 触发后端本地抓取并整批覆盖
 make_crud("news")
+
+@app.route("/api/news/sync", methods=["POST"])
+def sync_news():
+    """整批覆盖新闻动态，避免逐条 POST 导致数据无限膨胀、最新消息被淹没。
+    Body: {"items": [...]}  每个 item 期望字段:
+        title(必填) / url / topic(专题，用于分组) / summary / source / date(YYYY-MM-DD)
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    items = body.get("items", [])
+    if not isinstance(items, list):
+        return jsonify({"error": "items must be a list"}), 400
+    cleaned = []
+    seen = set()
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        item = dict(it)
+        # 去重：同一 url 或 同一 title 只保留第一条
+        key = item.get("url") or item.get("title") or uuid.uuid4().hex
+        if key in seen:
+            continue
+        seen.add(key)
+        if not item.get("id"):
+            seed = str(item.get("url") or item.get("title") or uuid.uuid4().hex)
+            item["id"] = uuid.uuid5(uuid.NAMESPACE_URL, seed).hex[:12]
+        if not item.get("created_at"):
+            item["created_at"] = _now()
+        if "date" not in item and "date_collected" not in item:
+            item["date"] = _now()[:10]
+        cleaned.append(item)
+    # 按 date 倒序、同 date 按 created_at 倒序，保证最新在前
+    cleaned.sort(key=lambda x: (x.get("date") or "", x.get("created_at") or ""), reverse=True)
+    with _lock_for("news"):
+        write_json("news", {"items": cleaned, "updated_at": _now()})
+    touch_meta()
+    return jsonify({"ok": True, "count": len(cleaned), "removed_duplicates": len(items) - len(cleaned)})
+
+
+def _load_news_fetcher():
+    """延迟导入本地抓取模块（与 app.py 同目录）。"""
+    spec = importlib.util.spec_from_file_location(
+        "news_fetcher", os.path.join(BASE, "news_fetcher.py")
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@app.route("/api/news/refresh", methods=["POST"])
+def refresh_news():
+    """触发后端本地抓取（IT之家 RSS + GitHub Trending）并整批覆盖 news.json。
+    工作台自带，不再依赖外部 Agent。返回本次抓取条数。
+    """
+    try:
+        mod = _load_news_fetcher()
+        items = mod.fetch_all()
+    except Exception as e:
+        return jsonify({"error": f"抓取失败: {e}"}), 500
+    if not items:
+        return jsonify({"ok": True, "count": 0, "note": "抓取为空，未覆盖现有数据"})
+    with _lock_for("news"):
+        write_json("news", {"items": items, "updated_at": _now()})
+    touch_meta()
+    return jsonify({"ok": True, "count": len(items), "updated_at": _now()})
+
+
+# 后台定时抓取线程：服务启动后每 30 分钟自动刷新新闻动态
+_NEWS_REFRESH_INTERVAL = 30 * 60  # 秒
+_NEWS_FETCHER_LOCK = threading.Lock()
+
+
+def _news_scheduler_loop():
+    """后台守护线程：周期性调用本地抓取，失败仅记录不中断。"""
+    while True:
+        time.sleep(_NEWS_REFRESH_INTERVAL)
+        with _NEWS_FETCHER_LOCK:
+            try:
+                mod = _load_news_fetcher()
+                items = mod.fetch_all()
+                if items:
+                    with _lock_for("news"):
+                        write_json("news", {"items": items, "updated_at": _now()})
+                    touch_meta()
+                    print(f"[news_scheduler] 自动刷新完成，{len(items)} 条", flush=True)
+            except Exception as e:
+                print(f"[news_scheduler] 自动刷新失败: {e}", flush=True)
+
+
+def _start_news_scheduler():
+    t = threading.Thread(target=_news_scheduler_loop, name="news-scheduler", daemon=True)
+    t.start()
+    print("[news_scheduler] 已启动，每 30 分钟自动刷新新闻动态", flush=True)
 make_crud("tasks")
 make_crud("notes")
 make_crud("knowledge")
@@ -300,7 +397,87 @@ def _normalize_douban_item(raw, subtype):
         "subtype": subtype,
         "domain": _DOUBAN_DOMAIN.get(subtype, "av"),
         "source": "douban",
+        "release_date": "",  # 大陆上映/上线日期，由 _enrich_douban_release 补全
     }
+
+
+def _fetch_douban_subject_detail(douban_id, subtype):
+    """抓取作品详情，提取大陆上映/上线日期。
+
+    返回 (release_date, pubdate_raw)：
+      - release_date: 形如 '2026-08-11' 的大陆日期字符串，无则空串
+      - pubdate_raw: 原始 pubdate 列表（调试/兜底用）
+    任意异常均返回 ('', None)，由调用方兜底，不阻塞主流程。
+    """
+    if not douban_id:
+        return "", None
+    url = f"https://m.douban.com/rexxar/api/v2/subject/{douban_id}"
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+                      "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+        "Referer": f"https://m.douban.com/movie/subject/{douban_id}/",
+        "Accept": "application/json, text/plain, */*",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    except Exception:
+        return "", None
+    pubdates = payload.get("pubdate") or payload.get("pubdates") or []
+    if isinstance(pubdates, str):
+        pubdates = [pubdates]
+    if not isinstance(pubdates, list):
+        return "", None
+    # 优先取带「中国大陆」标记的大陆上映日期
+    cn_date = ""
+    for p in pubdates:
+        if not isinstance(p, str):
+            continue
+        if "中国大陆" in p or "大陆" in p:
+            m = re.search(r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})", p)
+            if m:
+                cn_date = m.group(1).replace("/", "-")
+                break
+    # 兜底：没有大陆标记时，取第一条看起来像日期的
+    if not cn_date:
+        for p in pubdates:
+            if not isinstance(p, str):
+                continue
+            m = re.search(r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})", p)
+            if m:
+                cn_date = m.group(1).replace("/", "-")
+                break
+    return cn_date, pubdates
+
+
+def _enrich_douban_release(items, subtype):
+    """对影音类条目批量补全大陆上映/上线日期（movie/tv/show 才有意义）。
+
+    音乐、图书不补。带简单并发（线程池）与超时兜底，单个失败不影响整体。
+    """
+    if subtype not in ("movie", "tv", "show"):
+        return
+    targets = [it for it in items if it.get("douban_id")]
+    if not targets:
+        return
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    limit = min(6, len(targets))
+    try:
+        with ThreadPoolExecutor(max_workers=limit) as ex:
+            fut_map = {
+                ex.submit(_fetch_douban_subject_detail, it["douban_id"], subtype): it
+                for it in targets
+            }
+            for fut in as_completed(fut_map):
+                it = fut_map[fut]
+                try:
+                    rel, _ = fut.result()
+                    if rel:
+                        it["release_date"] = rel
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 def _fetch_douban_collection(collection, count=20):
     url = (
@@ -346,6 +523,8 @@ def media_douban_hot():
             mapped = _normalize_douban_item(raw, subtype)
             if mapped:
                 items.append(mapped)
+        # 影音类补全大陆上映/上线日期（每天一次，成本低，失败留空兜底）
+        _enrich_douban_release(items, subtype)
     except Exception as e:
         error = str(e)
 
@@ -980,4 +1159,5 @@ def healthz():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8765"))
+    _start_news_scheduler()  # 启动后台新闻自动刷新线程
     app.run(host="0.0.0.0", port=port, debug=False)
