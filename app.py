@@ -10,13 +10,16 @@ import json
 import os
 import re
 import html
+import hashlib
 import threading
 import time
+import concurrent.futures
 import uuid
 import datetime
 import urllib.request
 import urllib.parse
 import importlib.util
+import xml.etree.ElementTree as ET
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_from_directory
 
@@ -280,6 +283,267 @@ make_crud("notes")
 make_crud("knowledge")
 make_crud("inbox")
 make_crud("bookmarks")
+make_crud("creators")
+
+# ---------------------------------------------------------------------------
+# 视频关注：B 站 UP 主 / YouTube 频道最新投稿聚合
+# B 站需要 WBI 签名（2025-05 起强制），且投稿列表接口对部分机房 IP 有风控，
+# 抓取失败时静默降级为空列表，不影响其他博主正常展示。
+# YouTube 无需 key：频道页抓 channelId，再走官方 RSS（videos.xml）拿最新投稿。
+# ---------------------------------------------------------------------------
+_UA_DESKTOP = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+               "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+
+_BILI_MIXIN_KEY_TAB = [
+    46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49,
+    33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13, 37, 48, 7, 16, 24, 55, 40,
+    61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11,
+    36, 20, 34, 44, 52,
+]
+_bili_wbi_cache = {"img_key": "", "sub_key": "", "ts": 0}
+_bili_wbi_lock = threading.Lock()
+
+
+def _bili_get_json(url, referer="https://www.bilibili.com/", timeout=8):
+    req = urllib.request.Request(url, headers={"User-Agent": _UA_DESKTOP, "Referer": referer})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8", errors="ignore"))
+
+
+def _bili_wbi_keys():
+    """img_key/sub_key 每天轮换一次，缓存 1 小时足够，避免每次调用都多打一次 /nav。"""
+    now = datetime.datetime.now().timestamp()
+    with _bili_wbi_lock:
+        if _bili_wbi_cache["img_key"] and now - _bili_wbi_cache["ts"] < 3600:
+            return _bili_wbi_cache["img_key"], _bili_wbi_cache["sub_key"]
+    payload = _bili_get_json("https://api.bilibili.com/x/web-interface/nav")
+    wbi_img = (payload.get("data") or {}).get("wbi_img") or {}
+    img_key = (wbi_img.get("img_url") or "").rsplit("/", 1)[-1].split(".")[0]
+    sub_key = (wbi_img.get("sub_url") or "").rsplit("/", 1)[-1].split(".")[0]
+    with _bili_wbi_lock:
+        _bili_wbi_cache.update(img_key=img_key, sub_key=sub_key, ts=now)
+    return img_key, sub_key
+
+
+def _bili_wbi_sign(params):
+    img_key, sub_key = _bili_wbi_keys()
+    mixin_key = "".join((img_key + sub_key)[i] for i in _BILI_MIXIN_KEY_TAB)[:32]
+    params = dict(params)
+    params["wts"] = int(datetime.datetime.now().timestamp())
+    params = dict(sorted(params.items()))
+    params = {k: "".join(ch for ch in str(v) if ch not in "!'()*") for k, v in params.items()}
+    query = urllib.parse.urlencode(params)
+    params["w_rid"] = hashlib.md5((query + mixin_key).encode()).hexdigest()
+    return params
+
+
+def _bili_user_info(mid):
+    params = _bili_wbi_sign({"mid": mid})
+    url = "https://api.bilibili.com/x/space/wbi/acc/info?" + urllib.parse.urlencode(params)
+    payload = _bili_get_json(url, referer=f"https://space.bilibili.com/{mid}/")
+    if payload.get("code") != 0:
+        raise RuntimeError(payload.get("message") or "B 站接口返回异常")
+    d = payload.get("data") or {}
+    avatar = (d.get("face") or "").replace("http://", "https://")
+    return {"name": d.get("name") or f"UP{mid}", "avatar": avatar}
+
+
+def _bili_user_videos(mid, limit=12):
+    params = _bili_wbi_sign({"mid": mid, "pn": 1, "ps": limit, "order": "pubdate"})
+    url = "https://api.bilibili.com/x/space/wbi/arc/search?" + urllib.parse.urlencode(params)
+    payload = _bili_get_json(url, referer=f"https://space.bilibili.com/{mid}/")
+    if payload.get("code") != 0:
+        raise RuntimeError(payload.get("message") or "B 站接口返回异常（可能触发风控）")
+    vlist = ((payload.get("data") or {}).get("list") or {}).get("vlist") or []
+    out = []
+    for v in vlist:
+        bvid = v.get("bvid") or ""
+        if not bvid:
+            continue
+        out.append({
+            "title": v.get("title") or "",
+            "cover": (v.get("pic") or "").replace("http://", "https://"),
+            "url": f"https://www.bilibili.com/video/{bvid}",
+            "published_at": int(v.get("created") or 0),
+            "stat": f"{v.get('play', 0)} 播放",
+        })
+    return out
+
+
+_BILI_SPACE_RE = re.compile(r"space\.bilibili\.com/(\d+)")
+_YT_CHANNEL_LINK_RE = re.compile(rb'/feeds/videos\.xml\?channel_id=(UC[0-9A-Za-z_-]{20,26})')
+_YT_CHANNEL_URL_RE = re.compile(r"(?:youtube\.com/channel/|youtube\.com/feeds/videos\.xml\?channel_id=)(UC[0-9A-Za-z_-]{20,26})")
+_YT_OG_TITLE_RE = re.compile(rb'<meta property="og:title" content="([^"]*)"')
+_YT_OG_IMAGE_RE = re.compile(rb'<meta property="og:image" content="([^"]*)"')
+_YT_NS = {
+    "a": "http://www.w3.org/2005/Atom",
+    "media": "http://search.yahoo.com/mrss/",
+    "yt": "http://www.youtube.com/xml/schemas/2015",
+}
+
+
+def _yt_fetch_html(url, limit=1_500_000):
+    req = urllib.request.Request(url, headers={"User-Agent": _UA_DESKTOP, "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return resp.read(limit)
+
+
+def _yt_resolve_channel(url):
+    """支持 /channel/UC.. 直接解析，其余（@handle / 自定义URL）抓页面找官方 RSS 链接反推 channelId。"""
+    m = _YT_CHANNEL_URL_RE.search(url)
+    if m:
+        channel_id = m.group(1)
+        raw = _yt_fetch_html(f"https://www.youtube.com/channel/{channel_id}")
+    else:
+        raw = _yt_fetch_html(url)
+        cm = _YT_CHANNEL_LINK_RE.search(raw)
+        if not cm:
+            raise RuntimeError("无法识别 YouTube 频道地址")
+        channel_id = cm.group(1).decode()
+    name_m = _YT_OG_TITLE_RE.search(raw)
+    name = html.unescape(name_m.group(1).decode("utf-8", "ignore")) if name_m else channel_id
+    img_m = _YT_OG_IMAGE_RE.search(raw)
+    avatar = img_m.group(1).decode("utf-8", "ignore") if img_m else ""
+    return {"external_id": channel_id, "name": name, "avatar": avatar}
+
+
+def _yt_channel_videos(channel_id, limit=12):
+    url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+    req = urllib.request.Request(url, headers={"User-Agent": _UA_DESKTOP})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        raw = resp.read()
+    root = ET.fromstring(raw)
+    out = []
+    for entry in root.findall("a:entry", _YT_NS)[:limit]:
+        vid = (entry.findtext("yt:videoId", default="", namespaces=_YT_NS) or "").strip()
+        if not vid:
+            continue
+        title = (entry.findtext("a:title", default="", namespaces=_YT_NS) or "").strip()
+        published = entry.findtext("a:published", default="", namespaces=_YT_NS) or ""
+        try:
+            ts = int(datetime.datetime.fromisoformat(published.replace("Z", "+00:00")).timestamp())
+        except Exception:
+            ts = 0
+        thumb_el = entry.find("media:group/media:thumbnail", _YT_NS)
+        views_el = entry.find("media:group/media:community/media:statistics", _YT_NS)
+        views = views_el.get("views") if views_el is not None else None
+        out.append({
+            "title": title,
+            "cover": thumb_el.get("url") if thumb_el is not None else "",
+            "url": f"https://www.youtube.com/watch?v={vid}",
+            "published_at": ts,
+            "stat": f"{views} 次观看" if views else "",
+        })
+    return out
+
+
+def _detect_creator_platform(url):
+    host = urllib.parse.urlsplit(url).netloc.lower()
+    if "bilibili.com" in host:
+        return "bilibili"
+    if "youtube.com" in host or "youtu.be" in host:
+        return "youtube"
+    return None
+
+
+@app.route("/api/creators/fetch-meta", methods=["GET"])
+def fetch_creator_meta():
+    """粘贴 UP 主/频道主页链接后自动识别平台、拉取名称与头像，用于新建关注时预填。"""
+    url = (request.args.get("url") or "").strip()
+    if not url:
+        return jsonify({"error": "url required"}), 400
+    if not url.lower().startswith(("http://", "https://")):
+        url = "https://" + url
+    platform = _detect_creator_platform(url)
+    if platform == "bilibili":
+        m = _BILI_SPACE_RE.search(url)
+        if not m:
+            return jsonify({"error": "请粘贴 B 站 UP 主主页地址，例如 space.bilibili.com/123456"}), 400
+        mid = m.group(1)
+        try:
+            info = _bili_user_info(mid)
+        except Exception as e:
+            return jsonify({"error": f"抓取失败：{e}"}), 502
+        return jsonify({
+            "platform": "bilibili", "external_id": mid,
+            "name": info["name"], "avatar": info["avatar"],
+            "url": f"https://space.bilibili.com/{mid}",
+        })
+    if platform == "youtube":
+        try:
+            info = _yt_resolve_channel(url)
+        except Exception as e:
+            return jsonify({"error": f"抓取失败：{e}"}), 502
+        return jsonify({
+            "platform": "youtube", "external_id": info["external_id"],
+            "name": info["name"], "avatar": info["avatar"],
+            "url": f"https://www.youtube.com/channel/{info['external_id']}",
+        })
+    return jsonify({"error": "暂不支持该链接，请粘贴 B 站 UP 主主页或 YouTube 频道地址"}), 400
+
+
+_creator_video_cache = {}
+_creator_video_cache_lock = threading.Lock()
+_CREATOR_VIDEO_TTL = 20 * 60
+
+
+def _fetch_creator_videos(creator):
+    platform = creator.get("platform")
+    external_id = creator.get("external_id")
+    if not external_id:
+        return []
+    if platform == "bilibili":
+        return _bili_user_videos(external_id)
+    if platform == "youtube":
+        return _yt_channel_videos(external_id)
+    return []
+
+
+def _get_creator_videos_cached(creator, force=False):
+    cid = creator.get("id")
+    now = datetime.datetime.now().timestamp()
+    with _creator_video_cache_lock:
+        cached = _creator_video_cache.get(cid)
+        if cached and not force and now - cached["ts"] < _CREATOR_VIDEO_TTL:
+            return cached["data"], cached.get("error")
+    try:
+        videos = _fetch_creator_videos(creator)
+        err = None
+    except Exception as e:
+        videos = list((cached or {}).get("data") or [])
+        err = str(e)
+    with _creator_video_cache_lock:
+        _creator_video_cache[cid] = {"data": videos, "ts": now, "error": err}
+    return videos, err
+
+
+@app.route("/api/creators/videos", methods=["GET"])
+def get_creator_videos():
+    """聚合所有关注博主的最新投稿。每个博主结果缓存 20 分钟，refresh=1 强制重新抓取。
+    单个博主抓取失败（如 B 站风控）不影响其他博主正常返回。
+    """
+    force = request.args.get("refresh") == "1"
+    creators = read_json("creators", {"items": []}).get("items", [])
+    results, errors = [], {}
+    if creators:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+            futs = {pool.submit(_get_creator_videos_cached, c, force): c for c in creators}
+            for fut in concurrent.futures.as_completed(futs):
+                c = futs[fut]
+                try:
+                    videos, err = fut.result()
+                except Exception as e:
+                    videos, err = [], str(e)
+                if err:
+                    errors[c.get("id")] = err
+                for v in videos:
+                    v = dict(v)
+                    v.update(creator_id=c.get("id"), creator_name=c.get("name"),
+                              creator_avatar=c.get("avatar"), platform=c.get("platform"))
+                    results.append(v)
+    results.sort(key=lambda x: x.get("published_at") or 0, reverse=True)
+    return jsonify({"items": results[:90], "errors": errors, "updated_at": _now()})
+
 
 # ---------------------------------------------------------------------------
 # 书影音：豆瓣热门代理（须在 media CRUD 之前注册，避免被 <id> 吃掉）
