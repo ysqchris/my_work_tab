@@ -1159,6 +1159,289 @@ def sync_qlearning_lives():
     return jsonify({"ok": True, "count": len(cleaned)})
 
 # ---------------------------------------------------------------------------
+# Tab 未读红点：记录各模块「已读条目 id」集合，有新 id 即视为有更新（标红）。
+# 点进对应 tab 后，把当前条目 id 全部标记为已读，红点消失。
+# ---------------------------------------------------------------------------
+_UNREAD_MARK_NAME = "unread_marks"
+
+
+def _unread_marks():
+    d = read_json(_UNREAD_MARK_NAME, {})
+    d.setdefault("knowledge", [])
+    d.setdefault("articles", [])
+    d.setdefault("media", [])
+    return d
+
+
+def _item_ids(items):
+    """返回条目 id 列表。豆瓣热门用 douban_id；其他用 id。"""
+    out = []
+    for it in items or []:
+        key = it.get("id") or it.get("douban_id") or it.get("url")
+        if key:
+            out.append(str(key))
+    return out
+
+
+def _media_hot_ids():
+    """豆瓣热门榜所有分类的条目 id 汇总（榜无换血意味着无新 id）。"""
+    saved = _load_douban_hot_cache()
+    ids = []
+    for subtype, items in (saved.get("items") or {}).items():
+        ids.extend(_item_ids(items))
+    return ids
+
+
+@app.route("/api/unread", methods=["GET"])
+def get_unread():
+    """返回各 tab 未读数量：knowledge / articles / radar / media。"""
+    marks = _unread_marks()
+
+    knowledge_seen = set(marks.get("knowledge", []))
+    knowledge_unread = sum(
+        1 for it in read_json("knowledge", {"items": []}).get("items", [])
+        if str(it.get("id") or it.get("url") or "") and str(it.get("id") or it.get("url")) not in knowledge_seen
+    )
+
+    articles_seen = set(marks.get("articles", []))
+    articles_unread = sum(
+        1 for it in read_json("articles", {"items": []}).get("items", [])
+        if str(it.get("id") or it.get("url") or "") and str(it.get("id") or it.get("url")) not in articles_seen
+    )
+
+    # 鹰眼复用现有 read 字段，未读 = read != true
+    radar_unread = sum(
+        1 for it in read_json("products_updates", {"items": []}).get("items", [])
+        if not it.get("read")
+    )
+
+    media_seen = set(marks.get("media", []))
+    media_unread = sum(1 for i in _media_hot_ids() if i not in media_seen)
+
+    return jsonify({
+        "knowledge": knowledge_unread,
+        "articles": articles_unread,
+        "radar": radar_unread,
+        "media": media_unread,
+    })
+
+
+@app.route("/api/unread/mark", methods=["POST"])
+def mark_unread_read():
+    """点进 tab 后调用，把该模块当前条目全部标记为已读。body: {"module": "..."}。"""
+    body = request.get_json(force=True, silent=True) or {}
+    module = str(body.get("module", "")).strip()
+
+    if module == "radar":
+        # 鹰眼：把当前所有动态 read 置 true
+        data = read_json("products_updates", {"items": []})
+        changed = False
+        for it in data.get("items", []):
+            if not it.get("read"):
+                it["read"] = True
+                changed = True
+        if changed:
+            with _lock_for("products_updates"):
+                write_json("products_updates", data)
+        return jsonify({"ok": True, "module": module})
+
+    if module in ("knowledge", "articles", "media"):
+        marks = _unread_marks()
+        if module == "knowledge":
+            ids = _item_ids(read_json("knowledge", {"items": []}).get("items", []))
+        elif module == "articles":
+            ids = _item_ids(read_json("articles", {"items": []}).get("items", []))
+        else:  # media
+            ids = _media_hot_ids()
+        # 合并去重，保留历史已读
+        merged = list(dict.fromkeys(marks.get(module, []) + ids))
+        marks[module] = merged
+        with _lock_for(_UNREAD_MARK_NAME):
+            write_json(_UNREAD_MARK_NAME, marks)
+        return jsonify({"ok": True, "module": module})
+
+    return jsonify({"error": "unknown module"}), 400
+
+
+# ---------------------------------------------------------------------------
+# 微信读书：为「书影音→书籍」页拉取用户书架 / 阅读进度 / 书评笔记。
+# 通过 Agent Gateway 调用，后端持有 WEREAD_API_KEY，前端不接触鉴权。
+# ---------------------------------------------------------------------------
+import concurrent.futures
+
+_WEREAD_GATEWAY = "https://i.weread.qq.com/api/agent/gateway"
+_WEREAD_SKILL_VERSION = "1.0.3"
+_WEREAD_CACHE = {
+    "books": {"data": None, "ts": 0},
+    "notes": {"data": None, "ts": 0},
+}
+_WEREAD_LOCK = threading.Lock()
+_WEREAD_CACHE_TTL = 300  # 书架/笔记缓存 5 分钟，避免每次打开都拖慢
+
+
+def _weread_call(api_name, **params):
+    """调用微信读书 Agent Gateway，返回回包 dict。"""
+    key = os.environ.get("WEREAD_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("未配置 WEREAD_API_KEY")
+    body = {"api_name": api_name, "skill_version": _WEREAD_SKILL_VERSION}
+    body.update(params)
+    req = urllib.request.Request(
+        _WEREAD_GATEWAY,
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Authorization": "Bearer " + key,
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    import ssl as _ssl
+    ctx = _ssl._create_unverified_context()
+    with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
+        return json.loads(resp.read().decode("utf-8", errors="ignore"))
+
+
+def _weread_shelf():
+    return _weread_call("/shelf/sync")
+
+
+def _weread_progress(book_id):
+    try:
+        d = _weread_call("/book/getprogress", bookId=book_id)
+        book = d.get("book") or {}
+        return {
+            "bookId": book_id,
+            "progress": book.get("progress") if book.get("progress") is not None else None,
+            "readingTime": book.get("readingTime") or book.get("recordReadingTime") or 0,
+            "isStartReading": book.get("isStartReading") == 1,
+        }
+    except Exception:
+        return {"bookId": book_id, "progress": None, "readingTime": 0, "isStartReading": False}
+
+
+def _weread_build_books(force=False):
+    """构建书籍页数据：reading(正在读前10) + shelf(全量书架，按最近阅读倒序)。"""
+    now = datetime.datetime.now().timestamp()
+    with _WEREAD_LOCK:
+        cached = _WEREAD_CACHE["books"]
+        if not force and cached["data"] and now - cached["ts"] < _WEREAD_CACHE_TTL:
+            return cached["data"]
+
+    shelf = _weread_shelf()
+    books = shelf.get("books", [])
+    albums = shelf.get("albums", [])
+
+    def _norm_book(b):
+        return {
+            "bookId": b.get("bookId"),
+            "title": b.get("title"),
+            "author": b.get("author"),
+            "cover": b.get("cover"),
+            "category": b.get("category") or "",
+            "finishReading": b.get("finishReading") == 1,
+            "readUpdateTime": b.get("readUpdateTime") or 0,
+            "deepLink": b.get("deepLink") or ("weread://reading?bId=" + str(b.get("bookId"))),
+            "secret": b.get("secret") == 1,
+        }
+
+    # 电子书（这是用户自己的书架页面，展示全部，包括私密阅读）
+    public_books = books
+    norm_books = [_norm_book(b) for b in public_books]
+    # 按最近阅读时间倒序
+    norm_books.sort(key=lambda x: x["readUpdateTime"], reverse=True)
+
+    # 正在读：finishReading=False（未读完）、最近有阅读、且实际有阅读进度(progress>0)。
+    # 候选扩大到最近阅读的前 50 本，再据 getprogress 过滤真正在读的书。
+    reading_candidates = [b for b in norm_books if not b["finishReading"] and b["readUpdateTime"] > 0][:50]
+    progress_map = {}
+    if reading_candidates:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+            futs = {ex.submit(_weread_progress, b["bookId"]): b["bookId"] for b in reading_candidates}
+            for f in concurrent.futures.as_completed(futs):
+                try:
+                    progress_map[futs[f]] = f.result()
+                except Exception:
+                    pass
+    reading = []
+    for b in reading_candidates:
+        p = progress_map.get(b["bookId"], {})
+        prog = p.get("progress")
+        if prog is None or prog <= 0 or prog >= 100:
+            continue  # 只保留真正在读、尚未读完的书
+        b["progress"] = prog
+        b["readingTime"] = p.get("readingTime", 0)
+        reading.append(b)
+    # 按累计阅读时长倒序（读得越久越靠前）
+    reading.sort(key=lambda x: x.get("readingTime", 0), reverse=True)
+    reading = reading[:10]
+
+    result = {
+        "reading": reading,
+        "shelf": norm_books,
+        "bookCount": len(norm_books),
+        "albumCount": len(albums),
+        "updated_at": _now(),
+    }
+    with _WEREAD_LOCK:
+        _WEREAD_CACHE["books"] = {"data": result, "ts": now}
+    return result
+
+
+@app.route("/api/weread/books", methods=["GET"])
+def weread_books():
+    force = request.args.get("refresh") == "1"
+    try:
+        return jsonify(_weread_build_books(force=force))
+    except Exception as e:
+        return jsonify({"error": str(e), "reading": [], "shelf": []}), 502
+
+
+@app.route("/api/weread/notes", methods=["GET"])
+def weread_notes():
+    now = datetime.datetime.now().timestamp()
+    with _WEREAD_LOCK:
+        cached = _WEREAD_CACHE["notes"]
+        if cached["data"] and now - cached["ts"] < _WEREAD_CACHE_TTL:
+            return jsonify(cached["data"])
+    try:
+        d = _weread_call("/user/notebooks", count=50)
+        books = d.get("books", [])
+        items = []
+        for b in books:
+            it = {
+                "bookId": b.get("bookId"),
+                "title": (b.get("book") or {}).get("title"),
+                "author": (b.get("book") or {}).get("author"),
+                "cover": (b.get("book") or {}).get("cover"),
+                "reviewCount": b.get("reviewCount") or 0,
+                "noteCount": b.get("noteCount") or 0,
+                "bookmarkCount": b.get("bookmarkCount") or 0,
+                "readingProgress": b.get("readingProgress"),
+                "sort": b.get("sort"),
+            }
+            it["totalNoteCount"] = it["reviewCount"] + it["noteCount"] + it["bookmarkCount"]
+            items.append(it)
+        items.sort(key=lambda x: x["sort"] or 0, reverse=True)
+        result = {"totalBookCount": d.get("totalBookCount"), "totalNoteCount": d.get("totalNoteCount"), "items": items, "hasMore": d.get("hasMore") == 1}
+        with _WEREAD_LOCK:
+            _WEREAD_CACHE["notes"] = {"data": result, "ts": now}
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e), "items": []}), 502
+
+
+@app.route("/api/weread/notes/<book_id>", methods=["GET"])
+def weread_book_notes(book_id):
+    """单本书笔记明细：划线 + 想法/点评。"""
+    try:
+        bookmarks = _weread_call("/book/bookmarklist", bookId=book_id)
+        reviews = _weread_call("/review/list/mine", bookid=book_id, count=50)
+        return jsonify({"bookmarks": bookmarks, "reviews": reviews})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
+# ---------------------------------------------------------------------------
 # 静态页面
 # ---------------------------------------------------------------------------
 @app.route("/")
