@@ -3,7 +3,7 @@
 
 提供：
   - 静态页面（index.html）
-  - 数据读写 API（articles / products_updates / products）
+  - 数据读写 API（products_updates / products）
 数据存储在 data/*.json，所有写入走原子写 + 文件锁，避免 cron 与网页并发冲突。
 """
 import json
@@ -31,11 +31,61 @@ STATIC = os.path.join(BASE, "static")
 
 app = Flask(__name__, static_folder=STATIC, template_folder=os.path.join(BASE, "templates"))
 os.makedirs(FILES, exist_ok=True)
+
+
+# GZip 压缩：文本型（JSON/HTML）响应，压缩后体积降到 1/5~1/10，显著加快首屏传输。
+@app.after_request
+def _gzip_response(resp):
+    accept = (request.headers.get("Accept-Encoding") or "").lower()
+    if "gzip" not in accept:
+        return resp
+    ctype = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+    if ctype not in ("application/json", "text/html", "text/css", "text/javascript",
+                     "application/javascript", "image/svg+xml", "text/plain"):
+        return resp
+    if resp.headers.get("Content-Encoding"):
+        return resp
+    # 太小的响应没必要压，避免无效开销
+    try:
+        data = resp.get_data()
+    except RuntimeError:
+        # 直接透传模式（如 send_file 静态文件流），无法安全读取，跳过压缩
+        return resp
+    if len(data) < 512:
+        return resp
+    import gzip as _gzip
+    import io as _io
+    buf = _io.BytesIO()
+    with _gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=6) as gz:
+        gz.write(data)
+    resp.set_data(buf.getvalue())
+    resp.headers["Content-Encoding"] = "gzip"
+    resp.headers["Vary"] = "Accept-Encoding"
+    resp.headers["Content-Length"] = str(len(buf.getvalue()))
+    return resp
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024  # 64MB
+
+# 静态资源强缓存：/static/* 与 favicon 基本不变，加长缓存避免每次打开都 304 校验。
+# index.html 与 /api/* 保持 no-cache，保证前端与数据及时更新（依赖 ETag 复用）。
+# index.html 用 no-store 彻底禁缓存：前端频繁迭代，避免浏览器 304 命中旧版导致 UI 不一致
+@app.after_request
+def _add_cache_headers(resp):
+    path = request.path
+    if path.startswith("/static/") or path in ("/favicon.ico", "/favicon.svg"):
+        resp.headers["Cache-Control"] = "public, max-age=604800"  # 7 天
+    elif path == "/":
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    elif path.startswith("/api/"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 # 文件锁，防止并发写损坏 JSON
 _locks = {}
 _locks_lock = threading.Lock()
+
+# JSON 读缓存：key = (路径, mtime_ns, size)，见 read_json / _invalidate_json_cache
+_json_read_cache = {}
+_json_read_cache_lock = threading.Lock()
 
 def _lock_for(name):
     with _locks_lock:
@@ -53,11 +103,38 @@ def read_json(name, default=None):
     p = _path(name)
     if not os.path.exists(p):
         return default if default is not None else {"items": []}
+    # 文件级缓存：以 (路径, mtime, size) 为 key，文件未变时直接返回内存解析结果，
+    # 避免高频接口每次请求都重复读盘 + json.load。
+    try:
+        st = os.stat(p)
+        key = (p, st.st_mtime_ns, st.st_size)
+        with _json_read_cache_lock:
+            cached = _json_read_cache.get(key)
+        if cached is not None:
+            return cached
+    except OSError:
+        pass
     with open(p, "r", encoding="utf-8") as f:
         try:
-            return json.load(f)
+            data = json.load(f)
         except Exception:
             return default if default is not None else {"items": []}
+    with _json_read_cache_lock:
+        # 容量上限：防止长期运行后旧 key（文件已变更）无限堆积
+        if len(_json_read_cache) >= 256:
+            _json_read_cache.clear()
+        _json_read_cache[key] = data
+    return data
+
+def _invalidate_json_cache(name=None):
+    """写操作后清除对应文件缓存（name=None 时清空全部）。"""
+    with _json_read_cache_lock:
+        if name is None:
+            _json_read_cache.clear()
+            return
+        p = _path(name)
+        for key in [k for k in _json_read_cache if k[0] == p]:
+            _json_read_cache.pop(key, None)
 
 def write_json(name, data):
     """原子写：先写临时文件再 rename，避免半截写入。"""
@@ -66,6 +143,7 @@ def write_json(name, data):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     os.replace(tmp, p)
+    _invalidate_json_cache(name)
 
 def touch_meta():
     meta = read_json("meta", {"site_name": "工作台"})
@@ -76,7 +154,7 @@ def touch_meta():
 # 通用 CRUD 工厂
 # ---------------------------------------------------------------------------
 def make_crud(resource):
-    """resource: 'articles' | 'products_updates' 等，数据在 data[items] 列表。"""
+    """resource: 'products_updates' 等，数据在 data[items] 列表。"""
     R = resource  # 闭包变量，用于端点名区分
 
     @app.route(f"/api/{R}", endpoint=f"list_{R}", methods=["GET"])
@@ -123,6 +201,17 @@ def make_crud(resource):
         with _lock_for(R):
             write_json(R, data)
         touch_meta()
+        # 新建视频关注后，后台异步全量回填历史投稿（不阻塞创建响应）
+        if R == "creators":
+            try:
+                threading.Thread(
+                    target=_backfill_creator_history,
+                    args=(item,),
+                    kwargs={"max_items": 200},
+                    daemon=True,
+                ).start()
+            except Exception:
+                pass
         return jsonify(item), 201
 
     @app.route(f"/api/{R}/<item_id>", endpoint=f"update_{R}", methods=["PUT", "PATCH"])
@@ -158,13 +247,11 @@ def make_crud(resource):
         return jsonify({"ok": True})
 
 # 通用内容对象：情报、行动、知识库与思考均可独立存储。
-make_crud("articles")
 make_crud("products_updates")
-# 新闻动态：由工作台后端自带抓取线程定时更新（不再依赖外部 Agent）。
-# 支持两种写入方式：
+# 新闻动态：数据源由外部 Agent 负责抓取，经 /api/news/sync 整批覆盖写入。
+# 工作台后端不再启动本地抓取线程（news_fetcher.py 已停用，仅保留文件）。
 #   - POST /api/news        单条累加（insert(0, item)），会持续膨胀，不推荐
 #   - POST /api/news/sync   整批覆盖（推荐），把"当前应展示的全部新闻"整体传过来
-#   - POST /api/news/refresh 触发后端本地抓取并整批覆盖
 make_crud("news")
 
 @app.route("/api/news/sync", methods=["POST"])
@@ -172,6 +259,8 @@ def sync_news():
     """整批覆盖新闻动态，避免逐条 POST 导致数据无限膨胀、最新消息被淹没。
     Body: {"items": [...]}  每个 item 期望字段:
         title(必填) / url / topic(专题，用于分组) / summary / source / date(YYYY-MM-DD)
+        category(大类，可选)：ai(人工智能) / tech(科技) / finance(财经) / politics(政治军事)
+        不填 category 时，前端会按 source/topic 自动归类。
     """
     body = request.get_json(force=True, silent=True) or {}
     items = body.get("items", [])
@@ -216,8 +305,8 @@ def _load_news_fetcher():
 
 @app.route("/api/news/refresh", methods=["POST"])
 def refresh_news():
-    """触发后端本地抓取（IT之家 RSS + GitHub Trending）并整批覆盖 news.json。
-    工作台自带，不再依赖外部 Agent。返回本次抓取条数。
+    """[已弃用] 触发后端本地抓取并整批覆盖 news.json。
+    数据源已由外部 Agent 接管（走 /api/news/sync），本接口保留但不再建议使用。
     """
     try:
         mod = _load_news_fetcher()
@@ -274,10 +363,10 @@ def _news_scheduler_loop():
 
 
 def _start_news_scheduler():
-    t = threading.Thread(target=_news_scheduler_loop, name="news-scheduler", daemon=True)
-    t.start()
-    hm = "/".join(f"{h}:00" for h in _NEWS_REFRESH_HOURS)
-    print(f"[news_scheduler] 已启动，每日 {hm}（东八区）自动刷新新闻动态", flush=True)
+    # 数据源已由外部 Agent 接管，不再启动本地抓取线程。
+    # 保留本函数仅为向后兼容，调用处已停用。
+    print("[news_scheduler] 已停用：新闻动态数据源由外部 Agent 经 /api/news/sync 写入", flush=True)
+    return
 make_crud("tasks")
 make_crud("notes")
 make_crud("knowledge")
@@ -304,10 +393,59 @@ _bili_wbi_cache = {"img_key": "", "sub_key": "", "ts": 0}
 _bili_wbi_lock = threading.Lock()
 
 
+# 登录态 Cookie（避免 B 站 -352/-412 风控）。由 BILI_COOKIE 环境变量注入，明文不落库、不进 git。
+_BILI_COOKIE = (os.environ.get("BILI_COOKIE", "") or "").strip()
+
+# 风控/失效错误码：检测到即视为 Cookie 失效，需提醒用户更新
+_BILI_AUTH_FAIL_CODES = {-352, -412, -101, -403, 3}
+_bili_fail_reminded = False
+
+
+def _bili_note_cookie_expired(code, message):
+    """B 站接口返回风控/未登录时，往工作台待办里插一条提醒（仅首次一次，避免刷屏）。"""
+    global _bili_fail_reminded
+    if _bili_fail_reminded:
+        return
+    _bili_fail_reminded = True
+    try:
+        tasks = read_json("tasks", {"items": []})
+        title = "B站Cookie已失效，视频订阅暂停，请更新SESSDATA"
+        # 已有同标题提醒则跳过
+        if any((t.get("title") or "") == title for t in tasks.get("items", [])):
+            return
+        tasks.setdefault("items", []).insert(0, {
+            "title": title,
+            "priority": "高",
+            "date": _now()[:10],
+            "source": "助手记录",
+            "id": uuid.uuid4().hex[:12],
+            "created_at": _now(),
+        })
+        tasks["updated_at"] = _now()
+        with _lock_for("tasks"):
+            write_json("tasks", tasks)
+        touch_meta()
+    except Exception:
+        pass  # 提醒失败不阻断抓取流程
+
+
 def _bili_get_json(url, referer="https://www.bilibili.com/", timeout=8):
-    req = urllib.request.Request(url, headers={"User-Agent": _UA_DESKTOP, "Referer": referer})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8", errors="ignore"))
+    headers = {"User-Agent": _UA_DESKTOP, "Referer": referer}
+    if _BILI_COOKIE:
+        headers["Cookie"] = _BILI_COOKIE
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    except urllib.error.HTTPError as e:
+        # 412 等 HTTP 级风控
+        if e.code in (412, 403, 401):
+            _bili_note_cookie_expired(e.code, "")
+        raise
+    code = payload.get("code")
+    if code in _BILI_AUTH_FAIL_CODES:
+        _bili_note_cookie_expired(code, payload.get("message") or "")
+    return payload
 
 
 def _bili_wbi_keys():
@@ -348,25 +486,49 @@ def _bili_user_info(mid):
     return {"name": d.get("name") or f"UP{mid}", "avatar": avatar}
 
 
-def _bili_user_videos(mid, limit=12):
-    params = _bili_wbi_sign({"mid": mid, "pn": 1, "ps": limit, "order": "pubdate"})
-    url = "https://api.bilibili.com/x/space/wbi/arc/search?" + urllib.parse.urlencode(params)
-    payload = _bili_get_json(url, referer=f"https://space.bilibili.com/{mid}/")
-    if payload.get("code") != 0:
-        raise RuntimeError(payload.get("message") or "B 站接口返回异常（可能触发风控）")
-    vlist = ((payload.get("data") or {}).get("list") or {}).get("vlist") or []
+def _bili_user_videos(mid, limit=12, max_items=None):
+    """抓取 B 站 UP 主投稿。
+    limit: 每页条数（ps），默认 12。
+    max_items: 最多抓取的总条数；None 表示只抓第一页（增量场景），
+        传入数值则翻页抓取直到达到该条数或没有更多数据（全量回填场景）。
+    """
+    per_page = max(1, min(int(limit), 50))
+    target = max_items if max_items is not None else per_page
     out = []
-    for v in vlist:
-        bvid = v.get("bvid") or ""
-        if not bvid:
-            continue
-        out.append({
-            "title": v.get("title") or "",
-            "cover": (v.get("pic") or "").replace("http://", "https://"),
-            "url": f"https://www.bilibili.com/video/{bvid}",
-            "published_at": int(v.get("created") or 0),
-            "stat": f"{v.get('play', 0)} 播放",
-        })
+    pn = 1
+    seen = set()
+    while len(out) < target:
+        params = _bili_wbi_sign({"mid": mid, "pn": pn, "ps": per_page, "order": "pubdate"})
+        url = "https://api.bilibili.com/x/space/wbi/arc/search?" + urllib.parse.urlencode(params)
+        payload = _bili_get_json(url, referer=f"https://space.bilibili.com/{mid}/")
+        if payload.get("code") != 0:
+            raise RuntimeError(payload.get("message") or "B 站接口返回异常（可能触发风控）")
+        data = payload.get("data") or {}
+        vlist = (data.get("list") or {}).get("vlist") or []
+        if not vlist:
+            break
+        page_added = 0
+        for v in vlist:
+            bvid = v.get("bvid") or ""
+            if not bvid or bvid in seen:
+                continue
+            seen.add(bvid)
+            out.append({
+                "title": v.get("title") or "",
+                "cover": (v.get("pic") or "").replace("http://", "https://"),
+                "url": f"https://www.bilibili.com/video/{bvid}",
+                "published_at": int(v.get("created") or 0),
+                "stat": f"{v.get('play', 0)} 播放",
+            })
+            page_added += 1
+            if len(out) >= target:
+                break
+        if page_added < per_page:
+            # 本页已不足一整页，说明已到最后一页
+            break
+        pn += 1
+        # 翻页限速：避免 B 站 wbi 接口触发风控（412）
+        time.sleep(1.2)
     return out
 
 
@@ -407,14 +569,19 @@ def _yt_resolve_channel(url):
     return {"external_id": channel_id, "name": name, "avatar": avatar}
 
 
-def _yt_channel_videos(channel_id, limit=12):
+def _yt_channel_videos(channel_id, limit=12, max_items=None):
     url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
     req = urllib.request.Request(url, headers={"User-Agent": _UA_DESKTOP})
     with urllib.request.urlopen(req, timeout=10) as resp:
         raw = resp.read()
     root = ET.fromstring(raw)
+    entries = root.findall("a:entry", _YT_NS)
+    if max_items is not None:
+        entries = entries[:max_items]
+    else:
+        entries = entries[:limit]
     out = []
-    for entry in root.findall("a:entry", _YT_NS)[:limit]:
+    for entry in entries:
         vid = (entry.findtext("yt:videoId", default="", namespaces=_YT_NS) or "").strip()
         if not vid:
             continue
@@ -485,6 +652,49 @@ def fetch_creator_meta():
 _creator_video_cache = {}
 _creator_video_cache_lock = threading.Lock()
 _CREATOR_VIDEO_TTL = 20 * 60
+_CREATOR_VIDEO_STORE = "creator_videos"
+_creator_video_store_lock = threading.Lock()
+
+
+def _load_creator_video_store():
+    """读取落盘的历史视频库。结构 {"items": [...], "updated_at": ...}。"""
+    data = read_json(_CREATOR_VIDEO_STORE, {"items": [], "updated_at": None})
+    if not isinstance(data, dict):
+        data = {"items": [], "updated_at": None}
+    if not isinstance(data.get("items"), list):
+        data["items"] = []
+    return data
+
+
+def _save_creator_video_store(data):
+    write_json(_CREATOR_VIDEO_STORE, data)
+
+
+def _merge_videos_into_store(store, new_videos, creator):
+    """把新抓取的视频增量合并进 store，按 url 去重，返回是否新增。"""
+    items = store["items"]
+    existing = {v.get("url") for v in items if v.get("url")}
+    added = 0
+    for v in new_videos:
+        v = dict(v)
+        v.update(
+            creator_id=creator.get("id"),
+            creator_name=creator.get("name"),
+            creator_avatar=creator.get("avatar"),
+            platform=creator.get("platform"),
+        )
+        url = v.get("url")
+        if not url or url in existing:
+            continue
+        existing.add(url)
+        items.append(v)
+        added += 1
+    if added:
+        # 落盘时按发布时间倒序排，保持稳定顺序。
+        items.sort(key=lambda x: x.get("published_at") or 0, reverse=True)
+        store["updated_at"] = _now()
+        _save_creator_video_store(store)
+    return added
 
 
 def _fetch_creator_videos(creator):
@@ -499,6 +709,32 @@ def _fetch_creator_videos(creator):
     return []
 
 
+def _backfill_creator_history(creator, max_items=200):
+    """新建关注时全量回填历史投稿：B 站翻页抓取、YouTube 全量 RSS。
+    已在库中存在的 url 会由 _merge_videos_into_store 去重，重复回填安全。
+    返回回填条数。
+    """
+    platform = creator.get("platform")
+    external_id = creator.get("external_id")
+    if not external_id:
+        return 0
+    try:
+        if platform == "bilibili":
+            videos = _bili_user_videos(external_id, limit=50, max_items=max_items)
+        elif platform == "youtube":
+            videos = _yt_channel_videos(external_id, max_items=max_items)
+        else:
+            return 0
+    except Exception:
+        return 0
+    if not videos:
+        return 0
+    with _creator_video_store_lock:
+        store = _load_creator_video_store()
+        added = _merge_videos_into_store(store, videos, creator)
+    return added
+
+
 def _get_creator_videos_cached(creator, force=False):
     cid = creator.get("id")
     now = datetime.datetime.now().timestamp()
@@ -509,6 +745,10 @@ def _get_creator_videos_cached(creator, force=False):
     try:
         videos = _fetch_creator_videos(creator)
         err = None
+        # 抓取成功后，增量合并进落盘视频库。
+        with _creator_video_store_lock:
+            store = _load_creator_video_store()
+            _merge_videos_into_store(store, videos, creator)
     except Exception as e:
         videos = list((cached or {}).get("data") or [])
         err = str(e)
@@ -519,30 +759,79 @@ def _get_creator_videos_cached(creator, force=False):
 
 @app.route("/api/creators/videos", methods=["GET"])
 def get_creator_videos():
-    """聚合所有关注博主的最新投稿。每个博主结果缓存 20 分钟，refresh=1 强制重新抓取。
-    单个博主抓取失败（如 B 站风控）不影响其他博主正常返回。
+    """聚合所有关注博主的最新投稿。
+    落盘存储历史视频，每次刷新增量追加新视频（按 url 去重），历史不丢。
+    返回：已落盘的全部视频按发布时间倒序（可搜历史），limit 列数截断。
+    refresh=1 强制重新抓取（拉取上次与本次之间的增量）。
     """
     force = request.args.get("refresh") == "1"
+    creator_id = (request.args.get("creator_id") or "").strip()
+    try:
+        limit = max(1, min(int(request.args.get("limit", 90)), 500))
+    except ValueError:
+        limit = 90
     creators = read_json("creators", {"items": []}).get("items", [])
-    results, errors = [], {}
+    errors = {}
     if creators:
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
             futs = {pool.submit(_get_creator_videos_cached, c, force): c for c in creators}
             for fut in concurrent.futures.as_completed(futs):
                 c = futs[fut]
                 try:
-                    videos, err = fut.result()
+                    _, err = fut.result()
                 except Exception as e:
-                    videos, err = [], str(e)
+                    err = str(e)
                 if err:
                     errors[c.get("id")] = err
-                for v in videos:
-                    v = dict(v)
-                    v.update(creator_id=c.get("id"), creator_name=c.get("name"),
-                              creator_avatar=c.get("avatar"), platform=c.get("platform"))
-                    results.append(v)
-    results.sort(key=lambda x: x.get("published_at") or 0, reverse=True)
-    return jsonify({"items": results[:90], "errors": errors, "updated_at": _now()})
+    # 从落盘视频库读取全量（历史 + 本次增量），按时间倒序截断。
+    with _creator_video_store_lock:
+        store = _load_creator_video_store()
+    items = sorted(store.get("items", []), key=lambda x: x.get("published_at") or 0, reverse=True)
+    # 选中单个博主时，返回该博主全部视频（不受全局 limit 影响），
+    # 否则历史视频会被时间倒序的全局截断挤出窗口。
+    if creator_id:
+        items = [it for it in items if str(it.get("creator_id")) == str(creator_id)]
+        limit = len(items)
+    return jsonify({
+        "items": items[:limit],
+        "errors": errors,
+        "updated_at": store.get("updated_at") or _now(),
+    })
+
+
+@app.route("/api/creators/backfill", methods=["POST"])
+def backfill_creator_history():
+    """对现有关注博主做一次全量历史回填（B 站翻页 / YouTube 全量 RSS）。
+    body 可选 {creator_id, max_items}；不给 creator_id 则对全部博主回填。
+    异步执行，立即返回，完成后前端再次刷新即可看到补齐的历史。
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    cid = body.get("creator_id")
+    try:
+        max_items = max(1, min(int(body.get("max_items", 200)), 500))
+    except (TypeError, ValueError):
+        max_items = 200
+    creators = read_json("creators", {"items": []}).get("items", [])
+    targets = [c for c in creators if not cid or str(c.get("id")) == str(cid)]
+    if not targets:
+        return jsonify({"error": "no matching creator"}), 404
+
+    results = {}
+
+    def _worker():
+        # 轻度并发 + 每个博主之间限速，避免 B 站 wbi 接口触发风控
+        def _one(c):
+            try:
+                added = _backfill_creator_history(c, max_items=max_items)
+                results[str(c.get("id"))] = {"added": added, "error": None}
+            except Exception as e:
+                results[str(c.get("id"))] = {"added": 0, "error": str(e)}
+            time.sleep(1.5)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            list(pool.map(_one, targets))
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return jsonify({"started": True, "count": len(targets), "max_items": max_items})
 
 
 # ---------------------------------------------------------------------------
@@ -551,7 +840,7 @@ def get_creator_videos():
 _DOUBAN_HOT_TYPES = {
     "movie": "movie_real_time_hotest",
     "tv": "tv_real_time_hotest",
-    "show": "show_chinese_best_weekly",
+    "show": "show_hot",
     "music": "music_single",
     "book": "book_hot",
 }
@@ -585,7 +874,7 @@ def get_weather():
         url = f"https://api.weatherapi.com/v1/forecast.json?{params}"
         req = urllib.request.Request(url, headers={"Accept": "application/json"})
         ctx = _ssl._create_unverified_context()
-        with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
+        with urllib.request.urlopen(req, context=ctx, timeout=3) as resp:
             payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
         result = {
             "city": city,
@@ -827,12 +1116,28 @@ def media_douban_hot():
 make_crud("media")
 
 # ---------------------------------------------------------------------------
-# 豆瓣封面图片代理：豆瓣图片域名对无 Referer/UA 的请求返回 418，
-# 前端直连会被拦截导致封面加载失败，这里由后端转发一次。
+# 图片代理：部分图片域名对无 Referer/UA 的请求返回 418/400（防盗链），
+# 或需要正确的 Referer 才能访问，所以后端统一转发一次。
+# 支持的域名：豆瓣(doubanio.com)、B站(hdslb.com)、YouTube(yt3.googleusercontent.com/ytimg.com)
 # ---------------------------------------------------------------------------
 from flask import Response
 
-_ALLOWED_IMG_HOST_SUFFIX = ".doubanio.com"
+# 域名 -> 请求时使用的 Referer / UA
+_IMG_PROXY_RULES = [
+    (lambda host: host == "doubanio.com" or host.endswith(".doubanio.com"),
+     {"Referer": "https://movie.douban.com/",
+      "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+                    "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"}),
+    (lambda host: host == "hdslb.com" or host.endswith(".hdslb.com"),
+     {"Referer": "https://www.bilibili.com/",
+      "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+                    "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"}),
+    (lambda host: host == "yt3.googleusercontent.com" or host.endswith(".googleusercontent.com")
+                  or host == "i.ytimg.com" or host.endswith(".ytimg.com"),
+     {"Referer": "https://www.youtube.com/",
+      "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+                    "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"}),
+]
 
 
 @app.route("/api/media/img-proxy", methods=["GET"])
@@ -845,13 +1150,16 @@ def media_img_proxy():
     except Exception:
         return "bad url", 400
     host = parsed.hostname or ""
-    if parsed.scheme not in ("http", "https") or not (host == "doubanio.com" or host.endswith(_ALLOWED_IMG_HOST_SUFFIX)):
+    if parsed.scheme not in ("http", "https"):
         return "host not allowed", 400
-    req = urllib.request.Request(src, headers={
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
-                      "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
-        "Referer": "https://movie.douban.com/",
-    })
+    headers = None
+    for match, hdr in _IMG_PROXY_RULES:
+        if match(host):
+            headers = hdr
+            break
+    if headers is None:
+        return "host not allowed", 400
+    req = urllib.request.Request(src, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = resp.read()
@@ -1283,6 +1591,115 @@ def download_knowledge_file(stored_name):
     )
 
 # ---------------------------------------------------------------------------
+# IMA 同步：笔记 → IMA 笔记；知识库链接 → 草稿箱知识库
+# ---------------------------------------------------------------------------
+_IMA_BASE = "https://ima.qq.com"
+_IMA_DRAFT_KB_ID = "aFzErcL_cYs6VzoErCp1-JVp7h8DwtrJSJues6gLU3c="  # 「草稿箱」个人知识库
+
+
+def _ima_credentials():
+    """优先环境变量，其次 ~/.config/ima/ 配置文件。"""
+    cid = os.environ.get("IMA_OPENAPI_CLIENTID")
+    key = os.environ.get("IMA_OPENAPI_APIKEY")
+    if not cid:
+        try:
+            with open(os.path.expanduser("~/.config/ima/client_id"), encoding="utf-8") as f:
+                cid = f.read().strip()
+        except OSError:
+            cid = ""
+    if not key:
+        try:
+            with open(os.path.expanduser("~/.config/ima/api_key"), encoding="utf-8") as f:
+                key = f.read().strip()
+        except OSError:
+            key = ""
+    return cid, key
+
+
+def _ima_api(path, body):
+    """调用 IMA OpenAPI，返回 (retcode, data)。凭证仅发往 ima.qq.com。"""
+    cid, key = _ima_credentials()
+    if not cid or not key:
+        return None, {"error": "缺少 IMA 凭证，请先配置 ~/.config/ima/ 下的 client_id 和 api_key"}
+    req = urllib.request.Request(
+        _IMA_BASE + path,
+        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+        method="POST",
+        headers={
+            "ima-openapi-clientid": cid,
+            "ima-openapi-apikey": key,
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        return None, {"error": f"IMA 请求失败：{e}"}
+    code = payload.get("code", payload.get("retcode", -1))
+    return code, payload
+
+
+def _note_to_markdown(note):
+    """把工作台笔记结构转为 Markdown 正文。含 HTML 时去掉标签取纯文本。"""
+    title = (note.get("title") or "未命名笔记").strip()
+    content = note.get("content") or ""
+    if re.search(r"<[a-z][\s\S]*>", content, re.IGNORECASE):
+        # 笔记正文可能是 HTML（富文本编辑器产物），提取纯文本
+        content = re.sub(r"<img[^>]*>", "", content)
+        content = re.sub(r"<[^>]+>", "", content)
+        content = html.unescape(content)
+    content = content.strip()
+    topic = (note.get("topic") or "").strip()
+    md = f"# {title}\n\n"
+    if topic:
+        md += f"*主题：{topic}*\n\n"
+    md += content or "（空笔记）"
+    return md
+
+
+@app.route("/api/ima/sync", methods=["POST"])
+def ima_sync():
+    """把一条工作台内容同步到 IMA。
+
+    body: { kind: "note" | "knowledge", id: "<item_id>" }
+    - kind=note      → 存为 IMA 笔记（import_doc）
+    - kind=knowledge → 仅支持 link（文章链接），import_urls 到「草稿箱」
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    kind = body.get("kind")
+    item_id = body.get("id")
+    if kind not in ("note", "knowledge") or not item_id:
+        return jsonify({"ok": False, "error": "参数错误：需要 kind 和 id"}), 400
+
+    if kind == "note":
+        data = read_json("notes", {"items": []})
+        item = next((it for it in data.get("items", []) if str(it.get("id")) == str(item_id)), None)
+        if not item:
+            return jsonify({"ok": False, "error": "笔记不存在"}), 404
+        md = _note_to_markdown(item)
+        code, resp = _ima_api("/openapi/note/v1/import_doc", {"content_format": 1, "content": md})
+        if code == 0:
+            return jsonify({"ok": True, "note_id": (resp.get("data") or {}).get("note_id")})
+        return jsonify({"ok": False, "error": (resp or {}).get("msg") or (resp or {}).get("errmsg") or f"IMA 返回 {code}"})
+
+    # kind == knowledge：仅文章链接
+    data = read_json("knowledge", {"items": []})
+    item = next((it for it in data.get("items", []) if str(it.get("id")) == str(item_id)), None)
+    if not item:
+        return jsonify({"ok": False, "error": "内容不存在"}), 404
+    if (item.get("kind") or "") != "link" or not item.get("url"):
+        return jsonify({"ok": False, "error": "仅支持同步「链接」类型到草稿箱"}), 400
+    code, resp = _ima_api("/openapi/wiki/v1/import_urls", {
+        "knowledge_base_id": _IMA_DRAFT_KB_ID,
+        "urls": [item["url"]],
+    })
+    if code == 0:
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": (resp or {}).get("msg") or (resp or {}).get("errmsg") or f"IMA 返回 {code}"})
+
+
+# ---------------------------------------------------------------------------
 # products（好品集）— 扁平结构 {products: [...]}，
 # 每个产品带 type 标签（展示分类）与 source 字段（采集路径）。
 # 读取时向后兼容旧 {groups:{...}} 格式，自动转换为扁平结构。
@@ -1432,8 +1849,8 @@ _UNREAD_MARK_NAME = "unread_marks"
 def _unread_marks():
     d = read_json(_UNREAD_MARK_NAME, {})
     d.setdefault("knowledge", [])
-    d.setdefault("articles", [])
     d.setdefault("media", [])
+    d.setdefault("creators", [])
     return d
 
 
@@ -1456,21 +1873,33 @@ def _media_hot_ids():
     return ids
 
 
+def _creator_video_ids():
+    """所有关注博主的视频 url 汇总（用缓存的聚合结果，避免重复抓取）。
+    视频唯一标识用 url（B站 bvid / YouTube watch id）。
+    """
+    creators = read_json("creators", {"items": []}).get("items", [])
+    ids = []
+    for c in creators:
+        try:
+            videos, _err = _get_creator_videos_cached(c, force=False)
+        except Exception:
+            videos = []
+        for v in videos or []:
+            u = v.get("url") or ""
+            if u:
+                ids.append(u)
+    return ids
+
+
 @app.route("/api/unread", methods=["GET"])
 def get_unread():
-    """返回各 tab 未读数量：knowledge / articles / radar / media。"""
+    """返回各 tab 未读数量：knowledge / radar / media。"""
     marks = _unread_marks()
 
     knowledge_seen = set(marks.get("knowledge", []))
     knowledge_unread = sum(
         1 for it in read_json("knowledge", {"items": []}).get("items", [])
         if str(it.get("id") or it.get("url") or "") and str(it.get("id") or it.get("url")) not in knowledge_seen
-    )
-
-    articles_seen = set(marks.get("articles", []))
-    articles_unread = sum(
-        1 for it in read_json("articles", {"items": []}).get("items", [])
-        if str(it.get("id") or it.get("url") or "") and str(it.get("id") or it.get("url")) not in articles_seen
     )
 
     # 鹰眼复用现有 read 字段，未读 = read != true
@@ -1482,11 +1911,15 @@ def get_unread():
     media_seen = set(marks.get("media", []))
     media_unread = sum(1 for i in _media_hot_ids() if i not in media_seen)
 
+    creator_seen = set(marks.get("creators", []))
+    creator_unread = sum(1 for i in _creator_video_ids() if i not in creator_seen)
+
     return jsonify({
         "knowledge": knowledge_unread,
-        "articles": articles_unread,
         "radar": radar_unread,
         "media": media_unread,
+        "creators": creator_unread,
+        "creator_seen": sorted(creator_seen),
     })
 
 
@@ -1509,12 +1942,12 @@ def mark_unread_read():
                 write_json("products_updates", data)
         return jsonify({"ok": True, "module": module})
 
-    if module in ("knowledge", "articles", "media"):
+    if module in ("knowledge", "media", "creators"):
         marks = _unread_marks()
         if module == "knowledge":
             ids = _item_ids(read_json("knowledge", {"items": []}).get("items", []))
-        elif module == "articles":
-            ids = _item_ids(read_json("articles", {"items": []}).get("items", []))
+        elif module == "creators":
+            ids = _creator_video_ids()
         else:  # media
             ids = _media_hot_ids()
         # 合并去重，保留历史已读
@@ -1583,6 +2016,25 @@ def _weread_progress(book_id):
         return {"bookId": book_id, "progress": None, "readingTime": 0, "isStartReading": False}
 
 
+def _weread_readlongest():
+    """拉取「本月读得最多的书」列表，用于补漏不在书架但真正在读的书。
+    返回 list[dict]，每项含 book(bookId/title/author/cover) 与 readTime。"""
+    try:
+        d = _weread_call("/readdata/detail", mode="monthly")
+        return d.get("readLongest") or []
+    except Exception:
+        return []
+
+
+def _weread_deeplink(book_id):
+    """尝试从 /book/info 获取书的 Web 详情 deepLink，失败返回空串。"""
+    try:
+        info = _weread_call("/book/info", bookId=book_id)
+        return info.get("deepLink") or ""
+    except Exception:
+        return ""
+
+
 def _weread_build_books(force=False):
     """构建书籍页数据：reading(正在读前10) + shelf(全量书架，按最近阅读倒序)。"""
     now = datetime.datetime.now().timestamp()
@@ -1635,8 +2087,39 @@ def _weread_build_books(force=False):
         b["progress"] = prog
         b["readingTime"] = p.get("readingTime", 0)
         reading.append(b)
-    # 按累计阅读时长倒序（读得越久越靠前）
-    reading.sort(key=lambda x: x.get("readingTime", 0), reverse=True)
+    # 正在读按「最近阅读时间」倒序（最近在读的排前面），读时长仅作辅助展示。
+    reading.sort(key=lambda x: x.get("readUpdateTime", 0), reverse=True)
+
+    # 补漏：从「本月读得最多的书」里找出不在书架、但真正在读（有进度未读完）的书，
+    # 合并进「正在阅读」，解决用户书架里没加但在读的书籍漏展示的问题。
+    shelf_ids = {str(b["bookId"]) for b in norm_books if b.get("bookId")}
+    extra_books = []
+    for it in _weread_readlongest():
+        book = it.get("book") or {}
+        bid = book.get("bookId")
+        if not bid or str(bid) in shelf_ids:
+            continue
+        # readLongest 里的 book 可能是专辑(有声书)，format 不一定是 epub；只补电子书。
+        p = _weread_progress(str(bid))
+        prog = p.get("progress")
+        if prog is None or prog <= 0 or prog >= 100:
+            continue
+        extra_books.append({
+            "bookId": str(bid),
+            "title": book.get("title") or "",
+            "author": book.get("author") or "",
+            "cover": book.get("cover") or "",
+            "category": "",
+            "finishReading": False,
+            "readUpdateTime": it.get("readTime") or 0,
+            "deepLink": _weread_deeplink(str(bid)),
+            "secret": False,
+            "progress": prog,
+            "readingTime": p.get("readingTime", 0),
+        })
+    if extra_books:
+        # 补漏的书排在前面（它们往往就是当前正在读的书）。
+        reading = extra_books + reading
     reading = reading[:10]
 
     result = {
@@ -1716,9 +2199,457 @@ def index():
 def favicon():
     return send_from_directory(STATIC, "favicon-32.png", mimetype="image/png")
 
+@app.route("/api/brief", methods=["GET"])
+def get_brief():
+    b = read_json("brief", {})
+    return jsonify({"html": b.get("html", ""), "updated_at": b.get("updated_at", "")})
+
+
+# ---- 混元 Hy Token Plan（OpenAI 兼容）----
+HYUNYUAN_API_KEY = os.environ.get("HYUNYUAN_API_KEY", "")
+HYUNYUAN_BASE_URL = os.environ.get("HYUNYUAN_BASE_URL", "https://api.lkeap.cloud.tencent.com/plan/v3").rstrip("/")
+HYUNYUAN_MODEL = os.environ.get("HYUNYUAN_MODEL", "hy3")
+
+# brief 条目标签白名单：tag -> 中文名（防止 AI 注入任意 class）
+_BRIEF_TAGS = {
+    "urg": "急", "line": "主线", "live": "直播",
+    "prod": "产品", "news": "行业", "fun": "影音",
+    "book": "书", "kb": "知识", "todo": "待办",
+}
+
+
+def _call_hunyuan(messages, max_tokens=1600, temperature=0.6, timeout=60):
+    """调用混元 Hy Token Plan（OpenAI 兼容 chat/completions）。失败抛异常。"""
+    if not HYUNYUAN_API_KEY:
+        raise RuntimeError("HYUNYUAN_API_KEY 未配置")
+    url = HYUNYUAN_BASE_URL + "/chat/completions"
+    body = json.dumps({
+        "model": HYUNYUAN_MODEL,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers={
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + HYUNYUAN_API_KEY,
+    })
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    try:
+        return payload["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        raise RuntimeError("混元返回异常：" + str(payload)[:300])
+
+
+def _generate_brief_html():
+    """基于 news + tasks + 影音/书籍/知识/笔记/文章 生成「今日关注」结构化条目。"""
+    news = read_json("news", {}).get("items", []) or []
+    tasks = read_json("tasks", {}).get("items", []) or []
+    knowledge = read_json("knowledge", {}).get("items", []) or []
+    notes = read_json("notes", {}).get("items", []) or []
+    articles = read_json("articles", {}).get("items", []) or []
+    douban = read_json("douban_hot", {}).get("items", {}) or {}
+    media = read_json("media", {}).get("items", []) or []
+
+    # — 新闻（每类最多取 8 条）—
+    by_cat = {}
+    for it in news:
+        c = (it.get("category") or "其他")
+        by_cat.setdefault(c, []).append(it)
+    news_lines = []
+    for c, arr in by_cat.items():
+        for it in arr[:8]:
+            title = (it.get("title") or "").strip()
+            desc = (it.get("desc") or "").strip()[:120]
+            news_lines.append(f"[{c}] {title} —— {desc}")
+
+    # — 待办：仅未完成（done != True），并忽略今天标记「today」之外的陈旧项 —
+    open_tasks = [t for t in tasks if not t.get("done")]
+    task_lines = []
+    for t in open_tasks[:20]:
+        title = (t.get("title") or "").strip()
+        prio = (t.get("priority") or "").strip()
+        task_lines.append(f"- [{prio}] {title}" if prio else f"- {title}")
+
+    # — 豆瓣热榜：影 / 剧 / 综艺 / 音乐 / 书 —
+    douban_lines = []
+    _douban_label = {"movie": "电影", "tv": "剧", "show": "综艺", "music": "音乐", "book": "书"}
+    for g, arr in douban.items():
+        if not isinstance(arr, list):
+            continue
+        label = _douban_label.get(g, g)
+        for it in arr[:5]:
+            title = (it.get("title") or "").strip()
+            rating = it.get("rating")
+            rating_str = f" ⭐{rating}" if isinstance(rating, (int, float)) else ""
+            sub = (it.get("card_subtitle") or "").strip()[:50]
+            douban_lines.append(f"[{label}] {title}{rating_str} —— {sub}")
+
+    # — 想看的影音（media 中 status=wish）—
+    wish_lines = []
+    for it in media:
+        if it.get("status") != "wish":
+            continue
+        title = (it.get("title") or "").strip()
+        sub = (it.get("card_subtitle") or "").strip()[:50]
+        wish_lines.append(f"{title} —— {sub}")
+
+    # — 知识库 —
+    kb_lines = []
+    for it in knowledge[:10]:
+        title = (it.get("title") or "").strip()
+        topic = (it.get("topic") or "").strip()
+        kb_lines.append(f"{title}" + (f"（{topic}）" if topic else ""))
+
+    # — 笔记 —
+    note_lines = []
+    for it in notes[:10]:
+        title = (it.get("title") or "").strip()
+        if title:
+            note_lines.append(title)
+
+    # — 文章（KM 热榜）—
+    article_lines = []
+    for it in articles[:10]:
+        title = (it.get("title") or "").strip()
+        cat = (it.get("category") or "").strip()
+        article_lines.append(f"{title}" + (f"（{cat}）" if cat else ""))
+
+    if not (news_lines or task_lines or douban_lines or wish_lines or
+            kb_lines or note_lines or article_lines):
+        return '<div class="brief-empty">暂无数据可生成今日简报。</div>'
+
+    system = (
+        "你是个人工作台的「今日关注」助手。请基于用户提供的各类数据（新闻、待办、"
+        "影音书热榜、想看的影音、知识库、笔记、文章），提炼出一份精炼的中文「今日关注」总结。"
+        "要求：输出 5~9 条，每条一句话，语言口语、有信息增量、不啰嗦。"
+        "分配上尽量均衡覆盖各板块：新闻最多 1~2 条（挑最有价值/最硬核的），"
+        "影音书热榜 1~2 条，想看的影音 0~1 条，知识库/笔记/文章 0~2 条，待办 0~2 条。"
+        "不要被新闻数量迷惑——新闻条数很多，但只需提炼最关键的少数几条。"
+        "仅输出 JSON 数组，不要输出任何其他文字或代码块，字段严格为："
+        '[{"tag":"类型","text":"内容"}]。'
+        'tag 只能从以下取值（含义）：urg=急/紧要、line=主线/重点、todo=待办、live=直播、'
+        'prod=产品、news=行业、fun=影音、book=书、kb=知识。'
+        '注意：待办列表里的内容都是「未完成」的，请不要把已完成的当作紧急事项；'
+        '情绪/要紧程度请依据优先级（高/中/低）判断，只有高优先级或明显紧急才用 urg。'
+        '如果某类数据为空，不要硬凑，聚焦有信息量的内容。'
+        'text 内容里可以用 <b>…</b> 标记需要强调的关键词，但不要出现其他 HTML。'
+    )
+
+    parts = []
+    parts.append("新闻动态（按分类）：\n" + ("\n".join(news_lines[:60]) or "（无）"))
+    parts.append("未完成待办：\n" + ("\n".join(task_lines) or "（无）"))
+    parts.append("影音书热榜：\n" + ("\n".join(douban_lines[:30]) or "（无）"))
+    if wish_lines:
+        parts.append("想看的影音：\n" + "\n".join(wish_lines[:10]))
+    if kb_lines:
+        parts.append("知识库：\n" + "\n".join(kb_lines))
+    if note_lines:
+        parts.append("笔记：\n" + "\n".join(note_lines))
+    if article_lines:
+        parts.append("文章（KM 热榜）：\n" + "\n".join(article_lines))
+    user = "\n\n".join(parts)
+
+    content = _call_hunyuan([
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ])
+
+    # 解析 AI 返回的 JSON 数组
+    data = None
+    try:
+        data = json.loads(content)
+    except Exception:
+        m = re.search(r"\[.*\]", content, re.S)
+        if m:
+            try:
+                data = json.loads(m.group(0))
+            except Exception:
+                data = None
+    if not isinstance(data, list):
+        raise RuntimeError("AI 未返回有效的 JSON 数组")
+
+    # 构造安全 HTML
+    items_html = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        tag = str(item.get("tag", "news"))
+        text = str(item.get("text", "")).strip()
+        if not text:
+            continue
+        if tag not in _BRIEF_TAGS:
+            tag = "news"
+        # 只保留 <b>/</b>，转义其余，防注入
+        text = html.escape(text, quote=False).replace("&lt;b&gt;", "<b>").replace("&lt;/b&gt;", "</b>")
+        items_html.append(
+            '<div class="brief-item"><span class="bi-tag ' + tag + '">' + _BRIEF_TAGS[tag] +
+            '</span><span class="bi-txt">' + text + '</span></div>'
+        )
+    if not items_html:
+        raise RuntimeError("AI 生成结果为空")
+
+    return '<div class="brief-items">' + "".join(items_html) + '</div>'
+
+
+@app.route("/api/brief/refresh", methods=["POST"])
+def refresh_brief():
+    """调用混元 Hy3 重新生成「今日关注」，写回 brief.json。"""
+    try:
+        html_str = _generate_brief_html()
+    except Exception as e:
+        return jsonify({"ok": False, "error": "生成失败：" + str(e)}), 502
+
+    brief = read_json("brief", {})
+    brief["html"] = html_str
+    brief["updated_at"] = _now()[:16]
+    write_json("brief", brief)
+    return jsonify({"ok": True, "html": html_str, "updated_at": brief["updated_at"]})
+
 @app.route("/api/meta", methods=["GET"])
 def get_meta():
     return jsonify(read_json("meta", {}))
+
+
+# ===================== AI 对话助手（函数调用查工作台数据） =====================
+
+def _call_hunyuan_raw(messages, tools=None, max_tokens=1200, temperature=0.4, timeout=70):
+    """通用混元调用：支持 tools；返回完整 message dict（chat.completion 的 message）。"""
+    if not HYUNYUAN_API_KEY:
+        raise RuntimeError("HYUNYUAN_API_KEY 未配置")
+    url = HYUNYUAN_BASE_URL + "/chat/completions"
+    body = {"model": HYUNYUAN_MODEL, "messages": messages, "max_tokens": max_tokens, "temperature": temperature}
+    if tools:
+        body["tools"] = tools
+    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers={
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + HYUNYUAN_API_KEY,
+    })
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    try:
+        return payload["choices"][0]["message"]
+    except (KeyError, IndexError, TypeError):
+        raise RuntimeError("混元返回异常：" + str(payload)[:300])
+
+
+def _trunc(s, n):
+    s = (s or "").strip()
+    return s if len(s) <= n else s[: n - 1] + "…"
+
+
+# ---- 数据查询工具：每个返回 JSON 字符串（喂给模型） ----
+
+def _tool_todos(args):
+    status = (args.get("status") or "pending")
+    items = read_json("tasks", {}).get("items", []) or []
+    if status == "done":
+        items = [x for x in items if x.get("done")]
+    elif status == "pending":
+        items = [x for x in items if not x.get("done")]
+    rows = []
+    for x in items[:30]:
+        rows.append({
+            "title": x.get("title", ""),
+            "priority": x.get("priority", ""),
+            "date": x.get("date", ""),
+            "done": bool(x.get("done")),
+        })
+    return json.dumps({"count": len(rows), "items": rows}, ensure_ascii=False)
+
+
+def _tool_notes(args):
+    q = (args.get("keyword") or "").strip()
+    items = read_json("notes", {}).get("items", []) or []
+    if q:
+        items = [x for x in items if q in (x.get("title") or "") + (x.get("content") or "")]
+    rows = []
+    for x in items[:20]:
+        rows.append({
+            "title": x.get("title", ""),
+            "content": _trunc(x.get("content", ""), 300),
+            "date": x.get("date", ""),
+        })
+    return json.dumps({"count": len(rows), "items": rows}, ensure_ascii=False)
+
+
+def _tool_knowledge(args):
+    q = (args.get("keyword") or "").strip()
+    items = read_json("knowledge", {}).get("items", []) or []
+    if q:
+        items = [x for x in items if q in (x.get("title") or "") + (x.get("topic") or "") + (x.get("content") or "")]
+    rows = []
+    for x in items[:20]:
+        rows.append({
+            "title": x.get("title", ""),
+            "kind": x.get("kind", ""),
+            "topic": x.get("topic", ""),
+            "url": x.get("url", ""),
+        })
+    return json.dumps({"count": len(rows), "items": rows}, ensure_ascii=False)
+
+
+def _tool_news(args):
+    cat = (args.get("category") or "").strip().lower()
+    limit = int(args.get("limit") or 10)
+    items = read_json("news", {}).get("items", []) or []
+    if cat and cat != "all":
+        items = [x for x in items if (x.get("category") or "").lower() == cat]
+    rows = []
+    for x in items[: min(limit, 30)]:
+        rows.append({
+            "title": x.get("title", ""),
+            "category": x.get("category", ""),
+            "source": x.get("source", ""),
+            "date": x.get("date", ""),
+            "desc": _trunc(x.get("desc", ""), 160),
+        })
+    return json.dumps({"count": len(rows), "items": rows}, ensure_ascii=False)
+
+
+def _tool_bookmarks(args):
+    q = (args.get("keyword") or "").strip()
+    items = read_json("bookmarks", {}).get("items", []) or []
+    if q:
+        items = [x for x in items if q in (x.get("title") or "") + (x.get("url") or "") + (x.get("summary") or "")]
+    rows = []
+    for x in items[:20]:
+        rows.append({
+            "title": x.get("title", ""),
+            "url": x.get("url", ""),
+            "kind": x.get("kind", ""),
+            "summary": _trunc(x.get("summary", ""), 120),
+        })
+    return json.dumps({"count": len(rows), "items": rows}, ensure_ascii=False)
+
+
+def _tool_media(args):
+    q = (args.get("keyword") or "").strip()
+    items = read_json("media", {}).get("items", []) or []
+    if q:
+        items = [x for x in items if q in (x.get("title") or "") + (x.get("subtype") or "") + (x.get("comment") or "")]
+    rows = []
+    for x in items[:20]:
+        rows.append({
+            "title": x.get("title", ""),
+            "subtype": x.get("subtype", ""),
+            "status": x.get("status", ""),
+            "rating": x.get("rating", ""),
+            "comment": _trunc(x.get("comment", ""), 120),
+        })
+    return json.dumps({"count": len(rows), "items": rows}, ensure_ascii=False)
+
+
+def _tool_hot(args):
+    """查豆瓣热门榜单（电影/电视剧/书等）。"""
+    cat = (args.get("category") or "movie").strip().lower()
+    limit = int(args.get("limit") or 8)
+    d = read_json("douban_hot", {})
+    grouped = d.get("items", {}) if isinstance(d.get("items"), dict) else {}
+    items = grouped.get(cat, []) if isinstance(grouped, dict) else []
+    rows = []
+    for x in items[: min(limit, 20)]:
+        rows.append({
+            "title": x.get("title", ""),
+            "rating": x.get("rating", ""),
+            "year": x.get("year", ""),
+            "url": x.get("url", ""),
+        })
+    return json.dumps({"category": cat, "count": len(rows), "items": rows}, ensure_ascii=False)
+
+
+def _tool_videos(args):
+    """查视频订阅（B站/YouTube UP 主）的最新视频。"""
+    q = (args.get("keyword") or "").strip()
+    limit = int(args.get("limit") or 10)
+    items = read_json("creator_videos", {}).get("items", []) or []
+    if q:
+        items = [x for x in items if q in (x.get("title") or "") + (x.get("creator_name") or "")]
+    rows = []
+    for x in items[: min(limit, 30)]:
+        rows.append({
+            "title": x.get("title", ""),
+            "creator": x.get("creator_name", ""),
+            "platform": x.get("platform", ""),
+            "stat": x.get("stat", ""),
+            "url": x.get("url", ""),
+        })
+    return json.dumps({"count": len(rows), "items": rows}, ensure_ascii=False)
+
+
+_TOOLS = [
+    {"type": "function", "function": {"name": "query_todos", "description": "查询待办事项", "parameters": {"type": "object", "properties": {"status": {"type": "string", "enum": ["all", "pending", "done"], "description": "状态：all全部/pending未完成/done已完成"}}, "required": ["status"]}}},
+    {"type": "function", "function": {"name": "query_notes", "description": "搜索/查看笔记", "parameters": {"type": "object", "properties": {"keyword": {"type": "string", "description": "关键词，留空则返回全部"}}, "required": []}}},
+    {"type": "function", "function": {"name": "query_knowledge", "description": "搜索知识库条目", "parameters": {"type": "object", "properties": {"keyword": {"type": "string", "description": "关键词，留空则返回全部"}}, "required": []}}},
+    {"type": "function", "function": {"name": "query_news", "description": "查询新闻动态", "parameters": {"type": "object", "properties": {"category": {"type": "string", "enum": ["all", "ai", "tech", "finance", "politics"], "description": "分类"}, "limit": {"type": "integer", "description": "条数"}}, "required": ["category", "limit"]}}},
+    {"type": "function", "function": {"name": "query_bookmarks", "description": "搜索书签/备忘", "parameters": {"type": "object", "properties": {"keyword": {"type": "string", "description": "关键词，留空则返回全部"}}, "required": []}}},
+    {"type": "function", "function": {"name": "query_media", "description": "查询书影音（我的库）", "parameters": {"type": "object", "properties": {"keyword": {"type": "string", "description": "关键词，留空则返回全部"}}, "required": []}}},
+    {"type": "function", "function": {"name": "query_hot", "description": "查询豆瓣热门榜单（电影/图书/电视剧/综艺/音乐）", "parameters": {"type": "object", "properties": {"category": {"type": "string", "enum": ["movie", "book", "tv", "show", "music"], "description": "榜单分类"}, "limit": {"type": "integer", "description": "条数"}}, "required": ["category", "limit"]}}},
+    {"type": "function", "function": {"name": "query_videos", "description": "查询视频订阅（B站/YouTube UP 主）的最新视频", "parameters": {"type": "object", "properties": {"keyword": {"type": "string", "description": "关键词，留空则返回最新"}, "limit": {"type": "integer", "description": "条数"}}, "required": ["limit"]}}},
+]
+
+_TOOL_FNS = {
+    "query_todos": _tool_todos,
+    "query_notes": _tool_notes,
+    "query_knowledge": _tool_knowledge,
+    "query_news": _tool_news,
+    "query_bookmarks": _tool_bookmarks,
+    "query_media": _tool_media,
+    "query_hot": _tool_hot,
+    "query_videos": _tool_videos,
+}
+
+_SYSTEM_PROMPT = (
+    "你是用户个人工作台里的 AI 助手。你可以通过调用工具查询用户的工作台数据（待办、笔记、知识库、新闻、书签、书影音、豆瓣热榜、视频订阅）。"
+    "当用户的问题涉及这些数据时，请务必先调用对应工具获取数据，再基于真实数据回答。"
+    "回答用简洁自然的中文，直接给出结果，不要啰嗦、不要编造工具返回之外的信息。"
+)
+
+
+@app.route("/api/ai/chat", methods=["POST"])
+def ai_chat():
+    """AI 对话：接收 messages 数组，支持 function calling 查数据，返回工具调用后的最终答复。"""
+    data = request.get_json(silent=True) or {}
+    messages = data.get("messages") or []
+    if not messages:
+        return jsonify({"ok": False, "error": "messages 不能为空"}), 400
+
+    # 截断，防止无限增长
+    history = [
+        {"role": m.get("role"), "content": m.get("content", "")}
+        for m in messages[-12:] if m.get("role") in ("user", "assistant") and m.get("content")
+    ]
+    prompt = [{"role": "system", "content": _SYSTEM_PROMPT}] + history
+
+    try:
+        # 函数调用循环（最多 5 轮，避免死循环）
+        for _ in range(5):
+            msg = _call_hunyuan_raw(prompt, tools=_TOOLS)
+            tc = msg.get("tool_calls")
+            if not tc:
+                return jsonify({"ok": True, "reply": msg.get("content", "")})
+            # 执行工具
+            prompt.append(msg)  # assistant 的 tool_calls message
+            for call in tc:
+                fn = call.get("function", {})
+                name = fn.get("name")
+                args = {}
+                try:
+                    args = json.loads(fn.get("arguments") or "{}")
+                except Exception:
+                    args = {}
+                result = ""
+                if name in _TOOL_FNS:
+                    try:
+                        result = _TOOL_FNS[name](args)
+                    except Exception as e:
+                        result = json.dumps({"error": str(e)}, ensure_ascii=False)
+                else:
+                    result = json.dumps({"error": "未知工具 " + str(name)}, ensure_ascii=False)
+                prompt.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": result})
+        return jsonify({"ok": True, "reply": "抱歉，处理过程有点复杂，请换个问法或稍后再试。"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": "AI 调用失败：" + str(e)}), 502
 
 @app.route("/healthz")
 def healthz():
@@ -1726,5 +2657,6 @@ def healthz():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8765"))
-    _start_news_scheduler()  # 启动后台新闻自动刷新线程
-    app.run(host="0.0.0.0", port=port, debug=False)
+    # 本地新闻抓取线程已停用（数据源由外部 Agent 经 /api/news/sync 写入）
+    # threaded=True：避免单线程下慢接口（天气外呼/图片代理/豆瓣热榜初始化）阻塞整个服务导致页面一直转圈
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)

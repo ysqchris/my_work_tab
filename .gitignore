@@ -11,3 +11,12 @@ server.pid
 !.vscode/launch.json
 data/files/
 data/*.tmp
+.env.bili
+.env
+config/
+.playwright-mcp/
+screenshots/
+tmp_eval.js
+index.html.bak
+/*.png
+!static/**/*.png

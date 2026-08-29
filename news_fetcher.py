@@ -212,6 +212,7 @@ def fetch_aihot(limit=_AIHOT_LIMIT):
                 "desc": desc,
                 "source": AIHOT_SOURCE,
                 "topic": AIHOT_TOPIC,
+                "category": "ai",
                 "id": _gen_id(url_ or title),
                 "created_at": _now(),
             })
@@ -264,6 +265,7 @@ def fetch_github_trending(limit=_GH_LIMIT):
                 "stars_today": stars_today,
                 "source": GH_SOURCE,
                 "topic": GH_TOPIC,
+                "category": "tech",
                 "id": _gen_id(url),
                 "created_at": _now(),
             })
