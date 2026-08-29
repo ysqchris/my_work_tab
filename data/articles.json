@@ -1,81 +1,6 @@
 {
   "items": [
     {
-      "title": "Hy ASR 3.0 preview 发布：通用识别、方言覆盖、场景鲁棒性全面提升",
-      "url": "https://km.woa.com/articles/show/666857",
-      "author": "anjizhang",
-      "category": "模型技术",
-      "type": "产品运营",
-      "date": "2026-08-04",
-      "hot": true,
-      "reads": 197,
-      "likes": 6,
-      "favs": 5,
-      "note": "KM推荐",
-      "id": "4b1f0e9a909f",
-      "created_at": "2026-08-05T17:01:27+08:00"
-    },
-    {
-      "title": "PromptOS：别再凭感觉改 Prompt，让每次优化都拿证据说话",
-      "url": "https://km.woa.com/articles/show/666813",
-      "author": "qqransun",
-      "category": "模型技术",
-      "type": "技术解析",
-      "date": "2026-08-04",
-      "hot": true,
-      "reads": 230,
-      "likes": 4,
-      "favs": 6,
-      "note": "KM推荐",
-      "id": "62e8d4482215",
-      "created_at": "2026-08-05T17:01:27+08:00"
-    },
-    {
-      "title": "AI助力广告投放：用WorkBuddy训练一支专属7x24小时的AI投手团队丨AI个人提效获奖案例（第08期）",
-      "url": "https://km.woa.com/articles/show/666780",
-      "author": "muziyang",
-      "category": "Agent 实践",
-      "type": "用户案例",
-      "date": "2026-08-04",
-      "hot": true,
-      "reads": 714,
-      "likes": 8,
-      "favs": 26,
-      "note": "",
-      "id": "3a1923b74ea5",
-      "created_at": "2026-08-05T17:01:27+08:00"
-    },
-    {
-      "title": "一套工具解决多场景AI Coding的痛点",
-      "url": "https://km.woa.com/articles/show/666769",
-      "author": "darychen",
-      "category": "AI 研效",
-      "type": "技术解析",
-      "date": "2026-08-04",
-      "hot": true,
-      "reads": 629,
-      "likes": 46,
-      "favs": 48,
-      "note": "KM推荐",
-      "id": "eaeb990cdb69",
-      "created_at": "2026-08-05T17:01:27+08:00"
-    },
-    {
-      "title": "Agent 优化实战：腾讯体育 AI 战报从 85 分到 92.5 分，是平台自动迭代出来的",
-      "url": "https://km.woa.com/articles/show/666819",
-      "author": "aikenliu",
-      "category": "Agent 实践",
-      "type": "技术解析",
-      "date": "2026-08-04",
-      "hot": true,
-      "reads": 1361,
-      "likes": 35,
-      "favs": 56,
-      "note": "KM推荐",
-      "id": "76ddbd4886ae",
-      "created_at": "2026-08-05T17:01:27+08:00"
-    },
-    {
       "title": "同一个模型，换个 Harness，Token 消耗为什么能差50%？",
       "url": "https://km.woa.com/articles/show/666734",
       "author": "ziyitan",
@@ -88,7 +13,8 @@
       "favs": 12,
       "note": "KM推荐",
       "id": "4d091a301707",
-      "created_at": "2026-08-04T17:01:20+08:00"
+      "created_at": "2026-08-04T17:01:20+08:00",
+      "favorited": false
     },
     {
       "title": "AI轻应用技术侧阶段小结",
@@ -328,7 +254,8 @@
       "favs": 44,
       "note": "KM推荐",
       "id": "d7f3318229d1",
-      "created_at": "2026-08-01T17:00:43+08:00"
+      "created_at": "2026-08-01T17:00:43+08:00",
+      "favorited": true
     },
     {
       "title": "OpenAI的模型自己入侵了Hugging Face——该怎么给Agent立规矩？",
@@ -1433,5 +1360,5 @@
       "id": "338605a9315e"
     }
   ],
-  "updated_at": "2026-08-05T17:01:27+08:00"
+  "updated_at": "2026-08-05T18:25:50+08:00"
 }

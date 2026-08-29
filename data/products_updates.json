@@ -1,22 +1,6 @@
 {
-  "updated_at": "2026-08-05T17:48:29+08:00",
+  "updated_at": "2026-08-06T18:32:39+08:00",
   "items": [
-    {
-      "product": "钉钉 AI 助理",
-      "type": "产品动态",
-      "date": "2026-08-03",
-      "title": "阿里「千问办公」开启公测：整合悟空、MuleRun 与 QoderWork",
-      "points": [
-        "8 月 3 日，阿里推出企业级 Agent 产品「千问办公」（QwenWork）公测，网页端和独立 PC 客户端已开放，钉钉 PC/移动端入口将陆续接入。",
-        "产品整合了钉钉悟空（企业协同）、MuleRun（云端长程任务）和 QoderWork（本地电脑端任务）三条能力线，覆盖企业协同、云端与桌面端 Agent。",
-        "千问办公接入同日发布的 Qwen3.8 模型，意味着钉钉悟空不再作为独立入口推进，而被纳入阿里统一企业 Agent 产品线。"
-      ],
-      "view": "阿里将协同入口、云端 7×24 执行和桌面任务处理整合为统一产品，直接强化了「数字同事跨端闭环」的叙事。对 imate 而言，竞争重点不只是单点 Agent 能力，而是任务在协作工具、桌面环境与后台执行之间的统一编排、状态可见和交付闭环。",
-      "url": "https://news.qq.com/rain/a/20260803A0AY8900",
-      "img": "",
-      "id": "b334014700ab",
-      "created_at": "2026-08-05T17:48:29+08:00"
-    },
     {
       "product": "WorkBuddy",
       "type": "产品动态",
@@ -47,7 +31,8 @@
       "url": "https://docs.crewai.com/en/changelog",
       "img": "",
       "id": "b602e5f5af5b",
-      "created_at": "2026-08-03T17:50:04+08:00"
+      "created_at": "2026-08-03T17:50:04+08:00",
+      "read": true
     },
     {
       "product": "Jira (Atlassian)",
@@ -81,7 +66,8 @@
       "url": "https://github.com/multica-ai/multica/releases/tag/v0.4.16",
       "img": "",
       "id": "3e3f29c06e2d",
-      "created_at": "2026-08-02T17:49:21+08:00"
+      "created_at": "2026-08-02T17:49:21+08:00",
+      "read": true
     },
     {
       "product": "WorkBuddy",
@@ -380,104 +366,6 @@
       "img": "",
       "id": "93ff9799ab0b",
       "created_at": "2026-07-28T17:50:42+08:00"
-    },
-    {
-      "id": "seed-crewai",
-      "product": "CrewAI",
-      "type": "产品动态",
-      "date": "2026-07-24",
-      "title": "CrewAI 更新至 v1.15.6，角色化多Agent协作框架持续迭代",
-      "points": [
-        "已确认版本推进至 v1.15.6，与最新 GitHub release 对齐",
-        "强化角色化 Agent 协作编排能力"
-      ],
-      "view": "开源多Agent协作框架标杆，imate 可借鉴其角色化任务分发机制",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-dify",
-      "product": "Dify",
-      "type": "产品动态",
-      "date": "2026-07-21",
-      "title": "Dify 发布 v1.16.0，开发者自建型数字同事平台",
-      "points": [
-        "最新 GitHub release 为 v1.16.0",
-        "持续强化工作流编排与 Agent 构建能力"
-      ],
-      "view": "开发者自建赛道头部，与 imate 在企业自建场景存在竞争",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-multica",
-      "product": "Multica",
-      "type": "产品动态",
-      "date": "2026-07-25",
-      "title": "Multica 多智能体协作平台动态更新",
-      "points": [
-        "页面记录更新至 7/25，多智能体团队协作方向活跃",
-        "聚焦 agent 团队协作编排"
-      ],
-      "view": "多Agent协作直接竞品，需持续跟踪其协作范式",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-qoderwake",
-      "product": "QoderWake",
-      "type": "产品动态",
-      "date": "2026-07-24",
-      "title": "QoderWake（阿里）生产级AI数字员工平台",
-      "points": [
-        "Harness-First 架构，7x24 自主值守",
-        "页面记录更新至 7/24"
-      ],
-      "view": "阿里系数字员工平台，企业级自主值守是 imate 可参考方向",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-taskade",
-      "product": "Taskade",
-      "type": "产品动态",
-      "date": "2026-07-20",
-      "title": "Taskade 多Agent并行协作平台",
-      "points": [
-        "页面记录更新至 7/20",
-        "项目管理 + EVE agent 并行协作"
-      ],
-      "view": "协同办公 + 多Agent 结合，与 imate 协作定位相近",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-dust",
-      "product": "Dust.tt",
-      "type": "产品动态",
-      "date": "2026-07-22",
-      "title": "Dust.tt 企业知识型 AI 员工",
-      "points": [
-        "页面记录更新至 7/22",
-        "面向企业的 AI 员工/知识助手"
-      ],
-      "view": "企业知识助手方向，可参考其企业接入范式",
-      "url": "",
-      "img": ""
-    },
-    {
-      "id": "seed-mscopilot",
-      "product": "Microsoft Copilot",
-      "type": "产品动态",
-      "date": "2026-07-22",
-      "title": "Microsoft Copilot 企业级 AI 助理",
-      "points": [
-        "页面记录更新至 7/22",
-        "M365 Copilot / Copilot Studio 持续迭代"
-      ],
-      "view": "办公套件内嵌 AI 同事的标杆，imate 需关注其生态位",
-      "url": "",
-      "img": ""
     }
   ]
 }

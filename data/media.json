@@ -1,0 +1,39 @@
+{
+  "items": [
+    {
+      "title": "痴迷",
+      "cover": "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p2934049524.jpg",
+      "rating": 7.6,
+      "url": "https://m.douban.com/movie/subject/37450627/",
+      "douban_id": "37450627",
+      "year": "2025",
+      "card_subtitle": "2025 / 美国 / 恐怖 奇幻 / 库里·巴克 / 迈克尔·约翰斯顿 印达·纳瓦雷特",
+      "subtype": "movie",
+      "domain": "av",
+      "status": "wish",
+      "source": "douban",
+      "comment": "反反复复反反复复方法",
+      "id": "69b47098bcb3",
+      "created_at": "2026-08-07T11:31:35+08:00",
+      "date": "2026-08-07"
+    },
+    {
+      "title": "蜘蛛侠：崭新之日",
+      "cover": "https://img3.doubanio.com/view/photo/m_ratio_poster/public/p2934276912.jpg",
+      "rating": 7.8,
+      "url": "https://m.douban.com/movie/subject/36246195/",
+      "douban_id": "36246195",
+      "year": "2026",
+      "card_subtitle": "2026 / 美国 加拿大 英国 德国 / 动作 科幻 冒险 / 德斯汀·丹尼尔·克雷顿 / 汤姆·霍兰德 赞达亚",
+      "subtype": "movie",
+      "domain": "av",
+      "status": "wish",
+      "source": "douban",
+      "id": "23cb4e25fa74",
+      "created_at": "2026-08-07T10:26:42+08:00",
+      "date": "2026-08-07",
+      "comment": "这是个是说是VV cvc VC VC VC VCvcvcvcvcvvcvcvcvcvcvcvcvcvcvcvcvcvcvcvcvc"
+    }
+  ],
+  "updated_at": "2026-08-07T11:32:09+08:00"
+}

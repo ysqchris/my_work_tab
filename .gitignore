@@ -1,9 +1,13 @@
-# Python virtual environments and local runtime output
-.venv
 .venv/
 __pycache__/
-*.py[cod]
+*.pyc
 server.log
-
-# Atomic write leftovers
+server.pid
+.DS_Store
+*.swp
+.idea/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+data/files/
 data/*.tmp
