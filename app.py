@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AI情报站 — 本地信息聚合站后端
+"""工作台 — 本地信息聚合站后端
 
 提供：
   - 静态页面（index.html）
@@ -8,16 +8,30 @@
 """
 import json
 import os
+import re
+import html
+import hashlib
 import threading
+import time
+import concurrent.futures
 import uuid
 import datetime
+import urllib.request
+import urllib.parse
+import importlib.util
+import xml.etree.ElementTree as ET
+from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_from_directory
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(BASE, "data")
+# 用户数据放在代码仓库之外的持久目录；未配置时兼容本地开发。
+DATA = os.environ.get("WORKTAB_DATA_DIR", os.path.join(BASE, "data"))
+FILES = os.path.join(DATA, "files")
 STATIC = os.path.join(BASE, "static")
 
 app = Flask(__name__, static_folder=STATIC, template_folder=os.path.join(BASE, "templates"))
+os.makedirs(FILES, exist_ok=True)
+app.config["MAX_CONTENT_LENGTH"] = 64 * 1024 * 1024  # 64MB
 
 # 文件锁，防止并发写损坏 JSON
 _locks = {}
@@ -54,7 +68,7 @@ def write_json(name, data):
     os.replace(tmp, p)
 
 def touch_meta():
-    meta = read_json("meta", {"site_name": "AI情报站"})
+    meta = read_json("meta", {"site_name": "工作台"})
     meta["updated_at"] = _now()
     write_json("meta", meta)
 
@@ -74,6 +88,16 @@ def make_crud(resource):
             if not it.get("id"):
                 it["id"] = uuid.uuid5(uuid.NAMESPACE_URL, str(it.get("url") or it.get("title") or uuid.uuid4().hex)).hex[:12]
                 changed = True
+        if R == "bookmarks":
+            # 内网 <站点>.woa.com 书签，若本地已有对应图标文件则自动纠正（既可修新书签，旧书签图标固定后也能跟着生效）
+            for it in data["items"]:
+                url = it.get("url") or ""
+                if not url:
+                    continue
+                override_icon = _domain_icon_override(url) or _woa_site_icon(url)
+                if override_icon and it.get("favicon") != override_icon:
+                    it["favicon"] = override_icon
+                    changed = True
         if changed:
             with _lock_for(R):
                 write_json(R, data)
@@ -88,6 +112,12 @@ def make_crud(resource):
         item["created_at"] = _now()
         if "date" not in item and "date_collected" not in item:
             item["date"] = _now()[:10]
+        if R == "knowledge":
+            item["kind"] = item.get("kind") or (
+                "file" if item.get("stored_name") else
+                "document" if item.get("content") and not item.get("url") else
+                "link"
+            )
         data["items"].insert(0, item)
         data["updated_at"] = _now()
         with _lock_for(R):
@@ -114,23 +144,1143 @@ def make_crud(resource):
     @app.route(f"/api/{R}/<item_id>", endpoint=f"delete_{R}", methods=["DELETE"])
     def delete_item(item_id):
         data = read_json(R, {"items": []})
-        before = len(data["items"])
-        data["items"] = [it for it in data["items"] if str(it.get("id")) != str(item_id)]
-        if len(data["items"]) == before:
+        removed = [it for it in data["items"] if str(it.get("id")) == str(item_id)]
+        if not removed:
             return jsonify({"error": "not found"}), 404
+        data["items"] = [it for it in data["items"] if str(it.get("id")) != str(item_id)]
         data["updated_at"] = _now()
         with _lock_for(R):
             write_json(R, data)
+        if R == "knowledge":
+            for it in removed:
+                _delete_knowledge_file(it)
         touch_meta()
         return jsonify({"ok": True})
 
-# 通用内容对象：情报、行动、资料与思考均可独立存储并在前端关联。
+# 通用内容对象：情报、行动、知识库与思考均可独立存储。
 make_crud("articles")
 make_crud("products_updates")
+# 新闻动态：由工作台后端自带抓取线程定时更新（不再依赖外部 Agent）。
+# 支持两种写入方式：
+#   - POST /api/news        单条累加（insert(0, item)），会持续膨胀，不推荐
+#   - POST /api/news/sync   整批覆盖（推荐），把"当前应展示的全部新闻"整体传过来
+#   - POST /api/news/refresh 触发后端本地抓取并整批覆盖
+make_crud("news")
+
+@app.route("/api/news/sync", methods=["POST"])
+def sync_news():
+    """整批覆盖新闻动态，避免逐条 POST 导致数据无限膨胀、最新消息被淹没。
+    Body: {"items": [...]}  每个 item 期望字段:
+        title(必填) / url / topic(专题，用于分组) / summary / source / date(YYYY-MM-DD)
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    items = body.get("items", [])
+    if not isinstance(items, list):
+        return jsonify({"error": "items must be a list"}), 400
+    cleaned = []
+    seen = set()
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        item = dict(it)
+        # 去重：同一 url 或 同一 title 只保留第一条
+        key = item.get("url") or item.get("title") or uuid.uuid4().hex
+        if key in seen:
+            continue
+        seen.add(key)
+        if not item.get("id"):
+            seed = str(item.get("url") or item.get("title") or uuid.uuid4().hex)
+            item["id"] = uuid.uuid5(uuid.NAMESPACE_URL, seed).hex[:12]
+        if not item.get("created_at"):
+            item["created_at"] = _now()
+        if "date" not in item and "date_collected" not in item:
+            item["date"] = _now()[:10]
+        cleaned.append(item)
+    # 按 date 倒序、同 date 按 created_at 倒序，保证最新在前
+    cleaned.sort(key=lambda x: (x.get("date") or "", x.get("created_at") or ""), reverse=True)
+    with _lock_for("news"):
+        write_json("news", {"items": cleaned, "updated_at": _now()})
+    touch_meta()
+    return jsonify({"ok": True, "count": len(cleaned), "removed_duplicates": len(items) - len(cleaned)})
+
+
+def _load_news_fetcher():
+    """延迟导入本地抓取模块（与 app.py 同目录）。"""
+    spec = importlib.util.spec_from_file_location(
+        "news_fetcher", os.path.join(BASE, "news_fetcher.py")
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@app.route("/api/news/refresh", methods=["POST"])
+def refresh_news():
+    """触发后端本地抓取（IT之家 RSS + GitHub Trending）并整批覆盖 news.json。
+    工作台自带，不再依赖外部 Agent。返回本次抓取条数。
+    """
+    try:
+        mod = _load_news_fetcher()
+        items = mod.fetch_all()
+    except Exception as e:
+        return jsonify({"error": f"抓取失败: {e}"}), 500
+    if not items:
+        return jsonify({"ok": True, "count": 0, "note": "抓取为空，未覆盖现有数据"})
+    with _lock_for("news"):
+        write_json("news", {"items": items, "updated_at": _now()})
+    touch_meta()
+    return jsonify({"ok": True, "count": len(items), "updated_at": _now()})
+
+
+# 后台定时抓取线程：每天早/中/晚各刷新一次新闻动态
+_NEWS_REFRESH_HOURS = (8, 13, 20)  # 东八区：早 8:00 / 中 13:00 / 晚 20:00
+_NEWS_FETCHER_LOCK = threading.Lock()
+
+
+def _next_refresh_delay_seconds():
+    """计算到下一个目标时刻（东八区）的秒数。"""
+    tz = datetime.timezone(datetime.timedelta(hours=8))
+    now = datetime.datetime.now(tz)
+    today = now.date()
+    candidates = []
+    for h in _NEWS_REFRESH_HOURS:
+        target = datetime.datetime(today.year, today.month, today.day, h, 0, 0, tzinfo=tz)
+        if target > now:
+            candidates.append(target)
+    if not candidates:  # 今天的都过了，取明天第一个
+        tomorrow = today + datetime.timedelta(days=1)
+        first_h = _NEWS_REFRESH_HOURS[0]
+        candidates.append(datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day,
+                                             first_h, 0, 0, tzinfo=tz))
+    return int((min(candidates) - now).total_seconds())
+
+
+def _news_scheduler_loop():
+    """后台守护线程：按固定时刻（早/中/晚）调用本地抓取，失败仅记录不中断。"""
+    while True:
+        delay = _next_refresh_delay_seconds()
+        time.sleep(delay)
+        with _NEWS_FETCHER_LOCK:
+            try:
+                mod = _load_news_fetcher()
+                items = mod.fetch_all()
+                if items:
+                    with _lock_for("news"):
+                        write_json("news", {"items": items, "updated_at": _now()})
+                    touch_meta()
+                    print(f"[news_scheduler] 自动刷新完成，{len(items)} 条", flush=True)
+            except Exception as e:
+                print(f"[news_scheduler] 自动刷新失败: {e}", flush=True)
+
+
+def _start_news_scheduler():
+    t = threading.Thread(target=_news_scheduler_loop, name="news-scheduler", daemon=True)
+    t.start()
+    hm = "/".join(f"{h}:00" for h in _NEWS_REFRESH_HOURS)
+    print(f"[news_scheduler] 已启动，每日 {hm}（东八区）自动刷新新闻动态", flush=True)
 make_crud("tasks")
 make_crud("notes")
-make_crud("links")
+make_crud("knowledge")
 make_crud("inbox")
+make_crud("bookmarks")
+make_crud("creators")
+
+# ---------------------------------------------------------------------------
+# 视频关注：B 站 UP 主 / YouTube 频道最新投稿聚合
+# B 站需要 WBI 签名（2025-05 起强制），且投稿列表接口对部分机房 IP 有风控，
+# 抓取失败时静默降级为空列表，不影响其他博主正常展示。
+# YouTube 无需 key：频道页抓 channelId，再走官方 RSS（videos.xml）拿最新投稿。
+# ---------------------------------------------------------------------------
+_UA_DESKTOP = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+               "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+
+_BILI_MIXIN_KEY_TAB = [
+    46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49,
+    33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13, 37, 48, 7, 16, 24, 55, 40,
+    61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11,
+    36, 20, 34, 44, 52,
+]
+_bili_wbi_cache = {"img_key": "", "sub_key": "", "ts": 0}
+_bili_wbi_lock = threading.Lock()
+
+
+def _bili_get_json(url, referer="https://www.bilibili.com/", timeout=8):
+    req = urllib.request.Request(url, headers={"User-Agent": _UA_DESKTOP, "Referer": referer})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8", errors="ignore"))
+
+
+def _bili_wbi_keys():
+    """img_key/sub_key 每天轮换一次，缓存 1 小时足够，避免每次调用都多打一次 /nav。"""
+    now = datetime.datetime.now().timestamp()
+    with _bili_wbi_lock:
+        if _bili_wbi_cache["img_key"] and now - _bili_wbi_cache["ts"] < 3600:
+            return _bili_wbi_cache["img_key"], _bili_wbi_cache["sub_key"]
+    payload = _bili_get_json("https://api.bilibili.com/x/web-interface/nav")
+    wbi_img = (payload.get("data") or {}).get("wbi_img") or {}
+    img_key = (wbi_img.get("img_url") or "").rsplit("/", 1)[-1].split(".")[0]
+    sub_key = (wbi_img.get("sub_url") or "").rsplit("/", 1)[-1].split(".")[0]
+    with _bili_wbi_lock:
+        _bili_wbi_cache.update(img_key=img_key, sub_key=sub_key, ts=now)
+    return img_key, sub_key
+
+
+def _bili_wbi_sign(params):
+    img_key, sub_key = _bili_wbi_keys()
+    mixin_key = "".join((img_key + sub_key)[i] for i in _BILI_MIXIN_KEY_TAB)[:32]
+    params = dict(params)
+    params["wts"] = int(datetime.datetime.now().timestamp())
+    params = dict(sorted(params.items()))
+    params = {k: "".join(ch for ch in str(v) if ch not in "!'()*") for k, v in params.items()}
+    query = urllib.parse.urlencode(params)
+    params["w_rid"] = hashlib.md5((query + mixin_key).encode()).hexdigest()
+    return params
+
+
+def _bili_user_info(mid):
+    params = _bili_wbi_sign({"mid": mid})
+    url = "https://api.bilibili.com/x/space/wbi/acc/info?" + urllib.parse.urlencode(params)
+    payload = _bili_get_json(url, referer=f"https://space.bilibili.com/{mid}/")
+    if payload.get("code") != 0:
+        raise RuntimeError(payload.get("message") or "B 站接口返回异常")
+    d = payload.get("data") or {}
+    avatar = (d.get("face") or "").replace("http://", "https://")
+    return {"name": d.get("name") or f"UP{mid}", "avatar": avatar}
+
+
+def _bili_user_videos(mid, limit=12):
+    params = _bili_wbi_sign({"mid": mid, "pn": 1, "ps": limit, "order": "pubdate"})
+    url = "https://api.bilibili.com/x/space/wbi/arc/search?" + urllib.parse.urlencode(params)
+    payload = _bili_get_json(url, referer=f"https://space.bilibili.com/{mid}/")
+    if payload.get("code") != 0:
+        raise RuntimeError(payload.get("message") or "B 站接口返回异常（可能触发风控）")
+    vlist = ((payload.get("data") or {}).get("list") or {}).get("vlist") or []
+    out = []
+    for v in vlist:
+        bvid = v.get("bvid") or ""
+        if not bvid:
+            continue
+        out.append({
+            "title": v.get("title") or "",
+            "cover": (v.get("pic") or "").replace("http://", "https://"),
+            "url": f"https://www.bilibili.com/video/{bvid}",
+            "published_at": int(v.get("created") or 0),
+            "stat": f"{v.get('play', 0)} 播放",
+        })
+    return out
+
+
+_BILI_SPACE_RE = re.compile(r"space\.bilibili\.com/(\d+)")
+_YT_CHANNEL_LINK_RE = re.compile(rb'/feeds/videos\.xml\?channel_id=(UC[0-9A-Za-z_-]{20,26})')
+_YT_CHANNEL_URL_RE = re.compile(r"(?:youtube\.com/channel/|youtube\.com/feeds/videos\.xml\?channel_id=)(UC[0-9A-Za-z_-]{20,26})")
+_YT_OG_TITLE_RE = re.compile(rb'<meta property="og:title" content="([^"]*)"')
+_YT_OG_IMAGE_RE = re.compile(rb'<meta property="og:image" content="([^"]*)"')
+_YT_NS = {
+    "a": "http://www.w3.org/2005/Atom",
+    "media": "http://search.yahoo.com/mrss/",
+    "yt": "http://www.youtube.com/xml/schemas/2015",
+}
+
+
+def _yt_fetch_html(url, limit=1_500_000):
+    req = urllib.request.Request(url, headers={"User-Agent": _UA_DESKTOP, "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return resp.read(limit)
+
+
+def _yt_resolve_channel(url):
+    """支持 /channel/UC.. 直接解析，其余（@handle / 自定义URL）抓页面找官方 RSS 链接反推 channelId。"""
+    m = _YT_CHANNEL_URL_RE.search(url)
+    if m:
+        channel_id = m.group(1)
+        raw = _yt_fetch_html(f"https://www.youtube.com/channel/{channel_id}")
+    else:
+        raw = _yt_fetch_html(url)
+        cm = _YT_CHANNEL_LINK_RE.search(raw)
+        if not cm:
+            raise RuntimeError("无法识别 YouTube 频道地址")
+        channel_id = cm.group(1).decode()
+    name_m = _YT_OG_TITLE_RE.search(raw)
+    name = html.unescape(name_m.group(1).decode("utf-8", "ignore")) if name_m else channel_id
+    img_m = _YT_OG_IMAGE_RE.search(raw)
+    avatar = img_m.group(1).decode("utf-8", "ignore") if img_m else ""
+    return {"external_id": channel_id, "name": name, "avatar": avatar}
+
+
+def _yt_channel_videos(channel_id, limit=12):
+    url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+    req = urllib.request.Request(url, headers={"User-Agent": _UA_DESKTOP})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        raw = resp.read()
+    root = ET.fromstring(raw)
+    out = []
+    for entry in root.findall("a:entry", _YT_NS)[:limit]:
+        vid = (entry.findtext("yt:videoId", default="", namespaces=_YT_NS) or "").strip()
+        if not vid:
+            continue
+        title = (entry.findtext("a:title", default="", namespaces=_YT_NS) or "").strip()
+        published = entry.findtext("a:published", default="", namespaces=_YT_NS) or ""
+        try:
+            ts = int(datetime.datetime.fromisoformat(published.replace("Z", "+00:00")).timestamp())
+        except Exception:
+            ts = 0
+        thumb_el = entry.find("media:group/media:thumbnail", _YT_NS)
+        views_el = entry.find("media:group/media:community/media:statistics", _YT_NS)
+        views = views_el.get("views") if views_el is not None else None
+        out.append({
+            "title": title,
+            "cover": thumb_el.get("url") if thumb_el is not None else "",
+            "url": f"https://www.youtube.com/watch?v={vid}",
+            "published_at": ts,
+            "stat": f"{views} 次观看" if views else "",
+        })
+    return out
+
+
+def _detect_creator_platform(url):
+    host = urllib.parse.urlsplit(url).netloc.lower()
+    if "bilibili.com" in host:
+        return "bilibili"
+    if "youtube.com" in host or "youtu.be" in host:
+        return "youtube"
+    return None
+
+
+@app.route("/api/creators/fetch-meta", methods=["GET"])
+def fetch_creator_meta():
+    """粘贴 UP 主/频道主页链接后自动识别平台、拉取名称与头像，用于新建关注时预填。"""
+    url = (request.args.get("url") or "").strip()
+    if not url:
+        return jsonify({"error": "url required"}), 400
+    if not url.lower().startswith(("http://", "https://")):
+        url = "https://" + url
+    platform = _detect_creator_platform(url)
+    if platform == "bilibili":
+        m = _BILI_SPACE_RE.search(url)
+        if not m:
+            return jsonify({"error": "请粘贴 B 站 UP 主主页地址，例如 space.bilibili.com/123456"}), 400
+        mid = m.group(1)
+        try:
+            info = _bili_user_info(mid)
+        except Exception as e:
+            return jsonify({"error": f"抓取失败：{e}"}), 502
+        return jsonify({
+            "platform": "bilibili", "external_id": mid,
+            "name": info["name"], "avatar": info["avatar"],
+            "url": f"https://space.bilibili.com/{mid}",
+        })
+    if platform == "youtube":
+        try:
+            info = _yt_resolve_channel(url)
+        except Exception as e:
+            return jsonify({"error": f"抓取失败：{e}"}), 502
+        return jsonify({
+            "platform": "youtube", "external_id": info["external_id"],
+            "name": info["name"], "avatar": info["avatar"],
+            "url": f"https://www.youtube.com/channel/{info['external_id']}",
+        })
+    return jsonify({"error": "暂不支持该链接，请粘贴 B 站 UP 主主页或 YouTube 频道地址"}), 400
+
+
+_creator_video_cache = {}
+_creator_video_cache_lock = threading.Lock()
+_CREATOR_VIDEO_TTL = 20 * 60
+
+
+def _fetch_creator_videos(creator):
+    platform = creator.get("platform")
+    external_id = creator.get("external_id")
+    if not external_id:
+        return []
+    if platform == "bilibili":
+        return _bili_user_videos(external_id)
+    if platform == "youtube":
+        return _yt_channel_videos(external_id)
+    return []
+
+
+def _get_creator_videos_cached(creator, force=False):
+    cid = creator.get("id")
+    now = datetime.datetime.now().timestamp()
+    with _creator_video_cache_lock:
+        cached = _creator_video_cache.get(cid)
+        if cached and not force and now - cached["ts"] < _CREATOR_VIDEO_TTL:
+            return cached["data"], cached.get("error")
+    try:
+        videos = _fetch_creator_videos(creator)
+        err = None
+    except Exception as e:
+        videos = list((cached or {}).get("data") or [])
+        err = str(e)
+    with _creator_video_cache_lock:
+        _creator_video_cache[cid] = {"data": videos, "ts": now, "error": err}
+    return videos, err
+
+
+@app.route("/api/creators/videos", methods=["GET"])
+def get_creator_videos():
+    """聚合所有关注博主的最新投稿。每个博主结果缓存 20 分钟，refresh=1 强制重新抓取。
+    单个博主抓取失败（如 B 站风控）不影响其他博主正常返回。
+    """
+    force = request.args.get("refresh") == "1"
+    creators = read_json("creators", {"items": []}).get("items", [])
+    results, errors = [], {}
+    if creators:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+            futs = {pool.submit(_get_creator_videos_cached, c, force): c for c in creators}
+            for fut in concurrent.futures.as_completed(futs):
+                c = futs[fut]
+                try:
+                    videos, err = fut.result()
+                except Exception as e:
+                    videos, err = [], str(e)
+                if err:
+                    errors[c.get("id")] = err
+                for v in videos:
+                    v = dict(v)
+                    v.update(creator_id=c.get("id"), creator_name=c.get("name"),
+                              creator_avatar=c.get("avatar"), platform=c.get("platform"))
+                    results.append(v)
+    results.sort(key=lambda x: x.get("published_at") or 0, reverse=True)
+    return jsonify({"items": results[:90], "errors": errors, "updated_at": _now()})
+
+
+# ---------------------------------------------------------------------------
+# 书影音：豆瓣热门代理（须在 media CRUD 之前注册，避免被 <id> 吃掉）
+# ---------------------------------------------------------------------------
+_DOUBAN_HOT_TYPES = {
+    "movie": "movie_real_time_hotest",
+    "tv": "tv_real_time_hotest",
+    "show": "show_chinese_best_weekly",
+    "music": "music_single",
+    "book": "book_hot",
+}
+_DOUBAN_DOMAIN = {
+    "movie": "av", "tv": "av", "show": "av", "music": "av", "book": "book",
+}
+_douban_hot_cache = {}
+_douban_hot_lock = threading.Lock()
+_DOUBAN_HOT_CACHE_NAME = "douban_hot"
+
+
+# ---------------------------------------------------------------------------
+# 天气：代理 weatherapi.com，前端小时钟/天气小标题用，缓存 20 分钟避免频繁请求。
+# ---------------------------------------------------------------------------
+_WEATHER_API_KEY = "d92b0294d0ee41e587933457260603"
+_weather_cache = {"data": None, "ts": 0}
+_weather_lock = threading.Lock()
+
+
+@app.route("/api/weather", methods=["GET"])
+def get_weather():
+    city = (request.args.get("city") or "深圳").strip()
+    now_ts = datetime.datetime.now().timestamp()
+    with _weather_lock:
+        cached = _weather_cache.get("data")
+        if cached and cached.get("city") == city and now_ts - _weather_cache.get("ts", 0) < 1200:
+            return jsonify(cached)
+    try:
+        import ssl as _ssl
+        params = urllib.parse.urlencode({"q": city, "days": "1", "key": _WEATHER_API_KEY})
+        url = f"https://api.weatherapi.com/v1/forecast.json?{params}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        ctx = _ssl._create_unverified_context()
+        with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
+            payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+        result = {
+            "city": city,
+            "temp_c": payload["current"]["temp_c"],
+            "condition": payload["current"]["condition"]["text"],
+            "icon": payload["current"]["condition"].get("icon", ""),
+            "error": None,
+        }
+        with _weather_lock:
+            _weather_cache["data"] = result
+            _weather_cache["ts"] = now_ts
+        return jsonify(result)
+    except Exception as e:
+        stale = _weather_cache.get("data")
+        if stale:
+            return jsonify(stale)
+        return jsonify({"city": city, "temp_c": None, "condition": "", "icon": "", "error": str(e)})
+
+
+def _shanghai_date():
+    return datetime.datetime.now(
+        datetime.timezone(datetime.timedelta(hours=8))
+    ).date().isoformat()
+
+
+def _load_douban_hot_cache():
+    """读取每天中午任务写入的持久缓存，服务重启后仍可复用。"""
+    saved = read_json(_DOUBAN_HOT_CACHE_NAME, {"date": "", "items": {}})
+    if not isinstance(saved, dict) or not isinstance(saved.get("items"), dict):
+        return {"date": "", "items": {}}
+    return saved
+
+
+def _save_douban_hot_cache(cache):
+    write_json(_DOUBAN_HOT_CACHE_NAME, cache)
+
+def _normalize_douban_item(raw, subtype):
+    """把 Rexxar subject 条目映射成前端统一结构。"""
+    if not isinstance(raw, dict):
+        return None
+    # collection items 常包一层 subject
+    sub = raw.get("subject") if isinstance(raw.get("subject"), dict) else raw
+    douban_id = str(sub.get("id") or raw.get("id") or "").strip()
+    title = (sub.get("title") or raw.get("title") or "").strip()
+    if not title and not douban_id:
+        return None
+    rating = sub.get("rating") or raw.get("rating") or {}
+    if isinstance(rating, dict):
+        score = rating.get("value") or rating.get("average") or None
+    else:
+        score = rating
+    try:
+        score = float(score) if score not in (None, "", 0, "0") else None
+    except (TypeError, ValueError):
+        score = None
+    cover = ""
+    for key in ("cover", "pic", "images"):
+        val = sub.get(key) or raw.get(key)
+        if isinstance(val, dict):
+            cover = (
+                val.get("large") or val.get("normal") or val.get("medium")
+                or val.get("small") or val.get("url")
+            )
+        elif isinstance(val, str):
+            cover = val
+        if cover:
+            break
+    url = (sub.get("url") or raw.get("url") or "").strip()
+    if not url and douban_id:
+        if subtype == "book":
+            url = f"https://book.douban.com/subject/{douban_id}/"
+        elif subtype == "music":
+            url = f"https://music.douban.com/subject/{douban_id}/"
+        else:
+            url = f"https://movie.douban.com/subject/{douban_id}/"
+    year = str(sub.get("year") or raw.get("year") or "").strip()
+    card_subtitle = (
+        sub.get("card_subtitle")
+        or raw.get("card_subtitle")
+        or sub.get("subtitle")
+        or ""
+    )
+    if isinstance(card_subtitle, list):
+        card_subtitle = " / ".join(str(x) for x in card_subtitle if x)
+    return {
+        "douban_id": douban_id,
+        "title": title or douban_id,
+        "cover": cover,
+        "rating": score,
+        "url": url,
+        "year": year,
+        "card_subtitle": str(card_subtitle).strip(),
+        "subtype": subtype,
+        "domain": _DOUBAN_DOMAIN.get(subtype, "av"),
+        "source": "douban",
+        "release_date": "",  # 大陆上映/上线日期，由 _enrich_douban_release 补全
+    }
+
+
+def _fetch_douban_subject_detail(douban_id, subtype):
+    """抓取作品详情，提取大陆上映/上线日期。
+
+    返回 (release_date, pubdate_raw)：
+      - release_date: 形如 '2026-08-11' 的大陆日期字符串，无则空串
+      - pubdate_raw: 原始 pubdate 列表（调试/兜底用）
+    任意异常均返回 ('', None)，由调用方兜底，不阻塞主流程。
+    """
+    if not douban_id:
+        return "", None
+    url = f"https://m.douban.com/rexxar/api/v2/subject/{douban_id}"
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+                      "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+        "Referer": f"https://m.douban.com/movie/subject/{douban_id}/",
+        "Accept": "application/json, text/plain, */*",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    except Exception:
+        return "", None
+    pubdates = payload.get("pubdate") or payload.get("pubdates") or []
+    if isinstance(pubdates, str):
+        pubdates = [pubdates]
+    if not isinstance(pubdates, list):
+        return "", None
+    # 优先取带「中国大陆」标记的大陆上映日期
+    cn_date = ""
+    for p in pubdates:
+        if not isinstance(p, str):
+            continue
+        if "中国大陆" in p or "大陆" in p:
+            m = re.search(r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})", p)
+            if m:
+                cn_date = m.group(1).replace("/", "-")
+                break
+    # 兜底：没有大陆标记时，取第一条看起来像日期的
+    if not cn_date:
+        for p in pubdates:
+            if not isinstance(p, str):
+                continue
+            m = re.search(r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})", p)
+            if m:
+                cn_date = m.group(1).replace("/", "-")
+                break
+    return cn_date, pubdates
+
+
+def _enrich_douban_release(items, subtype):
+    """对影音类条目批量补全大陆上映/上线日期（movie/tv/show 才有意义）。
+
+    音乐、图书不补。带简单并发（线程池）与超时兜底，单个失败不影响整体。
+    """
+    if subtype not in ("movie", "tv", "show"):
+        return
+    targets = [it for it in items if it.get("douban_id")]
+    if not targets:
+        return
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    limit = min(6, len(targets))
+    try:
+        with ThreadPoolExecutor(max_workers=limit) as ex:
+            fut_map = {
+                ex.submit(_fetch_douban_subject_detail, it["douban_id"], subtype): it
+                for it in targets
+            }
+            for fut in as_completed(fut_map):
+                it = fut_map[fut]
+                try:
+                    rel, _ = fut.result()
+                    if rel:
+                        it["release_date"] = rel
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+def _fetch_douban_collection(collection, count=20):
+    url = (
+        f"https://m.douban.com/rexxar/api/v2/subject_collection/{collection}/items"
+        f"?start=0&count={count}&items_only=1&for_mobile=1"
+    )
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+                      "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+        "Referer": f"https://m.douban.com/subject_collection/{collection}",
+        "Accept": "application/json, text/plain, */*",
+    })
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    items = payload.get("subject_collection_items") or payload.get("items") or []
+    return items if isinstance(items, list) else []
+
+@app.route("/api/media/douban-hot", methods=["GET"])
+def media_douban_hot():
+    """返回每日中午更新一次的豆瓣热门榜；首次运行才按需初始化。"""
+    subtype = (request.args.get("type") or "movie").strip().lower()
+    if subtype not in _DOUBAN_HOT_TYPES:
+        return jsonify({"error": "invalid type", "items": []}), 400
+
+    # refresh=1 仅由每日 12:00 的本地定时任务调用。
+    force_refresh = request.args.get("refresh") == "1"
+    today = _shanghai_date()
+    with _douban_hot_lock:
+        saved = _load_douban_hot_cache()
+        cached_items = saved.get("items", {}).get(subtype)
+        # 页面访问始终只读取缓存，不再每 30 分钟向豆瓣发请求。
+        if cached_items is not None and not force_refresh:
+            return jsonify({"items": cached_items, "cached": True, "updated_at": saved.get("updated_at"), "error": None})
+        # 首次部署尚无缓存时，允许初始化一次，避免页面空白。
+        if cached_items is not None and not force_refresh and saved.get("date") == today:
+            return jsonify({"items": cached_items, "cached": True, "updated_at": saved.get("updated_at"), "error": None})
+
+    error = None
+    items = []
+    try:
+        raw_items = _fetch_douban_collection(_DOUBAN_HOT_TYPES[subtype])
+        for raw in raw_items:
+            mapped = _normalize_douban_item(raw, subtype)
+            if mapped:
+                items.append(mapped)
+        # 影音类补全大陆上映/上线日期（每天一次，成本低，失败留空兜底）
+        _enrich_douban_release(items, subtype)
+    except Exception as e:
+        error = str(e)
+
+    with _douban_hot_lock:
+        saved = _load_douban_hot_cache()
+        if items:
+            saved.setdefault("items", {})[subtype] = items
+            saved["date"] = today
+            saved["updated_at"] = _now()
+            _save_douban_hot_cache(saved)
+            return jsonify({"items": items, "cached": False, "updated_at": saved["updated_at"], "error": None})
+        # 更新失败时继续返回上一版缓存，页面不受影响。
+        stale = saved.get("items", {}).get(subtype, [])
+        return jsonify({"items": stale, "cached": True, "updated_at": saved.get("updated_at"), "error": error})
+
+make_crud("media")
+
+# ---------------------------------------------------------------------------
+# 豆瓣封面图片代理：豆瓣图片域名对无 Referer/UA 的请求返回 418，
+# 前端直连会被拦截导致封面加载失败，这里由后端转发一次。
+# ---------------------------------------------------------------------------
+from flask import Response
+
+_ALLOWED_IMG_HOST_SUFFIX = ".doubanio.com"
+
+
+@app.route("/api/media/img-proxy", methods=["GET"])
+def media_img_proxy():
+    src = (request.args.get("url") or "").strip()
+    if not src:
+        return "missing url", 400
+    try:
+        parsed = urllib.parse.urlparse(src)
+    except Exception:
+        return "bad url", 400
+    host = parsed.hostname or ""
+    if parsed.scheme not in ("http", "https") or not (host == "doubanio.com" or host.endswith(_ALLOWED_IMG_HOST_SUFFIX)):
+        return "host not allowed", 400
+    req = urllib.request.Request(src, headers={
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+                      "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+        "Referer": "https://movie.douban.com/",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = resp.read()
+            content_type = resp.headers.get("Content-Type", "image/jpeg")
+    except Exception as e:
+        return f"fetch failed: {e}", 502
+    return Response(data, mimetype=content_type, headers={
+        "Cache-Control": "public, max-age=86400",
+    })
+
+# ---------------------------------------------------------------------------
+# 知识库：链接 / 文档 / 文件；旧 links.json 自动迁移
+# ---------------------------------------------------------------------------
+def _infer_knowledge_kind(it):
+    if it.get("kind") in ("link", "document", "file"):
+        return it["kind"]
+    if it.get("stored_name") or it.get("filename"):
+        return "file"
+    if it.get("content") and not it.get("url"):
+        return "document"
+    return "link"
+
+def _delete_knowledge_file(it):
+    name = it.get("stored_name")
+    if not name:
+        return
+    path = os.path.join(FILES, name)
+    if os.path.isfile(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+def _migrate_links_to_knowledge():
+    kp, lp = _path("knowledge"), _path("links")
+    if os.path.exists(kp):
+        data = read_json("knowledge", {"items": []})
+        changed = False
+        for it in data.get("items", []):
+            kind = _infer_knowledge_kind(it)
+            if it.get("kind") != kind:
+                it["kind"] = kind
+                changed = True
+        if changed:
+            with _lock_for("knowledge"):
+                write_json("knowledge", data)
+        return
+    if not os.path.exists(lp):
+        write_json("knowledge", {"items": [], "updated_at": _now()})
+        return
+    data = read_json("links", {"items": []})
+    for it in data.get("items", []):
+        it["kind"] = _infer_knowledge_kind(it)
+    data["updated_at"] = _now()
+    write_json("knowledge", data)
+
+_migrate_links_to_knowledge()
+
+# ---------------------------------------------------------------------------
+# 书签：抓取网页 <title> 和 favicon，新建书签时自动填充
+# ---------------------------------------------------------------------------
+_TITLE_RE = re.compile(rb"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_META_TAG_RE = re.compile(rb"<meta\b[^>]*>", re.IGNORECASE)
+_LINK_TAG_RE = re.compile(rb"<link\b[^>]*>", re.IGNORECASE)
+_ATTR_RE = re.compile(rb'([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*["\']([^"\']*)["\']')
+_ICON_RELS = {"icon", "shortcut icon", "apple-touch-icon", "apple-touch-icon-precomposed"}
+
+def _extract_favicon(raw):
+    """逐个解析 <link> 标签的属性字典再取 rel/href，避免 data-base-href 这类属性名里也带 'href=' 而被误匹配。"""
+    for tag in _LINK_TAG_RE.findall(raw):
+        attrs = {}
+        for am in _ATTR_RE.finditer(tag):
+            attrs[am.group(1).decode("ascii", "ignore").lower()] = am.group(2)
+        rel = (attrs.get("rel") or b"").decode("utf-8", "ignore").strip().lower()
+        href = attrs.get("href")
+        if rel in _ICON_RELS and href:
+            return href.decode("utf-8", "ignore").strip()
+    return None
+
+def _extract_summary(raw):
+    """从 <meta name="description"> 或 og:description 抽一句话摘要，抽不到就留空，不阀阻创建。"""
+    best = None
+    for tag in _META_TAG_RE.findall(raw):
+        attrs = {}
+        for am in _ATTR_RE.finditer(tag):
+            attrs[am.group(1).decode("ascii", "ignore").lower()] = am.group(2)
+        name = (attrs.get("name") or attrs.get("property") or b"").decode("utf-8", "ignore").strip().lower()
+        content = attrs.get("content")
+        if not content:
+            continue
+        text = html.unescape(content.decode("utf-8", "ignore")).strip()
+        text = re.sub(r"\s+", " ", text)
+        if not text:
+            continue
+        if name == "description":
+            return text[:160]
+        if name in ("og:description", "twitter:description") and not best:
+            best = text[:160]
+    return best or ""
+
+
+# 内网 SSO 登录相关域名/标题关键词：服务端抓取时没有用户浏览器的登录态，
+# 需要登录的内网页面（如 git.woa.com 仓库）会被重定向到这些域名，
+# 抓到的 <title> 只会是登录页标题（如“OA登录”），不能当作真实标题使用。
+_SSO_HOST_HINTS = ("passport.", "login.", "sso.", "oa.", "auth.")
+_SSO_TITLE_HINTS = ("oa登录", "登录", "login", "sign in", "signin", "统一身份认证", "passport")
+
+
+def _looks_like_sso_redirect(final_url, title):
+    """判断抓取结果是否命中了 SSO/登录跳转页，而不是目标页面本身。"""
+    host = urllib.parse.urlsplit(final_url).netloc.lower()
+    if any(hint in host for hint in _SSO_HOST_HINTS):
+        return True
+    t = (title or "").strip().lower()
+    if t and any(hint in t for hint in _SSO_TITLE_HINTS) and len(t) <= 12:
+        return True
+    return False
+
+
+def _fallback_title_from_url(url):
+    """当抓取到的标题不可信（命中登录页）时，从 URL 路径里拼一个可读的兜底标题。
+    例如 https://git.woa.com/Design/imate_project_cooperation -> "Design/imate_project_cooperation · git.woa.com"
+    """
+    parsed = urllib.parse.urlsplit(url)
+    path = parsed.path.strip("/")
+    path = urllib.parse.unquote(path)
+    if path:
+        return f"{path} · {parsed.netloc}"
+    return parsed.netloc or url
+
+
+# 特定域名的书签固定使用本地静态图标，不依赖实时抓取（内网站点常因登录态/网络策略导致favicon抓取失败或不清晰）。
+# key 为域名后缀匹配（endswith），value 为 /static/ 下的图标路径。
+_DOMAIN_ICON_OVERRIDES = {
+    "git.woa.com": "/static/bookmark-icons/gongfeng.png",  # 工蜂仓库，用户指定固定图标
+}
+
+
+def _woa_site_icon(url):
+    """通用规则：内网 <站点名>.woa.com 的链接，若本地已有 static/bookmark-icons/<站点名>.png 图标，直接用它。
+    例如 with.woa.com -> static/bookmark-icons/with.png；km.woa.com -> .../km.png。
+    比 _DOMAIN_ICON_OVERRIDES 更通用，不需要逐个域名手动登记，只要放对应文件名的图标进 bookmark-icons/ 目录即可生效。
+    """
+    host = urllib.parse.urlsplit(url).netloc.lower()
+    if not host.endswith(".woa.com"):
+        return None
+    site = host[: -len(".woa.com")]
+    # 去掉常见的二级子域前缀干扰（如 portal.learn -> learn），只取最后一段作为站点名
+    site = site.rsplit(".", 1)[-1]
+    if not site:
+        return None
+    icon_path = os.path.join(STATIC, "bookmark-icons", f"{site}.png")
+    if os.path.isfile(icon_path):
+        return f"/static/bookmark-icons/{site}.png"
+    return None
+
+
+def _domain_icon_override(url):
+    host = urllib.parse.urlsplit(url).netloc.lower()
+    for domain, icon in _DOMAIN_ICON_OVERRIDES.items():
+        if host == domain or host.endswith("." + domain):
+            return icon
+    return None
+
+
+@app.route("/api/bookmarks/fetch-meta", methods=["GET"])
+def fetch_bookmark_meta():
+    """抓取网页标题和 favicon，用于新建书签自动填充。抓取失败时静默降级（返回空标题+兜底图标），不阻塞创建。
+    内网需要登录的页面，服务端请求没有用户浏览器的登录 Cookie，会被重定向到 SSO 登录页；
+    此时抓到的标题（如“OA登录”）不可信，改用 URL 路径拼出的兜底标题，避免误导用户。
+    """
+    url = (request.args.get("url") or "").strip()
+    if not url or not url.lower().startswith(("http://", "https://")):
+        return jsonify({"error": "invalid url"}), 400
+    parsed = urllib.parse.urlsplit(url)
+    favicon = f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
+    title = ""
+    summary = ""
+    final_url = url
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Encoding": "identity",
+        })
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            raw = resp.read(300 * 1024)
+            if resp.headers.get("Content-Encoding", "").lower() == "gzip":
+                import gzip as _gzip
+                try:
+                    raw = _gzip.decompress(raw)
+                except Exception:
+                    pass
+            charset = resp.headers.get_content_charset() or "utf-8"
+            final_url = resp.geturl() or url
+        m = _TITLE_RE.search(raw)
+        if m:
+            title = html.unescape(m.group(1).decode(charset, errors="ignore"))
+            title = re.sub(r"\s+", " ", title).strip()
+        summary = _extract_summary(raw)
+        href = _extract_favicon(raw)
+        if href:
+            favicon = urllib.parse.urljoin(url, href)
+    except Exception:
+        pass
+    if _looks_like_sso_redirect(final_url, title):
+        title = _fallback_title_from_url(url)
+        summary = ""
+    override_icon = _domain_icon_override(url) or _woa_site_icon(url)
+    if override_icon:
+        favicon = override_icon
+    return jsonify({"title": title, "favicon": favicon, "summary": summary})
+
+
+@app.route("/api/bookmarks/reorder", methods=["POST"])
+def reorder_bookmarks():
+    """拖拽排序后持久化。请求体 {"ids": ["id1","id2",...]} 是同一 kind（常用/备忘）子集内的新顺序。
+    实现方式：在原数组中找到这些 id 首次出现的位置，整体替换为新顺序，其他 kind 的元素保持原有相对位置不变。
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    ids = body.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        return jsonify({"error": "ids required"}), 400
+    data = read_json("bookmarks", {"items": []})
+    items = data["items"]
+    by_id = {str(it.get("id")): it for it in items}
+    ids = [str(i) for i in ids if str(i) in by_id]
+    if not ids:
+        return jsonify({"error": "no matching ids"}), 400
+    id_set = set(ids)
+    new_items = []
+    inserted = False
+    for it in items:
+        iid = str(it.get("id"))
+        if iid in id_set:
+            if not inserted:
+                new_items.extend(by_id[i] for i in ids)
+                inserted = True
+            # 已在上面一次性插入过，跳过重复
+        else:
+            new_items.append(it)
+    if not inserted:
+        new_items.extend(by_id[i] for i in ids)
+    data["items"] = new_items
+    data["updated_at"] = _now()
+    with _lock_for("bookmarks"):
+        write_json("bookmarks", data)
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# 书签分组：支持新建/重命名/删除，首次请求时自动初始化默认分组（内部/外部）。
+# 删除分组时需要同步清除书签中引用该分组的 group 字段，回退到“未分组”，所以不用通用 make_crud。
+# ---------------------------------------------------------------------------
+
+def _default_bookmark_groups():
+    now = _now()
+    return {
+        "items": [
+            {"id": "internal", "name": "内部", "created_at": now},
+            {"id": "external", "name": "外部", "created_at": now},
+        ],
+        "updated_at": now,
+    }
+
+
+@app.route("/api/bookmark-groups", methods=["GET"])
+def list_bookmark_groups():
+    data = read_json("bookmark_groups", None)
+    if not data or not data.get("items"):
+        data = _default_bookmark_groups()
+        with _lock_for("bookmark_groups"):
+            write_json("bookmark_groups", data)
+    return jsonify(data)
+
+
+@app.route("/api/bookmark-groups", methods=["POST"])
+def create_bookmark_group():
+    data = read_json("bookmark_groups", None) or _default_bookmark_groups()
+    body = request.get_json(force=True, silent=True) or {}
+    name = (body.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    item = {"id": uuid.uuid4().hex[:10], "name": name, "created_at": _now()}
+    data["items"].append(item)
+    data["updated_at"] = _now()
+    with _lock_for("bookmark_groups"):
+        write_json("bookmark_groups", data)
+    return jsonify(item), 201
+
+
+@app.route("/api/bookmark-groups/<group_id>", methods=["PUT", "PATCH"])
+def update_bookmark_group(group_id):
+    data = read_json("bookmark_groups", None) or _default_bookmark_groups()
+    for i, it in enumerate(data["items"]):
+        if str(it.get("id")) == str(group_id):
+            body = request.get_json(force=True, silent=True) or {}
+            if "name" in body:
+                name = (body.get("name") or "").strip()
+                if not name:
+                    return jsonify({"error": "name required"}), 400
+                it["name"] = name
+            data["items"][i] = it
+            data["updated_at"] = _now()
+            with _lock_for("bookmark_groups"):
+                write_json("bookmark_groups", data)
+            return jsonify(it)
+    return jsonify({"error": "not found"}), 404
+
+
+@app.route("/api/bookmark-groups/<group_id>", methods=["DELETE"])
+def delete_bookmark_group(group_id):
+    data = read_json("bookmark_groups", None) or _default_bookmark_groups()
+    before = len(data["items"])
+    data["items"] = [it for it in data["items"] if str(it.get("id")) != str(group_id)]
+    if len(data["items"]) == before:
+        return jsonify({"error": "not found"}), 404
+    data["updated_at"] = _now()
+    with _lock_for("bookmark_groups"):
+        write_json("bookmark_groups", data)
+    # 回收引用该分组的书签，回退为未分组
+    bdata = read_json("bookmarks", {"items": []})
+    changed = False
+    for it in bdata["items"]:
+        if str(it.get("group") or "") == str(group_id):
+            it["group"] = None
+            changed = True
+    if changed:
+        bdata["updated_at"] = _now()
+        with _lock_for("bookmarks"):
+            write_json("bookmarks", bdata)
+    return jsonify({"ok": True})
+
+def _save_upload_file(f, default_name="paste.bin"):
+    """保存上传文件；兼容剪贴板无文件名的 blob。"""
+    if not f:
+        return None
+    original = (f.filename or "").strip() or default_name
+    # 按 mime 补扩展名，避免 secure_filename 把空名吃掉
+    mime = (f.mimetype or "").lower()
+    if "." not in original:
+        ext = {
+            "image/png": ".png",
+            "image/jpeg": ".jpg",
+            "image/jpg": ".jpg",
+            "image/gif": ".gif",
+            "image/webp": ".webp",
+            "image/bmp": ".bmp",
+        }.get(mime, "")
+        original = (original if original != "blob" else "paste") + ext
+    safe = secure_filename(original) or ("paste" + (".png" if mime.startswith("image/") else ".bin"))
+    stored = f"{uuid.uuid4().hex[:12]}_{safe}"
+    path = os.path.join(FILES, stored)
+    f.save(path)
+    return {
+        "stored_name": stored,
+        "filename": original,
+        "mime": f.mimetype or "application/octet-stream",
+        "size": os.path.getsize(path),
+    }
+
+@app.route("/api/upload", methods=["POST"])
+def generic_upload():
+    """通用文件上传（如待办/笔记配图），只存文件、不落库，返回 stored_name。"""
+    f = request.files.get("file")
+    saved = _save_upload_file(f, "paste.png")
+    if not saved:
+        return jsonify({"error": "file required"}), 400
+    return jsonify(saved), 201
+
+@app.route("/api/knowledge/upload", methods=["POST"])
+def upload_knowledge_file():
+    """上传文件到知识库。form-data: file, 可选 topic/title。"""
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"error": "file required"}), 400
+    original = f.filename
+    safe = secure_filename(original) or "file"
+    stored = f"{uuid.uuid4().hex[:12]}_{safe}"
+    path = os.path.join(FILES, stored)
+    f.save(path)
+    size = os.path.getsize(path)
+    title = (request.form.get("title") or "").strip() or original
+    topic = (request.form.get("topic") or "").strip()
+    item = {
+        "id": uuid.uuid4().hex[:12],
+        "kind": "file",
+        "title": title,
+        "filename": original,
+        "stored_name": stored,
+        "mime": f.mimetype or "application/octet-stream",
+        "size": size,
+        "topic": topic,
+        "source": "本地上传",
+        "created_at": _now(),
+        "date": _now()[:10],
+    }
+    data = read_json("knowledge", {"items": []})
+    data["items"].insert(0, item)
+    data["updated_at"] = _now()
+    with _lock_for("knowledge"):
+        write_json("knowledge", data)
+    touch_meta()
+    return jsonify(item), 201
+
+def _is_image_meta(meta, filename=""):
+    mime = (meta or {}).get("mime") or ""
+    name = (meta or {}).get("filename") or filename or ""
+    if mime.startswith("image/"):
+        return True
+    return name.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"))
+
+@app.route("/api/knowledge/files/<stored_name>", methods=["GET"])
+def download_knowledge_file(stored_name):
+    """预览或下载知识库文件；图片默认内联展示，?download=1 强制下载。"""
+    safe = os.path.basename(stored_name)
+    path = os.path.join(FILES, safe)
+    if not os.path.isfile(path):
+        return jsonify({"error": "not found"}), 404
+    data = read_json("knowledge", {"items": []})
+    meta = next((it for it in data.get("items", []) if it.get("stored_name") == safe), None)
+    force_download = request.args.get("download") == "1"
+    return send_from_directory(
+        FILES,
+        safe,
+        as_attachment=force_download or not _is_image_meta(meta, safe),
+        download_name=(meta or {}).get("filename") or safe,
+    )
 
 # ---------------------------------------------------------------------------
 # products（好品集）— 扁平结构 {products: [...]}，
@@ -244,11 +1394,327 @@ def list_types():
     return jsonify(seen)
 
 # ---------------------------------------------------------------------------
+# 腾讯学堂直播预告：由 cron 定时任务调用 QLearning MCP 抓取后写入，前端首页展示
+# ---------------------------------------------------------------------------
+@app.route("/api/qlearning-lives", methods=["GET"])
+def get_qlearning_lives():
+    data = read_json("qlearning_lives", {"items": []})
+    return jsonify(data)
+
+@app.route("/api/qlearning-lives/sync", methods=["POST"])
+def sync_qlearning_lives():
+    body = request.get_json(force=True, silent=True) or {}
+    items = body.get("items", [])
+    if not isinstance(items, list):
+        return jsonify({"error": "items must be a list"}), 400
+    cleaned = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        item = dict(it)
+        if not item.get("id"):
+            seed = str(item.get("href") or item.get("title") or uuid.uuid4().hex)
+            item["id"] = uuid.uuid5(uuid.NAMESPACE_URL, seed).hex[:12]
+        cleaned.append(item)
+    cleaned.sort(key=lambda x: x.get("startTime") or "")
+    with _lock_for("qlearning_lives"):
+        write_json("qlearning_lives", {"items": cleaned, "updated_at": _now()})
+    touch_meta()
+    return jsonify({"ok": True, "count": len(cleaned)})
+
+# ---------------------------------------------------------------------------
+# Tab 未读红点：记录各模块「已读条目 id」集合，有新 id 即视为有更新（标红）。
+# 点进对应 tab 后，把当前条目 id 全部标记为已读，红点消失。
+# ---------------------------------------------------------------------------
+_UNREAD_MARK_NAME = "unread_marks"
+
+
+def _unread_marks():
+    d = read_json(_UNREAD_MARK_NAME, {})
+    d.setdefault("knowledge", [])
+    d.setdefault("articles", [])
+    d.setdefault("media", [])
+    return d
+
+
+def _item_ids(items):
+    """返回条目 id 列表。豆瓣热门用 douban_id；其他用 id。"""
+    out = []
+    for it in items or []:
+        key = it.get("id") or it.get("douban_id") or it.get("url")
+        if key:
+            out.append(str(key))
+    return out
+
+
+def _media_hot_ids():
+    """豆瓣热门榜所有分类的条目 id 汇总（榜无换血意味着无新 id）。"""
+    saved = _load_douban_hot_cache()
+    ids = []
+    for subtype, items in (saved.get("items") or {}).items():
+        ids.extend(_item_ids(items))
+    return ids
+
+
+@app.route("/api/unread", methods=["GET"])
+def get_unread():
+    """返回各 tab 未读数量：knowledge / articles / radar / media。"""
+    marks = _unread_marks()
+
+    knowledge_seen = set(marks.get("knowledge", []))
+    knowledge_unread = sum(
+        1 for it in read_json("knowledge", {"items": []}).get("items", [])
+        if str(it.get("id") or it.get("url") or "") and str(it.get("id") or it.get("url")) not in knowledge_seen
+    )
+
+    articles_seen = set(marks.get("articles", []))
+    articles_unread = sum(
+        1 for it in read_json("articles", {"items": []}).get("items", [])
+        if str(it.get("id") or it.get("url") or "") and str(it.get("id") or it.get("url")) not in articles_seen
+    )
+
+    # 鹰眼复用现有 read 字段，未读 = read != true
+    radar_unread = sum(
+        1 for it in read_json("products_updates", {"items": []}).get("items", [])
+        if not it.get("read")
+    )
+
+    media_seen = set(marks.get("media", []))
+    media_unread = sum(1 for i in _media_hot_ids() if i not in media_seen)
+
+    return jsonify({
+        "knowledge": knowledge_unread,
+        "articles": articles_unread,
+        "radar": radar_unread,
+        "media": media_unread,
+    })
+
+
+@app.route("/api/unread/mark", methods=["POST"])
+def mark_unread_read():
+    """点进 tab 后调用，把该模块当前条目全部标记为已读。body: {"module": "..."}。"""
+    body = request.get_json(force=True, silent=True) or {}
+    module = str(body.get("module", "")).strip()
+
+    if module == "radar":
+        # 鹰眼：把当前所有动态 read 置 true
+        data = read_json("products_updates", {"items": []})
+        changed = False
+        for it in data.get("items", []):
+            if not it.get("read"):
+                it["read"] = True
+                changed = True
+        if changed:
+            with _lock_for("products_updates"):
+                write_json("products_updates", data)
+        return jsonify({"ok": True, "module": module})
+
+    if module in ("knowledge", "articles", "media"):
+        marks = _unread_marks()
+        if module == "knowledge":
+            ids = _item_ids(read_json("knowledge", {"items": []}).get("items", []))
+        elif module == "articles":
+            ids = _item_ids(read_json("articles", {"items": []}).get("items", []))
+        else:  # media
+            ids = _media_hot_ids()
+        # 合并去重，保留历史已读
+        merged = list(dict.fromkeys(marks.get(module, []) + ids))
+        marks[module] = merged
+        with _lock_for(_UNREAD_MARK_NAME):
+            write_json(_UNREAD_MARK_NAME, marks)
+        return jsonify({"ok": True, "module": module})
+
+    return jsonify({"error": "unknown module"}), 400
+
+
+# ---------------------------------------------------------------------------
+# 微信读书：为「书影音→书籍」页拉取用户书架 / 阅读进度 / 书评笔记。
+# 通过 Agent Gateway 调用，后端持有 WEREAD_API_KEY，前端不接触鉴权。
+# ---------------------------------------------------------------------------
+import concurrent.futures
+
+_WEREAD_GATEWAY = "https://i.weread.qq.com/api/agent/gateway"
+_WEREAD_SKILL_VERSION = "1.0.3"
+_WEREAD_CACHE = {
+    "books": {"data": None, "ts": 0},
+    "notes": {"data": None, "ts": 0},
+}
+_WEREAD_LOCK = threading.Lock()
+_WEREAD_CACHE_TTL = 300  # 书架/笔记缓存 5 分钟，避免每次打开都拖慢
+
+
+def _weread_call(api_name, **params):
+    """调用微信读书 Agent Gateway，返回回包 dict。"""
+    key = os.environ.get("WEREAD_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("未配置 WEREAD_API_KEY")
+    body = {"api_name": api_name, "skill_version": _WEREAD_SKILL_VERSION}
+    body.update(params)
+    req = urllib.request.Request(
+        _WEREAD_GATEWAY,
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Authorization": "Bearer " + key,
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    import ssl as _ssl
+    ctx = _ssl._create_unverified_context()
+    with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
+        return json.loads(resp.read().decode("utf-8", errors="ignore"))
+
+
+def _weread_shelf():
+    return _weread_call("/shelf/sync")
+
+
+def _weread_progress(book_id):
+    try:
+        d = _weread_call("/book/getprogress", bookId=book_id)
+        book = d.get("book") or {}
+        return {
+            "bookId": book_id,
+            "progress": book.get("progress") if book.get("progress") is not None else None,
+            "readingTime": book.get("readingTime") or book.get("recordReadingTime") or 0,
+            "isStartReading": book.get("isStartReading") == 1,
+        }
+    except Exception:
+        return {"bookId": book_id, "progress": None, "readingTime": 0, "isStartReading": False}
+
+
+def _weread_build_books(force=False):
+    """构建书籍页数据：reading(正在读前10) + shelf(全量书架，按最近阅读倒序)。"""
+    now = datetime.datetime.now().timestamp()
+    with _WEREAD_LOCK:
+        cached = _WEREAD_CACHE["books"]
+        if not force and cached["data"] and now - cached["ts"] < _WEREAD_CACHE_TTL:
+            return cached["data"]
+
+    shelf = _weread_shelf()
+    books = shelf.get("books", [])
+    albums = shelf.get("albums", [])
+
+    def _norm_book(b):
+        return {
+            "bookId": b.get("bookId"),
+            "title": b.get("title"),
+            "author": b.get("author"),
+            "cover": b.get("cover"),
+            "category": b.get("category") or "",
+            "finishReading": b.get("finishReading") == 1,
+            "readUpdateTime": b.get("readUpdateTime") or 0,
+            "deepLink": b.get("deepLink") or ("weread://reading?bId=" + str(b.get("bookId"))),
+            "secret": b.get("secret") == 1,
+        }
+
+    # 电子书（这是用户自己的书架页面，展示全部，包括私密阅读）
+    public_books = books
+    norm_books = [_norm_book(b) for b in public_books]
+    # 按最近阅读时间倒序
+    norm_books.sort(key=lambda x: x["readUpdateTime"], reverse=True)
+
+    # 正在读：finishReading=False（未读完）、最近有阅读、且实际有阅读进度(progress>0)。
+    # 候选扩大到最近阅读的前 50 本，再据 getprogress 过滤真正在读的书。
+    reading_candidates = [b for b in norm_books if not b["finishReading"] and b["readUpdateTime"] > 0][:50]
+    progress_map = {}
+    if reading_candidates:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+            futs = {ex.submit(_weread_progress, b["bookId"]): b["bookId"] for b in reading_candidates}
+            for f in concurrent.futures.as_completed(futs):
+                try:
+                    progress_map[futs[f]] = f.result()
+                except Exception:
+                    pass
+    reading = []
+    for b in reading_candidates:
+        p = progress_map.get(b["bookId"], {})
+        prog = p.get("progress")
+        if prog is None or prog <= 0 or prog >= 100:
+            continue  # 只保留真正在读、尚未读完的书
+        b["progress"] = prog
+        b["readingTime"] = p.get("readingTime", 0)
+        reading.append(b)
+    # 按累计阅读时长倒序（读得越久越靠前）
+    reading.sort(key=lambda x: x.get("readingTime", 0), reverse=True)
+    reading = reading[:10]
+
+    result = {
+        "reading": reading,
+        "shelf": norm_books,
+        "bookCount": len(norm_books),
+        "albumCount": len(albums),
+        "updated_at": _now(),
+    }
+    with _WEREAD_LOCK:
+        _WEREAD_CACHE["books"] = {"data": result, "ts": now}
+    return result
+
+
+@app.route("/api/weread/books", methods=["GET"])
+def weread_books():
+    force = request.args.get("refresh") == "1"
+    try:
+        return jsonify(_weread_build_books(force=force))
+    except Exception as e:
+        return jsonify({"error": str(e), "reading": [], "shelf": []}), 502
+
+
+@app.route("/api/weread/notes", methods=["GET"])
+def weread_notes():
+    now = datetime.datetime.now().timestamp()
+    with _WEREAD_LOCK:
+        cached = _WEREAD_CACHE["notes"]
+        if cached["data"] and now - cached["ts"] < _WEREAD_CACHE_TTL:
+            return jsonify(cached["data"])
+    try:
+        d = _weread_call("/user/notebooks", count=50)
+        books = d.get("books", [])
+        items = []
+        for b in books:
+            it = {
+                "bookId": b.get("bookId"),
+                "title": (b.get("book") or {}).get("title"),
+                "author": (b.get("book") or {}).get("author"),
+                "cover": (b.get("book") or {}).get("cover"),
+                "reviewCount": b.get("reviewCount") or 0,
+                "noteCount": b.get("noteCount") or 0,
+                "bookmarkCount": b.get("bookmarkCount") or 0,
+                "readingProgress": b.get("readingProgress"),
+                "sort": b.get("sort"),
+            }
+            it["totalNoteCount"] = it["reviewCount"] + it["noteCount"] + it["bookmarkCount"]
+            items.append(it)
+        items.sort(key=lambda x: x["sort"] or 0, reverse=True)
+        result = {"totalBookCount": d.get("totalBookCount"), "totalNoteCount": d.get("totalNoteCount"), "items": items, "hasMore": d.get("hasMore") == 1}
+        with _WEREAD_LOCK:
+            _WEREAD_CACHE["notes"] = {"data": result, "ts": now}
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e), "items": []}), 502
+
+
+@app.route("/api/weread/notes/<book_id>", methods=["GET"])
+def weread_book_notes(book_id):
+    """单本书笔记明细：划线 + 想法/点评。"""
+    try:
+        bookmarks = _weread_call("/book/bookmarklist", bookId=book_id)
+        reviews = _weread_call("/review/list/mine", bookid=book_id, count=50)
+        return jsonify({"bookmarks": bookmarks, "reviews": reviews})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
+# ---------------------------------------------------------------------------
 # 静态页面
 # ---------------------------------------------------------------------------
 @app.route("/")
 def index():
     return send_from_directory(BASE, "index.html")
+
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(STATIC, "favicon-32.png", mimetype="image/png")
 
 @app.route("/api/meta", methods=["GET"])
 def get_meta():
@@ -260,4 +1726,5 @@ def healthz():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8765"))
+    _start_news_scheduler()  # 启动后台新闻自动刷新线程
     app.run(host="0.0.0.0", port=port, debug=False)

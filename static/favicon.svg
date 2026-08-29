@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="wtbg" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22c55e"/>
+      <stop offset="0.55" stop-color="#176b4d"/>
+      <stop offset="1" stop-color="#0c3324"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="9" fill="url(#wtbg)"/>
+  <rect x="7" y="7" width="8.2" height="8.2" rx="2.3" fill="#d8f56a"/>
+  <rect x="16.8" y="7" width="8.2" height="8.2" rx="2.3" fill="#eaffb0" opacity=".38"/>
+  <rect x="7" y="16.8" width="8.2" height="8.2" rx="2.3" fill="#eaffb0" opacity=".38"/>
+  <rect x="16.8" y="16.8" width="8.2" height="8.2" rx="2.3" fill="#d8f56a"/>
+</svg>
