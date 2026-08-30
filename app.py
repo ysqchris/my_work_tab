@@ -3045,6 +3045,292 @@ def _start_ops_scheduler():
 _start_ops_scheduler()
 
 
+# ===================== 产品洞察（每日 3 个值得深入思考的话题） =====================
+
+_INSIGHT_LOCK = threading.Lock()
+_INSIGHT_ADOPT_COUNT = 3      # 每日最终采纳的议题数
+_INSIGHT_CANDIDATE_COUNT = 8  # 候选池大小
+_INSIGHT_TZ = datetime.timezone(datetime.timedelta(hours=8))
+
+
+def _load_insight_fetcher():
+    """延迟导入产品洞察抓取模块（与 app.py 同目录）。"""
+    spec = importlib.util.spec_from_file_location(
+        "insight_fetcher", os.path.join(BASE, "insight_fetcher.py")
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _insight_raw_candidates():
+    """收集候选源：insight_fetcher 三源（Reddit/知乎/少数派）+ news.json 官方产品案例。"""
+    raw = []
+    try:
+        mod = _load_insight_fetcher()
+        raw += mod.fetch_candidates()
+    except Exception as e:
+        print(f"[insight] 抓取候选源失败: {e}", flush=True)
+    # 官方博客产品案例：复用 news.json 中的 product-case 条目
+    try:
+        news = read_json("news", {}).get("items", []) or []
+        for it in news:
+            cat = it.get("category") or ""
+            if cat not in ("case", "cases", "product-case", "showcase", "use-case"):
+                continue
+            title = (it.get("title") or "").strip()
+            if not title:
+                continue
+            src = it.get("source") or "官方博客"
+            desc = (it.get("desc") or "").strip()
+            raw.append({
+                "title": title,
+                "url": it.get("url") or "",
+                "source": "官方博客",
+                "source_label": str(src),
+                "raw_text": (title + ("。 " + desc) if desc else title)[:600],
+            })
+    except Exception as e:
+        print(f"[insight] 复用产品案例失败: {e}", flush=True)
+    # 去重
+    seen = set()
+    cleaned = []
+    for it in raw:
+        key = it.get("url") or it.get("title")
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(it)
+    return cleaned
+
+
+def _insight_prompt_candidates(raw):
+    """调用混元，把 raw 候选提炼成「现象 + 开放问题 + 为什么值得关注 + 评分」。"""
+    lines = []
+    for i, it in enumerate(raw[:30]):
+        lines.append(
+            f"[{i}] 标题:{it.get('title')} | 摘要:{it.get('raw_text')} | 链接:{it.get('url')}"
+        )
+    system = (
+        "你是资深产品经理的「产品洞察」编辑。从下面一批互联网产品相关素材中，"
+        "挑选最值得深入思考的若干条，每条提炼成一张议题卡。"
+        "聚焦产品/运营/商业层面的思考价值，不局限于 AI，任何互联网产品均可。"
+        "严格输出 JSON 数组（不要代码块、不要额外文字），格式为：\n"
+        '[{"title":"一句话现象标题","phenomenon":"现象描述（40字内）",'
+        '"question":"一个值得讨论的开放问题（20字内）","why":"为什么值得关注（30字内）",'
+        '"score":8.5,"url":"..."}]\n'
+        "规则：score 取 5.0~10.0 的小数，代表「值得深入思考的程度」；"
+        "question 必须是开放式、能引发产品讨论的问题，而不是是非题；"
+        "不要照抄素材标题，要提炼出背后的产品/运营洞察；"
+        "url 字段必须从输入中对应素材的「链接:」部分原样复制，不要修改或编造；"
+        "整体挑选 8~12 条，按 score 从高到低排序。"
+    )
+    content = _call_hunyuan(
+        [{"role": "system", "content": system},
+         {"role": "user", "content": "\n".join(lines)}],
+        max_tokens=2400, temperature=0.7, timeout=120,
+    )
+    parsed = _parse_json_response(content)
+    return parsed if isinstance(parsed, list) else []
+
+
+def _insight_target_date():
+    return datetime.datetime.now(_INSIGHT_TZ).date().isoformat()
+
+
+def _generate_insights():
+    """生成当日候选池 + 自动采纳评分最高的 3 条，落库返回 payload。"""
+    raw = _insight_raw_candidates()
+    if not raw:
+        return None
+    parsed = _insight_prompt_candidates(raw)
+    if not parsed:
+        return None
+    # 优先用 AI 返回的 url 精确定位原始素材，兜底按顺序
+    url_map = {}
+    for it in raw:
+        u = it.get("url") or ""
+        if u:
+            url_map.setdefault(u, it)
+    candidates = []
+    for i, p in enumerate(parsed):
+        if not isinstance(p, dict):
+            continue
+        title = str(p.get("title") or "").strip()
+        if not title:
+            continue
+        ai_url = str(p.get("url") or "").strip()
+        src = url_map.get(ai_url)
+        if src is None:
+            # url 对不上时兜底按 index 找（AI 偶尔会漏 url）
+            src = raw[i] if i < len(raw) else None
+        if src is None:
+            continue
+        candidates.append({
+            "id": uuid.uuid5(uuid.NAMESPACE_URL, str(src.get("url") or src.get("title") or i)).hex[:12],
+            "title": title,
+            "phenomenon": str(p.get("phenomenon") or "").strip(),
+            "question": str(p.get("question") or "").strip(),
+            "why": str(p.get("why") or "").strip(),
+            "source": src.get("source") or "",
+            "source_label": src.get("source_label") or "",
+            "url": src.get("url") or "",
+            "score": float(p.get("score") or 0),
+        })
+    candidates.sort(key=lambda x: -(x.get("score") or 0))
+    candidates = candidates[:_INSIGHT_CANDIDATE_COUNT]
+    if not candidates:
+        return None
+    # 自动采纳评分最高的 3 条
+    adopted_ids = [c["id"] for c in candidates[:_INSIGHT_ADOPT_COUNT]]
+    payload = {
+        "date": _insight_target_date(),
+        "updated_at": _now(),
+        "candidates": candidates,
+        "adopted": adopted_ids,
+        "skipped": [],
+    }
+    write_json("product_insights", payload)
+    print(f"[insight] 产品洞察生成完成，候选 {len(candidates)} 条，采纳 {len(adopted_ids)} 条", flush=True)
+    return payload
+
+
+@app.route("/api/product_insights", methods=["GET"])
+def get_product_insights():
+    data = read_json("product_insights", {})
+    # 当日无数据时后台补生成（首次访问不阻塞）
+    if data.get("date") != _insight_target_date() or not data.get("candidates"):
+        if not _INSIGHT_LOCK.locked():
+            threading.Thread(target=_generate_insights, daemon=True, name="insight-boot").start()
+    return jsonify(data)
+
+
+@app.route("/api/product_insights/refresh", methods=["POST"])
+def refresh_product_insights():
+    if _INSIGHT_LOCK.locked():
+        return jsonify({"ok": False, "error": "正在生成中，请稍候"}), 200
+
+    def _worker():
+        try:
+            _generate_insights()
+        except Exception as e:
+            print(f"[insight] 手动生成失败: {e}", flush=True)
+
+    threading.Thread(target=_worker, daemon=True, name="insight-manual").start()
+    return jsonify({"ok": True, "msg": "已开始生成，稍后自动刷新"})
+
+
+@app.route("/api/product_insights/adopt", methods=["POST"])
+def adopt_insight():
+    body = request.get_json(force=True, silent=True) or {}
+    item_id = body.get("id")
+    if not item_id:
+        return jsonify({"ok": False, "error": "参数缺失"}), 400
+    data = read_json("product_insights", {})
+    adopted = list(data.get("adopted") or [])
+    if item_id in adopted:
+        return jsonify({"ok": True, "adopted": adopted})
+    adopted.append(item_id)
+    while len(adopted) > _INSIGHT_ADOPT_COUNT:
+        adopted.pop(0)
+    skipped = list(data.get("skipped") or [])
+    if item_id in skipped:
+        skipped.remove(item_id)
+    data["adopted"] = adopted
+    data["skipped"] = skipped
+    write_json("product_insights", data)
+    return jsonify({"ok": True, "adopted": adopted})
+
+
+@app.route("/api/product_insights/remove", methods=["POST"])
+def remove_insight():
+    body = request.get_json(force=True, silent=True) or {}
+    item_id = body.get("id")
+    data = read_json("product_insights", {})
+    adopted = list(data.get("adopted") or [])
+    if item_id in adopted:
+        adopted.remove(item_id)
+        data["adopted"] = adopted
+        write_json("product_insights", data)
+    return jsonify({"ok": True, "adopted": adopted})
+
+
+@app.route("/api/product_insights/skip", methods=["POST"])
+def skip_insight():
+    body = request.get_json(force=True, silent=True) or {}
+    item_id = body.get("id")
+    if not item_id:
+        return jsonify({"ok": False, "error": "参数缺失"}), 400
+    data = read_json("product_insights", {})
+    adopted = list(data.get("adopted") or [])
+    skipped = list(data.get("skipped") or [])
+    if item_id in adopted:
+        adopted.remove(item_id)
+    if item_id not in skipped:
+        skipped.append(item_id)
+    data["adopted"] = adopted
+    data["skipped"] = skipped
+    write_json("product_insights", data)
+    return jsonify({"ok": True, "adopted": adopted, "skipped": skipped})
+
+
+@app.route("/api/product_insights/note", methods=["POST"])
+def note_insight():
+    body = request.get_json(force=True, silent=True) or {}
+    item_id = body.get("id")
+    text = (body.get("text") or "").strip()
+    if not item_id or not text:
+        return jsonify({"ok": False, "error": "参数缺失"}), 400
+    data = read_json("product_insights", {})
+    notes = data.get("notes") or {}
+    arr = list(notes.get(item_id) or [])
+    arr.append({"text": text[:1000], "created_at": _now()})
+    notes[item_id] = arr
+    data["notes"] = notes
+    write_json("product_insights", data)
+    return jsonify({"ok": True, "notes": arr})
+
+
+def _insight_next_delay_seconds():
+    """计算到下一个 7:30（东八区）的秒数。"""
+    now = datetime.datetime.now(_INSIGHT_TZ)
+    target = datetime.datetime(now.year, now.month, now.day, 7, 30, 0, tzinfo=_INSIGHT_TZ)
+    if target <= now:
+        target += datetime.timedelta(days=1)
+    return int((target - now).total_seconds())
+
+
+def _insight_scheduler_loop():
+    while True:
+        time.sleep(_insight_next_delay_seconds())
+        try:
+            date = _insight_target_date()
+            if db.try_acquire_daily_lock("product_insights", date):
+                _generate_insights()
+            else:
+                print("[insight] 今日已生成，跳过", flush=True)
+        except Exception as e:
+            print(f"[insight] 定时生成失败: {e}", flush=True)
+
+
+def _start_insight_scheduler():
+    def _boot():
+        try:
+            date = _insight_target_date()
+            existing = read_json("product_insights", {})
+            if existing.get("date") != date and db.try_acquire_daily_lock("product_insights", date):
+                _generate_insights()
+        except Exception as e:
+            print(f"[insight] 启动生成失败: {e}", flush=True)
+
+    threading.Thread(target=_boot, daemon=True, name="insight-boot-fetch").start()
+    threading.Thread(target=_insight_scheduler_loop, daemon=True, name="insight-scheduler").start()
+    print("[insight] 已启动：每日 7:30 生成产品洞察", flush=True)
+
+
+_start_insight_scheduler()
+
+
 # ===================== AI 对话助手（函数调用查工作台数据） =====================
 
 def _call_hunyuan_raw(messages, tools=None, max_tokens=1200, temperature=0.4, timeout=70):

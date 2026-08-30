@@ -144,6 +144,53 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 .pulse-more{border:0;background:transparent;color:var(--green);font:inherit;font-size:11.5px;cursor:pointer;padding:2px 0;text-align:left;font-weight:650}
 .pulse-more:hover{text-decoration:underline}
 @media(max-width:900px){.home-topbar{grid-template-columns:1fr}.pulse-card{padding:18px 16px}}
+/* ===== 产品洞察（资讯 tab 内） ===== */
+.insight-section{margin-top:30px;display:flex;flex-direction:column;gap:16px}
+.insight-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.insight-badge{display:inline-flex;align-items:center;gap:7px;font-size:14.5px;font-weight:800;color:#8a5a00;background:linear-gradient(135deg,#fff6e0,#ffedc9);border:1px solid #f0d9a8;border-radius:999px;padding:6px 16px;letter-spacing:.01em}
+.insight-sub{color:var(--muted);font-size:12.5px}
+.insight-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.insight-card{position:relative;overflow:hidden;background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:22px 22px 18px;display:flex;flex-direction:column;gap:13px;box-shadow:var(--shadow-md);transition:transform .2s,box-shadow .2s,border-color .2s}
+.insight-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);border-color:#dcd1bb}
+.insight-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#d97706,#f0a93c)}
+.insight-rank{position:absolute;right:16px;top:10px;font-size:38px;font-weight:900;color:#f4e9d7;line-height:1;user-select:none;pointer-events:none}
+.insight-phenomenon{font-size:13.5px;color:#4b4436;line-height:1.65;padding-right:44px}
+.insight-question{font-size:16.5px;font-weight:800;line-height:1.5;color:#1f1b12;padding-left:12px;border-left:3px solid #d97706}
+.insight-why{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:#7a6a4a;background:#fdf8ef;border:1px solid #f0e5cb;border-radius:11px;padding:9px 12px;line-height:1.6}
+.insight-why b{color:#b26a00;font-weight:800;white-space:nowrap}
+.insight-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:auto}
+.insight-src{font-size:11px;font-weight:700;color:#6b5a3a;background:#f3ede0;border:1px solid #e6dcc3;border-radius:7px;padding:2px 9px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.insight-link{margin-left:auto;font-size:12px;font-weight:700;color:var(--green);text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.insight-link:hover{text-decoration:underline}
+.insight-note-toggle{border:0;background:transparent;color:var(--muted);font-size:11.5px;font-weight:650;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:4px}
+.insight-note-toggle:hover{color:var(--green)}
+.insight-note-wrap{border-top:1px dashed #ece4d2;padding-top:12px;margin-top:2px}
+.insight-notes{display:flex;flex-direction:column;gap:8px}
+.insight-note-item{font-size:12.5px;color:#4b4436;background:#faf8f3;border:1px solid #eee6d6;border-radius:10px;padding:8px 11px;line-height:1.6}
+.insight-note-item small{display:block;color:#a89a7d;font-size:10.5px;margin-top:4px}
+.insight-note-form{display:flex;gap:8px;align-items:flex-end}
+.insight-note-input{flex:1;border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:13px;font-family:inherit;resize:none;min-height:38px;background:#fff;line-height:1.5}
+.insight-note-input:focus{outline:none;border-color:#d97706}
+.insight-note-save{border:0;background:#d97706;color:#fff;font-size:12px;font-weight:700;border-radius:10px;padding:10px 15px;cursor:pointer;white-space:nowrap}
+.insight-note-save:hover{background:#b95f04}
+.insight-pool-head{display:flex;align-items:center;gap:10px;margin-top:8px}
+.insight-pool-title{font-size:13.5px;font-weight:800;color:#6b5a3a}
+.insight-pool-count{font-size:11px;color:#a08a4a;background:#f3ede0;border-radius:8px;padding:2px 10px}
+.insight-pool{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.insight-pool-item{background:#fdfcf9;border:1px dashed #e0d6c0;border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;transition:border-color .15s,box-shadow .15s,transform .15s}
+.insight-pool-item:hover{border-color:#d97706;box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.insight-pool-title{font-size:14px;font-weight:700;line-height:1.5;color:#2a2417}
+.insight-pool-question{font-size:12.5px;color:#6b5a3a;line-height:1.6}
+.insight-pool-score{font-size:11px;font-weight:800;color:#b26a00}
+.insight-pool-actions{display:flex;gap:8px;margin-top:auto;align-items:center}
+.insight-adopt-btn{border:0;background:#1a7a4a;color:#fff;font-size:12px;font-weight:700;border-radius:9px;padding:6px 13px;cursor:pointer}
+.insight-adopt-btn:hover{background:#13613b}
+.insight-skip-btn{border:1px solid var(--line);background:#fff;color:var(--muted);font-size:12px;font-weight:650;border-radius:9px;padding:6px 13px;cursor:pointer}
+.insight-skip-btn:hover{color:var(--text);border-color:#cbd0d5}
+.insight-empty{background:var(--paper);border:1px dashed var(--line);border-radius:18px;padding:44px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.insight-empty-emoji{font-size:40px}
+.insight-empty-text{color:var(--muted);font-size:13.5px}
+@media(max-width:900px){.insight-grid{grid-template-columns:1fr}}
 .tick{transition:background .15s,border-color .15s}.tick:hover{border-color:var(--green)}
 .task{transition:background .12s;padding:11px 8px;margin:0 -8px;border-radius:8px}.task:hover{background:rgba(0,0,0,.035)}
 /* ===== AI 助手悬浮入口 ===== */
@@ -391,6 +438,17 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 <button type="button" class="btn primary pulse-summary-btn" id="weeklySummaryBtn" onclick="generateWeeklyReport()" style="display:none">✨ 直接总结</button>
 </div>
 <div class="pulse-groups" id="pulseGroups"></div>
+<div class="insight-section" id="insightSection">
+<div class="insight-head">
+<span class="insight-badge">💡 产品洞察</span>
+<span class="insight-sub">每天 3 个值得深入思考的产品议题</span>
+<span class="pulse-meta" id="insightUpdated"></span>
+<button type="button" class="btn ghost" id="insightRefreshBtn" onclick="refreshInsights()">↻ 重新生成</button>
+</div>
+<div class="insight-grid" id="insightGrid"></div>
+<div class="insight-pool-head" id="insightPoolHead" style="display:none"><span class="insight-pool-title">更多候选</span><span class="insight-pool-count" id="insightPoolCount"></span></div>
+<div class="insight-pool" id="insightPool"></div>
+</div>
 </div>
 </section>
 <section id="knowledge" class="view"><div class="kb-head"><div class="filters" id="knowledgeFilters"></div><div class="hero-actions"><button class="btn" onclick="triggerKnowledgeUpload()">↑ 上传文件</button><button class="btn primary" onclick="openKnowledgeDoc()">＋ 写文档</button></div></div><div class="kb-grid" id="knowledgeList"></div><input type="file" id="knowledgeFileInput" multiple hidden onchange="uploadKnowledgeFiles(this)"></section>
@@ -410,13 +468,13 @@ function formatSize(n){if(n==null)return '';if(n<1024)return n+' B';if(n<1048576
 async function load(){await loadCore();renderBookmarks();restoreView();loadUnread().then(renderUnread);loadRest()}async function loadCore(){let [b,g]=await Promise.all([api('/api/bookmarks'),api('/api/bookmark-groups')]);data.bookmarks=b.items||[];data.bmGroups=g.items||[]}async function loadRest(){let [t,n,k,u,p,m,ql,news,cr,km]=await Promise.all(['tasks','notes','knowledge','products_updates','products','media'].map(x=>api('/api/'+x)).concat([api('/api/qlearning-lives'),api('/api/news'),api('/api/creators'),api('/api/km-hot')]));data.tasks=t.items||[];data.notes=n.items||[];data.knowledge=k.items||[];data.updates=u.items||[];data.products=p.products||[];data.media=m.items||[];data.qlLives=ql.items||[];data.qlLivesUpdated=ql.updated_at||'';data.news=news.items||[];data.newsUpdatedAt=news.updated_at||'';data.creators=cr.items||[];data.kmHot=km.items||[];data.kmHotUpdated=km.updated_at||'';renderRest();if(document.getElementById('creators').classList.contains('active')||(data.creators.length&&!creatorVideos.length))loadCreatorVideos();}
 function restoreView(){let id;try{id=sessionStorage.getItem('bmActiveView')}catch(e){}if(id&&document.getElementById(id)){showView(id)}else{showView('bookmarks')}}
 restoreView()
-function showView(id,node){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));if(!node)node=document.querySelector('[data-view="'+id+'"]');if(node)node.classList.add('active');try{sessionStorage.setItem('bmActiveView',id)}catch(e){};if(id==='media'){if(mediaSubtype==='book')loadWeread();else loadMediaHot()};if(id==='creators'&&!creatorVideosLoaded)loadCreatorVideos();markTabRead(id)}
+function showView(id,node){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));if(!node)node=document.querySelector('[data-view="'+id+'"]');if(node)node.classList.add('active');try{sessionStorage.setItem('bmActiveView',id)}catch(e){};if(id==='media'){if(mediaSubtype==='book')loadWeread();else loadMediaHot()};if(id==='creators'&&!creatorVideosLoaded)loadCreatorVideos();if(id==='news')renderProductInsights();markTabRead(id)}
 function unreadViewName(id){return{knowledge:'knowledge',radar:'radar',media:'media',creators:'creators'}[id]||null}
 async function loadUnread(){try{let j=await fetch('/api/unread').then(r=>r.json());data._unread=j||{};data._creatorSeen=new Set(j.creator_seen||[])}catch(e){data._unread={};data._creatorSeen=new Set()}}
 function renderUnread(){let u=data._unread||{};document.querySelectorAll('.pill[data-view]').forEach(p=>{let v=p.getAttribute('data-view');let m=unreadViewName(v);if(!m)return;let n=u[m]||0;let dot=p.querySelector('.tab-dot');if(n>0){if(!dot){dot=document.createElement('span');dot.className='tab-dot';p.appendChild(dot)}}else if(dot){dot.remove()}})}
 async function markTabRead(id){let m=unreadViewName(id);if(!m)return;let u=data._unread||{};if(!(u[m]>0))return;try{await api('/api/unread/mark','POST',{module:m});delete u[m];if(m==='creators'){let seen=data._creatorSeen||new Set();creatorVideos.forEach(v=>{if(v.url)seen.add(v.url)});data._creatorSeen=seen;renderCreatorTiles()}renderUnread()}catch(e){}}
 function render(){renderTodoPanel();renderKnowledge();renderBookmarks();renderMedia();renderNotes();renderRadar();renderHomeLives();renderKmHot();renderHomeGreeting();renderAiPulse();renderUnread();renderCreatorTiles()}
-function renderRest(){renderTodoPanel();renderKnowledge();renderMedia();renderNotes();renderRadar();renderHomeLives();renderKmHot();renderHomeGreeting();renderAiPulse();renderCreatorTiles()}
+function renderRest(){renderTodoPanel();renderKnowledge();renderMedia();renderNotes();renderRadar();renderHomeLives();renderKmHot();renderHomeGreeting();renderAiPulse();renderProductInsights();renderCreatorTiles()}
 function empty(t){return `<div class="empty">${t}</div>`}
 function shortDate(d){if(!/^\d{4}-\d{2}-\d{2}$/.test(d||''))return '';let [y,m,day]=d.split('-');return `${Number(m)} 月 ${Number(day)} 日`}
 const WEEKDAYS=['周日','周一','周二','周三','周四','周五','周六'];
@@ -443,6 +501,16 @@ function reportHtml(report,days){let secs=(report.sections||[]).map(s=>{let kps=
 function weeklyEmptyHtml(){return `<div class="report-empty"><div class="report-empty-emoji">🗓️</div><div class="report-empty-text">近一周的资讯已就绪，点击下方按钮生成结构化周报。</div><button type="button" class="btn primary" onclick="generateWeeklyReport()">✨ 直接总结</button></div>`}
 async function generateWeeklyReport(){let wrap=$('pulseGroups'),meta=$('pulseUpdated'),btn=$('weeklySummaryBtn');if(btn){btn.disabled=true;btn.textContent='⏳ 生成中…'}try{let r=await fetch('/api/ai_pulse/weekly/refresh',{method:'POST'});let j=await r.json();if(j.ok&&j.report){if(meta)meta.textContent=j.updated_at?('周报更新于 '+j.updated_at):'';wrap.innerHTML=reportHtml(j.report,j.days)}else if(!j.ok){alert(j.error||'生成失败，请稍后再试。')}}catch(e){alert('生成请求失败，请检查网络或稍后再试。')}finally{if(btn){btn.disabled=false;btn.textContent='✨ 直接总结'}}}
 async function renderAiPulse(){let wrap=$('pulseGroups'),meta=$('pulseUpdated');if(!wrap)return;try{if(aiPulseMode==='weekly'){let r=await fetch('/api/ai_pulse/weekly');let j=await r.json();if(meta)meta.textContent=j.updated_at?('周报更新于 '+j.updated_at):(j.days&&j.days.length?('覆盖近 '+j.days.length+' 天'):'');if(j.report){wrap.innerHTML=reportHtml(j.report,j.days)}else{wrap.innerHTML=weeklyEmptyHtml()}}else{let r=await fetch('/api/ai_pulse');let j=await r.json();aiPulseGroups=j.groups||[];if(meta)meta.textContent=j.updated_at?('数据更新于 '+(j.updated_at||'').replace('T',' ')):'';wrap.innerHTML=aiPulseGroups.length?aiPulseGroups.map(pulseCardHtml).join(''):empty('正在抓取 AI 行业动态、模型更新、GitHub 趋势与产品案例，请稍后刷新。')}}catch(e){wrap.innerHTML=empty('加载失败，请刷新重试。')}}
+let insightData=null;
+async function renderProductInsights(){let sec=$('insightSection');if(!sec)return;let updated=$('insightUpdated');try{let j=await fetch('/api/product_insights').then(r=>r.json());insightData=j;if(updated)updated.textContent=j.updated_at?('更新于 '+(j.updated_at||'').replace('T',' ').slice(0,16)):'';let cands=j.candidates||[];let adopted=(j.adopted||[]).map(id=>cands.find(c=>c.id===id)).filter(Boolean);let skipped=new Set(j.skipped||[]);let pending=cands.filter(c=>!adopted.includes(c)&&!skipped.has(c.id));let grid=$('insightGrid');if(adopted.length){grid.innerHTML=adopted.map((c,i)=>insightCardHtml(c,i,j)).join('');}else if(pending.length){grid.innerHTML=pending.slice(0,3).map((c,i)=>insightCardHtml(c,i,j)).join('');}else{grid.innerHTML='<div class="insight-empty"><div class="insight-empty-emoji">💡</div><div class="insight-empty-text">正在生成今日产品洞察，请稍后刷新。</div></div>'}let poolHead=$('insightPoolHead'),pool=$('insightPool');if(pending.length&&adopted.length){poolHead.style.display='flex';pool.style.display='grid';$('insightPoolCount').textContent=pending.length+' 条 · 点击采纳可替换今日三题';pool.innerHTML=pending.map(insightPoolItemHtml).join('');}else{poolHead.style.display='none';pool.style.display='none';pool.innerHTML='';}}catch(e){let grid=$('insightGrid');if(grid)grid.innerHTML='<div class="insight-empty"><div class="insight-empty-emoji">💡</div><div class="insight-empty-text">加载失败，请刷新重试。</div></div>';}}
+function insightNoteHtml(c,j){let notes=((j.notes||{})[c.id])||[];let items=notes.map(n=>'<div class="insight-note-item">'+esc(n.text)+'<small>'+esc(String(n.created_at||'').replace('T',' ').slice(0,16))+'</small></div>').join('');return '<div class="insight-notes">'+items+'<div class="insight-note-form"><textarea class="insight-note-input" id="insightNote_'+c.id+'" placeholder="写下你的想法…（Enter 保存）" rows="2" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();saveInsightNote(\''+c.id+'\')}"></textarea><button type="button" class="insight-note-save" onclick="saveInsightNote(\''+c.id+'\')">保存</button></div></div>'}
+function insightCardHtml(c,i,j){let cnt=((j.notes||{})[c.id]||[]).length;return '<div class="insight-card"><span class="insight-rank">'+String(i+1).padStart(2,'0')+'</span>'+(c.phenomenon?'<div class="insight-phenomenon">'+esc(c.phenomenon)+'</div>':'')+'<div class="insight-question">'+esc(c.question||c.title)+'</div>'+(c.why?'<div class="insight-why"><b>为什么值得关注</b><span>'+esc(c.why)+'</span></div>':'')+'<div class="insight-meta">'+(c.source_label?'<span class="insight-src" title="'+esc(c.source)+'">'+esc(c.source_label)+'</span>':'')+'<button type="button" class="insight-note-toggle" onclick="toggleInsightNote(\''+c.id+'\')">💬 我的想法'+(cnt?' ('+cnt+')':'')+'</button>'+(c.url?'<a class="insight-link" href="'+esc(c.url)+'" target="_blank" rel="noopener">原文 ↗</a>':'')+'</div><div class="insight-note-wrap" id="insightNoteWrap_'+c.id+'" style="display:'+(cnt?'block':'none')+'">'+insightNoteHtml(c,j)+'</div></div>'}
+function insightPoolItemHtml(c){return '<div class="insight-pool-item"><div class="insight-pool-title">'+esc(c.title)+'</div>'+(c.question?'<div class="insight-pool-question">'+esc(c.question)+'</div>':'')+'<div class="insight-pool-score">★ '+Number(c.score||0).toFixed(1)+'</div><div class="insight-pool-actions"><button type="button" class="insight-adopt-btn" onclick="adoptInsight(\''+c.id+'\')">采纳</button><button type="button" class="insight-skip-btn" onclick="skipInsight(\''+c.id+'\')">跳过</button>'+(c.url?'<a class="insight-link" href="'+esc(c.url)+'" target="_blank" rel="noopener">原文 ↗</a>':'')+'</div></div>'}
+function toggleInsightNote(id){let w=$('insightNoteWrap_'+id);if(w)w.style.display=w.style.display==='none'?'block':'none';}
+async function saveInsightNote(id){let ta=$('insightNote_'+id);if(!ta)return;let text=(ta.value||'').trim();if(!text)return;try{let r=await fetch('/api/product_insights/note',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,text:text})});let j=await r.json();if(j.ok){renderProductInsights();}}catch(e){alert('保存失败，请重试。')}}
+async function adoptInsight(id){try{let r=await fetch('/api/product_insights/adopt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})});let j=await r.json();if(j.ok){renderProductInsights();}}catch(e){}}
+async function skipInsight(id){try{let r=await fetch('/api/product_insights/skip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})});let j=await r.json();if(j.ok){renderProductInsights();}}catch(e){}}
+async function refreshInsights(){let btn=$('insightRefreshBtn');if(btn){btn.disabled=true;btn.textContent='⏳ 生成中…'}try{let r=await fetch('/api/product_insights/refresh',{method:'POST'});let j=await r.json();if(!j.ok)alert(j.error||'生成失败')}catch(e){alert('生成请求失败，请检查网络。')}finally{setTimeout(()=>{renderProductInsights();if(btn){btn.disabled=false;btn.textContent='↻ 重新生成'}},4000)}}
 function todoRowHtml(x){let thumbMatch=x.content&&x.content.match(/<img[^>]*src="([^"]+)"/);let thumb=x.image?`/api/knowledge/files/${encodeURIComponent(x.image)}`:(thumbMatch?thumbMatch[1]:'');let textPreview=x.content?x.content.replace(/<img[^>]*>/g,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim():'';let meta=[x.priority?`<span class="tag">${esc(x.priority)}</span>`:'',x.date?shortDate(x.date):''].filter(Boolean).join(' · ');return `<div class="task ${x.done?'done':''}"><span class="tick ${x.done?'done':''}" onclick="toggleTask('${x.id}')">${x.done?'✓':''}</span>${thumb?`<img class="task-thumb" src="${thumb}" alt="">`:''}<div class="task-name">${esc(x.title)}${textPreview?`<div class="task-note">${esc(textPreview.slice(0,60))}</div>`:''}${meta?`<div class="task-note">${meta}</div>`:''}</div><span class="task-del" onclick="removeTask('${x.id}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span></div>`}
 function renderTodoPanel(){let items=[...data.tasks].sort((a,b)=>(a.done===b.done?0:a.done?1:-1));let done=items.filter(x=>x.done).length,c=$('miniTodoCount');if(c)c.innerHTML=items.length?('<b>'+done+'</b> / '+items.length+' 项'):'暂无待办';$('todoList').innerHTML=items.length?items.map(todoRowHtml).join(''):empty('还没有待办，写下第一条吧。')}
 async function toggleTask(id){let x=data.tasks.find(x=>x.id===id);await api('/api/tasks/'+id,'PUT',{done:!x.done});await load()}
