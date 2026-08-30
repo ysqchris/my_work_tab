@@ -1,13 +1,40 @@
+# Version control
 .git
 .gitignore
-.venv
+
+# Dependencies (will be installed in container)
 venv
+.venv
 __pycache__
 *.pyc
 *.pyo
-*.log
-server.log
+
+# Build artifacts
+dist
+build
+
+# IDE
 .vscode
 .idea
+*.swp
+
+# OS
 .DS_Store
-data/*.tmp
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Environment (secrets must be injected at runtime, not baked into image)
+.env
+.env.bili
+.env.local
+*.env
+
+# Misc
+coverage
+.cache
+tmp
+temp
+.knot

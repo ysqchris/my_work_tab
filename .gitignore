@@ -20,3 +20,5 @@ tmp_eval.js
 index.html.bak
 /*.png
 !static/**/*.png
+
+.agent

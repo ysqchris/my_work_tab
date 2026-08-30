@@ -22,8 +22,33 @@ import importlib.util
 import xml.etree.ElementTree as ET
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_from_directory
+import db
+import beacon_fetcher
 
 BASE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _load_dotenv():
+    """从项目根目录 .env 加载 KEY=VALUE，仅补充缺失或为空的变量（不覆盖已生效的非空值）。"""
+    try:
+        _env_path = os.path.join(BASE, ".env")
+        if not os.path.isfile(_env_path):
+            return
+        with open(_env_path, encoding="utf-8") as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if not _line or _line.startswith("#") or "=" not in _line:
+                    continue
+                _k, _v = _line.split("=", 1)
+                _k = _k.strip()
+                _v = _v.strip().strip('"').strip("'")
+                if _k and not os.environ.get(_k, "").strip():
+                    os.environ[_k] = _v
+    except Exception:
+        pass
+
+
+_load_dotenv()
 # 用户数据放在代码仓库之外的持久目录；未配置时兼容本地开发。
 DATA = os.environ.get("WORKTAB_DATA_DIR", os.path.join(BASE, "data"))
 FILES = os.path.join(DATA, "files")
@@ -31,6 +56,10 @@ STATIC = os.path.join(BASE, "static")
 
 app = Flask(__name__, static_folder=STATIC, template_folder=os.path.join(BASE, "templates"))
 os.makedirs(FILES, exist_ok=True)
+try:
+    db.init_schema()
+except Exception as _e:
+    print(f"[db] init_schema failed: {_e}")
 
 
 # GZip 压缩：文本型（JSON/HTML）响应，压缩后体积降到 1/5~1/10，显著加快首屏传输。
@@ -96,53 +125,36 @@ def _lock_for(name):
 def _now():
     return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(timespec="seconds")
 
-def _path(name):
-    return os.path.join(DATA, name + ".json")
+# 数据存储已迁移至 MySQL（db.py），不再落盘到 data/*.json。
+# JSON 读缓存改为 TTL 缓存：key = 资源名，避免高频接口每次请求都打库。
+_JSON_CACHE_TTL = 5  # 秒；写操作会立即失效对应 key，保证写后可见
 
 def read_json(name, default=None):
-    p = _path(name)
-    if not os.path.exists(p):
-        return default if default is not None else {"items": []}
-    # 文件级缓存：以 (路径, mtime, size) 为 key，文件未变时直接返回内存解析结果，
-    # 避免高频接口每次请求都重复读盘 + json.load。
-    try:
-        st = os.stat(p)
-        key = (p, st.st_mtime_ns, st.st_size)
-        with _json_read_cache_lock:
-            cached = _json_read_cache.get(key)
-        if cached is not None:
-            return cached
-    except OSError:
-        pass
-    with open(p, "r", encoding="utf-8") as f:
-        try:
-            data = json.load(f)
-        except Exception:
-            return default if default is not None else {"items": []}
+    now = time.time()
     with _json_read_cache_lock:
-        # 容量上限：防止长期运行后旧 key（文件已变更）无限堆积
+        cached = _json_read_cache.get(name)
+        if cached is not None and now - cached[1] < _JSON_CACHE_TTL:
+            return cached[0]
+    try:
+        data = db.db_read_json(name, default)
+    except Exception:
+        return default if default is not None else {"items": []}
+    with _json_read_cache_lock:
         if len(_json_read_cache) >= 256:
             _json_read_cache.clear()
-        _json_read_cache[key] = data
+        _json_read_cache[name] = (data, now)
     return data
 
 def _invalidate_json_cache(name=None):
-    """写操作后清除对应文件缓存（name=None 时清空全部）。"""
+    """写操作后清除对应缓存（name=None 时清空全部）。"""
     with _json_read_cache_lock:
         if name is None:
             _json_read_cache.clear()
-            return
-        p = _path(name)
-        for key in [k for k in _json_read_cache if k[0] == p]:
-            _json_read_cache.pop(key, None)
+        else:
+            _json_read_cache.pop(name, None)
 
 def write_json(name, data):
-    """原子写：先写临时文件再 rename，避免半截写入。"""
-    p = _path(name)
-    tmp = p + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, p)
+    db.db_write_json(name, data)
     _invalidate_json_cache(name)
 
 def touch_meta():
@@ -356,6 +368,7 @@ def _news_scheduler_loop():
                 if items:
                     with _lock_for("news"):
                         write_json("news", {"items": items, "updated_at": _now()})
+                    _accumulate_news_history(items)
                     touch_meta()
                     print(f"[news_scheduler] 自动刷新完成，{len(items)} 条", flush=True)
             except Exception as e:
@@ -363,10 +376,25 @@ def _news_scheduler_loop():
 
 
 def _start_news_scheduler():
-    # 数据源已由外部 Agent 接管，不再启动本地抓取线程。
-    # 保留本函数仅为向后兼容，调用处已停用。
-    print("[news_scheduler] 已停用：新闻动态数据源由外部 Agent 经 /api/news/sync 写入", flush=True)
-    return
+    """启动后台守护线程：启动时立即抓取一次，之后按早/中/晚定时刷新。"""
+    def _boot():
+        with _NEWS_FETCHER_LOCK:
+            try:
+                mod = _load_news_fetcher()
+                items = mod.fetch_all()
+                if items:
+                    with _lock_for("news"):
+                        write_json("news", {"items": items, "updated_at": _now()})
+                    _accumulate_news_history(items)
+                    touch_meta()
+                    print(f"[news_scheduler] 启动抓取完成，{len(items)} 条", flush=True)
+            except Exception as e:
+                print(f"[news_scheduler] 启动抓取失败: {e}", flush=True)
+    t0 = threading.Thread(target=_boot, daemon=True, name="news-boot-fetch")
+    t0.start()
+    t1 = threading.Thread(target=_news_scheduler_loop, daemon=True, name="news-scheduler")
+    t1.start()
+    print("[news_scheduler] 已启动：AI 资讯 + GitHub Trending 定时抓取", flush=True)
 make_crud("tasks")
 make_crud("notes")
 make_crud("knowledge")
@@ -763,6 +791,7 @@ def get_creator_videos():
     落盘存储历史视频，每次刷新增量追加新视频（按 url 去重），历史不丢。
     返回：已落盘的全部视频按发布时间倒序（可搜历史），limit 列数截断。
     refresh=1 强制重新抓取（拉取上次与本次之间的增量）。
+    非 refresh 请求直接读落盘 store 秒回，过期博主的抓取放到后台异步进行，不阻塞页面。
     """
     force = request.args.get("refresh") == "1"
     creator_id = (request.args.get("creator_id") or "").strip()
@@ -772,17 +801,22 @@ def get_creator_videos():
         limit = 90
     creators = read_json("creators", {"items": []}).get("items", [])
     errors = {}
-    if creators:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
-            futs = {pool.submit(_get_creator_videos_cached, c, force): c for c in creators}
-            for fut in concurrent.futures.as_completed(futs):
-                c = futs[fut]
-                try:
-                    _, err = fut.result()
-                except Exception as e:
-                    err = str(e)
-                if err:
-                    errors[c.get("id")] = err
+    if force:
+        # 用户主动刷新：同步抓取（愿意等待），拿到本次错误。
+        if creators:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+                futs = {pool.submit(_get_creator_videos_cached, c, True): c for c in creators}
+                for fut in concurrent.futures.as_completed(futs):
+                    c = futs[fut]
+                    try:
+                        _, err = fut.result()
+                    except Exception as e:
+                        err = str(e)
+                    if err:
+                        errors[c.get("id")] = err
+    else:
+        # 常规打开：秒回落盘 store，过期博主放到后台异步刷新。
+        _refresh_creator_videos_async(creators)
     # 从落盘视频库读取全量（历史 + 本次增量），按时间倒序截断。
     with _creator_video_store_lock:
         store = _load_creator_video_store()
@@ -797,6 +831,39 @@ def get_creator_videos():
         "errors": errors,
         "updated_at": store.get("updated_at") or _now(),
     })
+
+
+_creator_video_refresh_flag = False
+_creator_video_refresh_lock = threading.Lock()
+
+
+def _refresh_creator_videos_async(creators):
+    """后台异步抓取过期博主的视频（命中进程内缓存的直接跳过），不阻塞请求。
+    用标志位保证同一时刻至多一个后台刷新任务，避免并发请求重复触发抓取。
+    """
+    global _creator_video_refresh_flag
+    if not creators:
+        return
+    with _creator_video_refresh_lock:
+        if _creator_video_refresh_flag:
+            return
+        _creator_video_refresh_flag = True
+
+    def _worker():
+        global _creator_video_refresh_flag
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+                futs = [pool.submit(_get_creator_videos_cached, c, False) for c in creators]
+                for fut in concurrent.futures.as_completed(futs):
+                    try:
+                        fut.result()
+                    except Exception:
+                        pass
+        finally:
+            with _creator_video_refresh_lock:
+                _creator_video_refresh_flag = False
+
+    threading.Thread(target=_worker, daemon=True, name="creator-video-refresh").start()
 
 
 @app.route("/api/creators/backfill", methods=["POST"])
@@ -1068,26 +1135,9 @@ def _fetch_douban_collection(collection, count=20):
     items = payload.get("subject_collection_items") or payload.get("items") or []
     return items if isinstance(items, list) else []
 
-@app.route("/api/media/douban-hot", methods=["GET"])
-def media_douban_hot():
-    """返回每日中午更新一次的豆瓣热门榜；首次运行才按需初始化。"""
-    subtype = (request.args.get("type") or "movie").strip().lower()
-    if subtype not in _DOUBAN_HOT_TYPES:
-        return jsonify({"error": "invalid type", "items": []}), 400
 
-    # refresh=1 仅由每日 12:00 的本地定时任务调用。
-    force_refresh = request.args.get("refresh") == "1"
-    today = _shanghai_date()
-    with _douban_hot_lock:
-        saved = _load_douban_hot_cache()
-        cached_items = saved.get("items", {}).get(subtype)
-        # 页面访问始终只读取缓存，不再每 30 分钟向豆瓣发请求。
-        if cached_items is not None and not force_refresh:
-            return jsonify({"items": cached_items, "cached": True, "updated_at": saved.get("updated_at"), "error": None})
-        # 首次部署尚无缓存时，允许初始化一次，避免页面空白。
-        if cached_items is not None and not force_refresh and saved.get("date") == today:
-            return jsonify({"items": cached_items, "cached": True, "updated_at": saved.get("updated_at"), "error": None})
-
+def _douban_hot_refresh(subtype):
+    """抓取某分类豆瓣热门并落盘缓存。返回 (items, error)。"""
     error = None
     items = []
     try:
@@ -1100,20 +1150,93 @@ def media_douban_hot():
         _enrich_douban_release(items, subtype)
     except Exception as e:
         error = str(e)
-
     with _douban_hot_lock:
         saved = _load_douban_hot_cache()
         if items:
             saved.setdefault("items", {})[subtype] = items
-            saved["date"] = today
+            saved["date"] = _shanghai_date()
             saved["updated_at"] = _now()
             _save_douban_hot_cache(saved)
-            return jsonify({"items": items, "cached": False, "updated_at": saved["updated_at"], "error": None})
-        # 更新失败时继续返回上一版缓存，页面不受影响。
-        stale = saved.get("items", {}).get(subtype, [])
-        return jsonify({"items": stale, "cached": True, "updated_at": saved.get("updated_at"), "error": error})
+            return items, None
+        return saved.get("items", {}).get(subtype, []), error
+
+
+_douban_hot_refresh_flag = False
+_douban_hot_refresh_lock = threading.Lock()
+
+
+def _douban_hot_refresh_async(subtype):
+    """首次无缓存时后台异步初始化，避免页面首次访问被豆瓣抓取阻塞。"""
+    global _douban_hot_refresh_flag
+    with _douban_hot_refresh_lock:
+        if _douban_hot_refresh_flag:
+            return
+        _douban_hot_refresh_flag = True
+
+    def _worker():
+        global _douban_hot_refresh_flag
+        try:
+            _douban_hot_refresh(subtype)
+        except Exception:
+            pass
+        finally:
+            with _douban_hot_refresh_lock:
+                _douban_hot_refresh_flag = False
+
+    threading.Thread(target=_worker, daemon=True, name="douban-hot-init").start()
+
+
+@app.route("/api/media/douban-hot", methods=["GET"])
+def media_douban_hot():
+    """返回豆瓣热门榜；数据由每日 12:00 定时任务写入缓存，首次无缓存时后台初始化。"""
+    subtype = (request.args.get("type") or "movie").strip().lower()
+    if subtype not in _DOUBAN_HOT_TYPES:
+        return jsonify({"error": "invalid type", "items": []}), 400
+
+    force_refresh = request.args.get("refresh") == "1"
+    with _douban_hot_lock:
+        saved = _load_douban_hot_cache()
+        cached_items = saved.get("items", {}).get(subtype)
+    # 页面访问只读缓存，不再向豆瓣发请求。
+    if cached_items is not None and not force_refresh:
+        return jsonify({"items": cached_items, "cached": True, "updated_at": saved.get("updated_at"), "error": None})
+    # 定时任务/手动强制刷新：同步抓取。
+    if force_refresh:
+        items, error = _douban_hot_refresh(subtype)
+        return jsonify({"items": items, "cached": False, "updated_at": _now(), "error": error})
+    # 首次无缓存：后台异步初始化，本次先返回空，前端显示「加载热门中…」，稍后重新进入即可看到。
+    _douban_hot_refresh_async(subtype)
+    return jsonify({"items": [], "cached": False, "updated_at": saved.get("updated_at"), "error": None})
 
 make_crud("media")
+
+# ---------------------------------------------------------------------------
+# 豆瓣热门：每日 12:00 定时刷新（5 个分类），保证榜单数据新鲜。
+# ---------------------------------------------------------------------------
+_DOUBAN_REFRESH_HOUR = 12
+
+
+def _douban_scheduler_loop():
+    """每天 12:00（东八区）刷新一次豆瓣热门榜全部分类。"""
+    tz = datetime.timezone(datetime.timedelta(hours=8))
+    while True:
+        now = datetime.datetime.now(tz)
+        target = datetime.datetime(now.year, now.month, now.day, _DOUBAN_REFRESH_HOUR, 0, 0, tzinfo=tz)
+        if target <= now:
+            target += datetime.timedelta(days=1)
+        time.sleep(max(0, (target - now).total_seconds()))
+        try:
+            for sub in _DOUBAN_HOT_TYPES:
+                _douban_hot_refresh(sub)
+                time.sleep(2)  # 分类间限速，避免豆瓣风控
+            print("[douban_scheduler] 豆瓣热门刷新完成", flush=True)
+        except Exception as e:
+            print(f"[douban_scheduler] 豆瓣热门刷新失败: {e}", flush=True)
+
+
+def _start_douban_scheduler():
+    threading.Thread(target=_douban_scheduler_loop, daemon=True, name="douban-scheduler").start()
+    print("[douban_scheduler] 已启动：每日 12:00 刷新豆瓣热门", flush=True)
 
 # ---------------------------------------------------------------------------
 # 图片代理：部分图片域名对无 Referer/UA 的请求返回 418/400（防盗链），
@@ -1140,6 +1263,17 @@ _IMG_PROXY_RULES = [
 ]
 
 
+# 1x1 透明 PNG，作为源图 404/超时/网络异常时的占位图，避免前端报资源加载错误。
+_BLANK_PNG = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478"
+    "9c6360000002000155e0f6ff0000000049454e44ae426082"
+)
+
+def _img_proxy_placeholder():
+    return Response(_BLANK_PNG, mimetype="image/png", headers={
+        "Cache-Control": "public, max-age=300",
+    })
+
 @app.route("/api/media/img-proxy", methods=["GET"])
 def media_img_proxy():
     src = (request.args.get("url") or "").strip()
@@ -1164,8 +1298,10 @@ def media_img_proxy():
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = resp.read()
             content_type = resp.headers.get("Content-Type", "image/jpeg")
-    except Exception as e:
-        return f"fetch failed: {e}", 502
+    except Exception:
+        # 源图不存在（如失效的默认头像占位地址）或抓取超时，返回占位图而非报错，
+        # 避免浏览器控制台出现资源加载失败。
+        return _img_proxy_placeholder()
     return Response(data, mimetype=content_type, headers={
         "Cache-Control": "public, max-age=86400",
     })
@@ -1194,9 +1330,13 @@ def _delete_knowledge_file(it):
             pass
 
 def _migrate_links_to_knowledge():
-    kp, lp = _path("knowledge"), _path("links")
-    if os.path.exists(kp):
-        data = read_json("knowledge", {"items": []})
+    """knowledge 已在数据库中存在（历史迁移已完成）时，只做 kind 字段兜底修正；
+    仅当 knowledge 从未写入过（全新环境）时才尝试从 links 迁移一次。
+    """
+    existing = db.db_read_json("knowledge", None)
+    if existing is not None:
+        data = existing if isinstance(existing, dict) else {"items": []}
+        data.setdefault("items", [])
         changed = False
         for it in data.get("items", []):
             kind = _infer_knowledge_kind(it)
@@ -1207,10 +1347,11 @@ def _migrate_links_to_knowledge():
             with _lock_for("knowledge"):
                 write_json("knowledge", data)
         return
-    if not os.path.exists(lp):
+    legacy = db.db_read_json("links", None)
+    if not legacy:
         write_json("knowledge", {"items": [], "updated_at": _now()})
         return
-    data = read_json("links", {"items": []})
+    data = legacy if isinstance(legacy, dict) else {"items": []}
     for it in data.get("items", []):
         it["kind"] = _infer_knowledge_kind(it)
     data["updated_at"] = _now()
@@ -1723,17 +1864,11 @@ def _normalize_products(raw):
     return {"products": []}
 
 def _migrate_if_needed():
-    """若磁盘上是旧 groups 格式，就地转换为扁平结构写回。"""
-    p = _path("products")
-    if not os.path.exists(p):
+    """若数据库里是旧 groups 格式，就地转换为扁平结构写回。"""
+    raw = db.db_read_json("products", None)
+    if not isinstance(raw, dict) or "groups" not in raw:
         return
-    try:
-        with open(p, "r", encoding="utf-8") as f:
-            raw = json.load(f)
-    except Exception:
-        return
-    if isinstance(raw, dict) and "groups" in raw:
-        write_json("products", _normalize_products(raw))
+    write_json("products", _normalize_products(raw))
 
 @app.route("/api/products", methods=["GET"])
 def get_products():
@@ -1836,6 +1971,50 @@ def sync_qlearning_lives():
     cleaned.sort(key=lambda x: x.get("startTime") or "")
     with _lock_for("qlearning_lives"):
         write_json("qlearning_lives", {"items": cleaned, "updated_at": _now()})
+    touch_meta()
+    return jsonify({"ok": True, "count": len(cleaned)})
+
+# ---------------------------------------------------------------------------
+# KM 热榜：由外部 Agent 通过 KM MCP 的 hot-articles 抓取后写入，前端工作台首页展示。
+# 与学堂直播一致：后端只负责读缓存 + 收整批覆盖，抓取动作在外部定时任务侧完成。
+# ---------------------------------------------------------------------------
+@app.route("/api/km-hot", methods=["GET"])
+def get_km_hot():
+    data = read_json("km_hot", {"items": [], "updated_at": ""})
+    return jsonify(data)
+
+@app.route("/api/km-hot/sync", methods=["POST"])
+def sync_km_hot():
+    body = request.get_json(force=True, silent=True) or {}
+    items = body.get("items", [])
+    if not isinstance(items, list):
+        return jsonify({"error": "items must be a list"}), 400
+    cleaned = []
+    seen = set()
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        item = dict(it)
+        if not item.get("title"):
+            continue
+        if not item.get("id"):
+            seed = str(item.get("url") or item.get("title") or uuid.uuid4().hex)
+            item["id"] = uuid.uuid5(uuid.NAMESPACE_URL, seed).hex[:12]
+        key = item.get("url") or item.get("id")
+        if key in seen:
+            continue
+        seen.add(key)
+        # 热度统一转 int，便于前端展示与排序
+        try:
+            item["hot"] = int(item.get("hot") or 0)
+        except (TypeError, ValueError):
+            item["hot"] = 0
+        cleaned.append(item)
+    # 按热度倒序，热度相同按阅读数倒序
+    cleaned.sort(key=lambda x: (-(int(x.get("hot") or 0) or 0),
+                                -(int(x.get("read_count") or 0) or 0)))
+    with _lock_for("km_hot"):
+        write_json("km_hot", {"items": cleaned, "updated_at": _now()})
     touch_meta()
     return jsonify({"ok": True, "count": len(cleaned)})
 
@@ -2093,30 +2272,53 @@ def _weread_build_books(force=False):
     # 补漏：从「本月读得最多的书」里找出不在书架、但真正在读（有进度未读完）的书，
     # 合并进「正在阅读」，解决用户书架里没加但在读的书籍漏展示的问题。
     shelf_ids = {str(b["bookId"]) for b in norm_books if b.get("bookId")}
-    extra_books = []
-    for it in _weread_readlongest():
+    read_longest = _weread_readlongest()
+    candidates = []
+    for it in read_longest:
         book = it.get("book") or {}
         bid = book.get("bookId")
         if not bid or str(bid) in shelf_ids:
             continue
         # readLongest 里的 book 可能是专辑(有声书)，format 不一定是 epub；只补电子书。
-        p = _weread_progress(str(bid))
-        prog = p.get("progress")
-        if prog is None or prog <= 0 or prog >= 100:
-            continue
-        extra_books.append({
-            "bookId": str(bid),
-            "title": book.get("title") or "",
-            "author": book.get("author") or "",
-            "cover": book.get("cover") or "",
-            "category": "",
-            "finishReading": False,
-            "readUpdateTime": it.get("readTime") or 0,
-            "deepLink": _weread_deeplink(str(bid)),
-            "secret": False,
-            "progress": prog,
-            "readingTime": p.get("readingTime", 0),
-        })
+        candidates.append((it, book, str(bid)))
+    extra_books = []
+    if candidates:
+        # 进度与详情链接并行拉取，避免逐本串行拖慢。
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+            prog_futs = {ex.submit(_weread_progress, bid): (it, book, bid) for it, book, bid in candidates}
+            link_futs = {ex.submit(_weread_deeplink, bid): bid for _, _, bid in candidates}
+            progress = {}
+            for f in concurrent.futures.as_completed(prog_futs):
+                it, book, bid = prog_futs[f]
+                try:
+                    progress[bid] = (f.result(), it, book)
+                except Exception:
+                    continue
+            deeplink = {}
+            for f in concurrent.futures.as_completed(link_futs):
+                bid = link_futs[f]
+                try:
+                    deeplink[bid] = f.result() or ""
+                except Exception:
+                    deeplink[bid] = ""
+        for bid in progress:
+            p, it, book = progress[bid]
+            prog = p.get("progress")
+            if prog is None or prog <= 0 or prog >= 100:
+                continue
+            extra_books.append({
+                "bookId": bid,
+                "title": book.get("title") or "",
+                "author": book.get("author") or "",
+                "cover": book.get("cover") or "",
+                "category": "",
+                "finishReading": False,
+                "readUpdateTime": it.get("readTime") or 0,
+                "deepLink": deeplink.get(bid, ""),
+                "secret": False,
+                "progress": prog,
+                "readingTime": p.get("readingTime", 0),
+            })
     if extra_books:
         # 补漏的书排在前面（它们往往就是当前正在读的书）。
         reading = extra_books + reading
@@ -2205,10 +2407,10 @@ def get_brief():
     return jsonify({"html": b.get("html", ""), "updated_at": b.get("updated_at", "")})
 
 
-# ---- 混元 Hy Token Plan（OpenAI 兼容）----
-HYUNYUAN_API_KEY = os.environ.get("HYUNYUAN_API_KEY", "")
-HYUNYUAN_BASE_URL = os.environ.get("HYUNYUAN_BASE_URL", "https://api.lkeap.cloud.tencent.com/plan/v3").rstrip("/")
-HYUNYUAN_MODEL = os.environ.get("HYUNYUAN_MODEL", "hy3")
+# ---- AI 总结（DeepSeek，OpenAI 兼容协议；兼容旧 HYUNYUAN_* 变量名）----
+AI_API_KEY = (os.environ.get("AI_API_KEY", "") or os.environ.get("HYUNYUAN_API_KEY", "")).strip()
+AI_BASE_URL = (os.environ.get("AI_BASE_URL", "") or os.environ.get("HYUNYUAN_BASE_URL", "") or "https://api.deepseek.com").rstrip("/")
+AI_MODEL = (os.environ.get("AI_MODEL", "") or os.environ.get("HYUNYUAN_MODEL", "") or "deepseek-chat")
 
 # brief 条目标签白名单：tag -> 中文名（防止 AI 注入任意 class）
 _BRIEF_TAGS = {
@@ -2219,19 +2421,19 @@ _BRIEF_TAGS = {
 
 
 def _call_hunyuan(messages, max_tokens=1600, temperature=0.6, timeout=60):
-    """调用混元 Hy Token Plan（OpenAI 兼容 chat/completions）。失败抛异常。"""
-    if not HYUNYUAN_API_KEY:
-        raise RuntimeError("HYUNYUAN_API_KEY 未配置")
-    url = HYUNYUAN_BASE_URL + "/chat/completions"
+    """调用 DeepSeek（OpenAI 兼容 chat/completions）。失败抛异常。"""
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY 未配置")
+    url = AI_BASE_URL + "/chat/completions"
     body = json.dumps({
-        "model": HYUNYUAN_MODEL,
+        "model": AI_MODEL,
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
     }).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers={
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + HYUNYUAN_API_KEY,
+        "Authorization": "Bearer " + AI_API_KEY,
     })
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
@@ -2406,24 +2608,456 @@ def refresh_brief():
     write_json("brief", brief)
     return jsonify({"ok": True, "html": html_str, "updated_at": brief["updated_at"]})
 
+
+# ---- AI 行业动态（工作台首页「AI 行业动态」板块）----
+# 数据来源：news.json（由 news_fetcher.py 抓取）
+#   - AIhot 精选 AI 资讯（AI 行业最新动态）
+#   - GitHub Trending 今日热榜（GitHub 上的 AI/技术趋势）
+# 按来源分两组，每组调用一次混元生成一句「组内总结」，聚合缓存到 ai_pulse.json。
+
+# 四大主题板块：AI 行业动态 / 产品案例 / 模型更新 / GitHub 趋势
+# 说明：「产品更新」类内容归到「鹰眼」板块，此处不再单独成块；
+#       「产品案例」聚焦各产品官方博客发布的用法案例、推荐用法、落地实践。
+# 注意：AIhot 实时接口返回细分分类（industry/tip/ai-models/paper/ai-products），
+# 但历史缓存与部分来源会给出泛化分类（ai/tech），需一并映射，否则会漏分。
+_AI_BOARDS = [
+    {"key": "news", "label": "AI 行业动态", "sub": "行业资讯 · 新闻", "emoji": "📰",
+     "cats": {"industry", "tip", "ai", "news", "research"}},
+    {"key": "cases", "label": "产品案例", "sub": "产品官方用法案例 · 推荐用法", "emoji": "💡",
+     "cats": {"case", "cases", "product-case", "showcase", "use-case", "product", "products", "ai-products"}},
+    {"key": "models", "label": "模型更新", "sub": "新模型 · 论文研究", "emoji": "🧠",
+     "cats": {"ai-models", "paper", "model", "models"}},
+    {"key": "github", "label": "GitHub 趋势", "sub": "GitHub Trending 今日热榜", "emoji": "🐙",
+     "cats": {"github", "tech"}},
+]
+_CAT_TO_BOARD = {}
+for _b in _AI_BOARDS:
+    if _b["cats"]:
+        for _c in _b["cats"]:
+            _CAT_TO_BOARD[_c] = _b["key"]
+_BOARD_META = {b["key"]: b for b in _AI_BOARDS}
+
+
+def _fetch_ai_pulse_news():
+    """即时抓取 AI 行业动态（AIhot + GitHub Trending），写入 news.json 并累积历史。"""
+    mod = _load_news_fetcher()
+    items = mod.fetch_all()
+    if not items:
+        return []
+    with _lock_for("news"):
+        write_json("news", {"items": items, "updated_at": _now()})
+    _accumulate_news_history(items)
+    touch_meta()
+    return items
+
+
+def _accumulate_news_history(items, date=None):
+    """把当次抓取结果按日期累积到 news_history，供「总结周报」使用。"""
+    date = date or _now()[:10]
+    hist = read_json("news_history", {"days": {}})
+    days = hist.get("days", {})
+    day = days.get(date) or {"items": [], "updated_at": _now()}
+    existing = {it.get("url") or it.get("id") for it in day["items"]}
+    for it in items:
+        key = it.get("url") or it.get("id")
+        if key and key not in existing:
+            day["items"].append(it)
+            existing.add(key)
+    day["updated_at"] = _now()
+    days[date] = day
+    kept = sorted(days.keys(), reverse=True)[:14]
+    hist["days"] = {k: days[k] for k in kept}
+    write_json("news_history", hist)
+
+
+def _news_item_brief(n):
+    """把 news 条目规整为前端统一结构，并标识板块归属（github / aihot）。"""
+    source = (n.get("source") or "").strip()
+    is_gh = source == "GitHub Trending"
+    return {
+        "title": n.get("title") or "",
+        "url": n.get("url") or "",
+        "date": n.get("date") or "",
+        "desc": n.get("desc") or "",
+        "source": source,
+        "category": (n.get("category") or "").strip() if not is_gh else "github",
+        "score": n.get("score"),
+        "id": n.get("id") or "",
+        "kind": "github" if is_gh else "aihot",
+        "desc_en": n.get("desc_en") or "",
+        "lang": n.get("lang") or "",
+        "stars_today": n.get("stars_today"),
+        "published_at": n.get("published_at") or "",
+        "agent_related": bool(n.get("agent_related")),
+    }
+
+
+def _ai_pulse_groups_raw(news_items=None):
+    """把 news 条目按「AI 行业动态 / 模型更新 / GitHub 趋势 / 产品案例」四板块聚合。"""
+    news = news_items if news_items is not None else (read_json("news", {}).get("items", []) or [])
+    groups = {}
+
+    def _bucket(key):
+        if key not in groups:
+            meta = _BOARD_META[key]
+            groups[key] = {"key": key, "label": meta["label"], "sub": meta["sub"],
+                           "emoji": meta["emoji"], "items": []}
+        return groups[key]
+
+    for n in news:
+        brief = _news_item_brief(n)
+        if not brief["title"]:
+            continue
+        if brief["kind"] == "github":
+            key = "github"
+        else:
+            key = _CAT_TO_BOARD.get(brief["category"], "news")
+        _bucket(key)["items"].append(brief)
+
+    # 按定义顺序输出：AI 行业动态 → 模型更新 → GitHub 趋势 → 产品案例
+    result = []
+    for b in _AI_BOARDS:
+        if b["key"] not in groups:
+            continue
+        g = groups[b["key"]]
+        g["items"].sort(key=lambda x: (0 if x.get("agent_related") else 1, -(x.get("score") or 0)))
+        g["latest_date"] = max((it.get("date") or "" for it in g["items"]), default="")
+        result.append(g)
+    return result
+
+
+@app.route("/api/ai_pulse", methods=["GET"])
+def get_ai_pulse():
+    """每日大事件：按四板块（AI 行业动态 / 模型更新 / GitHub 趋势 / 产品案例）返回当天资讯（仅标题与元信息，不做 AI 总结）。"""
+    news = read_json("news", {}).get("items", []) or []
+    if not news:
+        try:
+            _fetch_ai_pulse_news()
+            news = read_json("news", {}).get("items", []) or []
+        except Exception as e:
+            print(f"[ai_pulse] 即时抓取失败: {e}", flush=True)
+    groups = _ai_pulse_groups_raw(news)
+    updated_at = read_json("news", {}).get("updated_at", "")
+    return jsonify({"mode": "daily", "groups": groups, "updated_at": updated_at})
+
+
+def _weekly_news_items():
+    """读取近 7 天累积的历史资讯。"""
+    hist = read_json("news_history", {"days": {}})
+    days = hist.get("days", {})
+    today = _now()[:10]
+    recent = [d for d in sorted(days.keys(), reverse=True) if d <= today][:7]
+    items = []
+    for d in recent:
+        items += days[d].get("items", [])
+    return items, recent
+
+
+def _parse_json_response(content):
+    """从模型输出中稳健解析 JSON（对象或数组）。"""
+    try:
+        return json.loads(content)
+    except Exception:
+        pass
+    for pat in (r"\{.*\}", r"\[.*\]"):
+        m = re.search(pat, content, re.S)
+        if m:
+            try:
+                return json.loads(m.group(0))
+            except Exception:
+                continue
+    return None
+
+
+def _generate_weekly_report(items):
+    """用 DeepSeek 生成结构化周报（overview + 四板块 keypoints/trend）。"""
+    groups = _ai_pulse_groups_raw(items)
+    if not groups:
+        return None
+    lines = []
+    for g in groups:
+        bullets = []
+        for it in g["items"][:15]:
+            t = (it.get("title") or "").strip()
+            if not t:
+                continue
+            if it.get("kind") == "github":
+                extra = ""
+                if it.get("lang"):
+                    extra += f"（{it['lang']}"
+                if it.get("stars_today") is not None:
+                    extra += f"，今日 +{it['stars_today']} star"
+                if extra:
+                    extra += "）"
+                bullets.append(f"- {t}{extra}")
+            else:
+                bullets.append(f"- {t}")
+        lines.append(f"【{g['label']}】\n" + "\n".join(bullets))
+    user = "\n\n".join(lines)
+
+    system = (
+        "你是「AI 行业动态」周报编辑。根据下面四大主题近一周的资讯，生成一份结构化中文周报。"
+        "严格输出 JSON 对象（不要输出代码块、不要额外文字），格式为：\n"
+        '{"overview":"一段 60~100 字的整体概述",'
+        '"sections":[{"title":"AI 行业动态","keypoints":["要点1","要点2","要点3"],"trend":"该主题本周趋势的一句话总结"},'
+        '{"title":"产品案例","keypoints":["..."],"trend":"..."},'
+        '{"title":"模型更新","keypoints":["..."],"trend":"..."},'
+        '{"title":"GitHub 趋势","keypoints":["..."],"trend":"..."}]}\n'
+        "要求：sections 必须恰好四个，title 依次为 AI 行业动态、产品案例、模型更新、GitHub 趋势；"
+        "「AI 行业动态」涵盖行业新闻与资讯；"
+        "「产品案例」聚焦各产品官方博客发布的用法案例、推荐用法、落地实践（OpenAI、Claude、Gemini、36氪、豆包工作、千问办公 等）；"
+        "「模型更新」涵盖新模型发布、论文研究；"
+        "「GitHub 趋势」涵盖 GitHub Trending 开源项目；"
+        "严格区分「Agent 协作」概念：它特指多个 Agent 之间组队协作、多智能体编排、"
+        "Agent 间任务交接/通信协议（如 CrewAI、AutoGen、LangGraph、A2A、MCP、subagent 编排）。"
+        "单个 AI 助手、RAG、代码补全 Copilot、普通 AI 智能体产品都【不是】Agent 协作，"
+        "严禁把「与 Agent 沾边」的内容都说成 Agent 协作；只有确实涉及多 Agent 协作的才这么表述。"
+        "每个 keypoints 给 3~5 条，每条一句话，凝练、有信息增量、点名具体产品/模型/项目；"
+        "trend 给一句趋势判断；不要输出 HTML 标签。"
+    )
+    content = _call_hunyuan([
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ], max_tokens=2200, temperature=0.5)
+
+    parsed = _parse_json_response(content)
+    if not isinstance(parsed, dict):
+        raise RuntimeError("周报解析失败：" + str(content)[:200])
+
+    sections = parsed.get("sections") or []
+    board_map = {g["label"]: g for g in groups}
+    clean_sections = []
+    for sec in sections:
+        if not isinstance(sec, dict):
+            continue
+        title = str(sec.get("title") or "").strip()
+        if not title:
+            continue
+        meta = board_map.get(title)
+        if meta:
+            sec["emoji"] = meta.get("emoji", "✨")
+        sec["keypoints"] = [str(k).strip() for k in (sec.get("keypoints") or []) if str(k).strip()]
+        sec["trend"] = str(sec.get("trend") or "").strip()
+        clean_sections.append(sec)
+
+    return {
+        "overview": str(parsed.get("overview") or "").strip(),
+        "sections": clean_sections,
+    }
+
+
+@app.route("/api/ai_pulse/weekly", methods=["GET"])
+def get_ai_pulse_weekly():
+    """总结周报：返回已缓存的结构化周报（未生成时 report 为空）。"""
+    cached = read_json("ai_pulse_weekly", {})
+    return jsonify({
+        "mode": "weekly",
+        "report": cached.get("report"),
+        "days": cached.get("days", []),
+        "updated_at": cached.get("updated_at", ""),
+    })
+
+
+def _summarize_groups(groups, scope):
+    """用混元为每个板块生成总结。scope: 'daily' 或 'weekly'。"""
+    if not groups:
+        return groups
+    lines = []
+    for i, g in enumerate(groups):
+        bullet_lines = []
+        for it in g["items"][:8]:
+            title = it.get("title", "")
+            if it.get("kind") == "github":
+                extra = ""
+                if it.get("lang"):
+                    extra += f"（{it['lang']}"
+                    if it.get("stars_today"):
+                        extra += f"，今日 +{it['stars_today']} star"
+                    extra += "）"
+                bullet_lines.append(f"  - {title}{extra}" + (f"：{it.get('desc','')}" if it.get("desc") else ""))
+            else:
+                bullet_lines.append(f"  - {title}" + (f"：{it.get('desc','')}" if it.get("desc") else ""))
+        lines.append(f"[{i}] {g['label']}（{g.get('sub','')}）：\n" + "\n".join(bullet_lines))
+    user = "\n\n".join(lines)
+
+    if scope == "weekly":
+        system = (
+            "你是「AI 行业动态」周报编辑。下面按三大主题给出近一周的资讯，"
+            "请给每个主题写一段 60~90 字的中文周度总结，概括该主题本周的核心事件、"
+            "值得关注的产品/模型/项目及整体趋势，语言凝练、有信息增量，避免空话。"
+            "仅输出 JSON 数组，不要输出其他文字或代码块，格式严格为：\n"
+            '[{"index":0,"summary":"…"}, ...]\n'
+            "index 必须对应输入的组序号，summary 不要包含 HTML 标签。"
+        )
+    else:
+        system = (
+            "你是「AI 行业动态」板块的编辑助手。下面按三大主题给出今日动态。"
+            "请给每个主题写一句不超过 40 字的中文总结，概括该主题今日的核心看点与趋势，"
+            "语言简洁、有信息增量，避免空话（如“持续更新”）。"
+            "仅输出 JSON 数组，不要输出其他文字或代码块，格式严格为：\n"
+            '[{"index":0,"summary":"…"}, ...]\n'
+            "index 必须对应输入的组序号，summary 不要包含 HTML 标签。"
+        )
+    content = _call_hunyuan([
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ], max_tokens=1600)
+
+    parsed = None
+    try:
+        parsed = json.loads(content)
+    except Exception:
+        m = re.search(r"\[.*\]", content, re.S)
+        if m:
+            try:
+                parsed = json.loads(m.group(0))
+            except Exception:
+                parsed = None
+    summary_map = {}
+    if isinstance(parsed, list):
+        for it in parsed:
+            if isinstance(it, dict) and isinstance(it.get("index"), int):
+                summary_map[it["index"]] = str(it.get("summary", "")).strip()
+
+    for i, g in enumerate(groups):
+        g["summary"] = summary_map.get(i, "")
+    return groups
+
+
+@app.route("/api/ai_pulse/refresh", methods=["POST"])
+def refresh_ai_pulse():
+    """为「每日大事件」四板块生成 AI 总结，写回 ai_pulse.json。"""
+    groups = _ai_pulse_groups_raw()
+    if not groups:
+        return jsonify({"ok": False, "error": "暂无可总结的 AI 行业动态数据"}), 200
+    try:
+        groups = _summarize_groups(groups, "daily")
+    except Exception as e:
+        return jsonify({"ok": False, "error": "生成失败：" + str(e)}), 502
+    payload = {"groups": groups, "updated_at": _now()[:16]}
+    write_json("ai_pulse", payload)
+    return jsonify({"ok": True, "groups": groups, "updated_at": payload["updated_at"]})
+
+
+@app.route("/api/ai_pulse/weekly/refresh", methods=["POST"])
+def refresh_ai_pulse_weekly():
+    """为「总结周报」生成结构化周报，写回 ai_pulse_weekly.json。"""
+    items, days = _weekly_news_items()
+    if not items:
+        return jsonify({"ok": False, "error": "暂无足够的历史数据，先看看每日大事件吧。"}), 200
+    try:
+        report = _generate_weekly_report(items)
+    except Exception as e:
+        return jsonify({"ok": False, "error": "生成失败：" + str(e)}), 502
+    if not report:
+        return jsonify({"ok": False, "error": "周报生成失败，请稍后再试。"}), 502
+    payload = {"report": report, "days": days, "updated_at": _now()[:16]}
+    write_json("ai_pulse_weekly", payload)
+    return jsonify({"ok": True, "report": report, "days": days, "updated_at": payload["updated_at"]})
+
 @app.route("/api/meta", methods=["GET"])
 def get_meta():
     return jsonify(read_json("meta", {}))
 
 
+# ===================== IMate 运营数据（灯塔 DataTalk 团队协作看板） =====================
+
+_OPS_LOCK = threading.Lock()
+_OPS_TZ = datetime.timezone(datetime.timedelta(hours=8))
+
+
+def _ops_target_date():
+    """数据截止日 = 昨天（东八区），与灯塔看板默认口径一致。"""
+    return (datetime.datetime.now(_OPS_TZ).date() - datetime.timedelta(days=1)).isoformat()
+
+
+def _ops_fetch():
+    """抓取 imate 运营数据（项目协作 + 整体大盘）并落库，返回快照 payload。"""
+    snap = beacon_fetcher.build_snapshot()
+    overall = beacon_fetcher.build_overall_snapshot()
+    payload = dict(snap)
+    payload["overall"] = overall
+    payload["updated_at"] = _now()
+    write_json("imate_ops", payload)
+    print(f"[ops] imate 运营数据抓取完成，截止 {snap.get('data_date')}", flush=True)
+    return payload
+
+
+@app.route("/api/imate_ops", methods=["GET"])
+def get_imate_ops():
+    return jsonify(read_json("imate_ops", {}))
+
+
+@app.route("/api/imate_ops/sync", methods=["POST"])
+def sync_imate_ops():
+    if _OPS_LOCK.locked():
+        return jsonify({"ok": False, "error": "正在抓取中，请稍候"}), 200
+
+    def _worker():
+        try:
+            _ops_fetch()
+        except Exception as e:
+            print(f"[ops] 手动抓取失败: {e}", flush=True)
+
+    threading.Thread(target=_worker, daemon=True, name="ops-manual-sync").start()
+    return jsonify({"ok": True, "msg": "已开始抓取，稍后自动刷新"})
+
+
+def _ops_next_delay_seconds():
+    """计算到下一个 8:00（东八区）的秒数。"""
+    now = datetime.datetime.now(_OPS_TZ)
+    target = datetime.datetime(now.year, now.month, now.day, 8, 0, 0, tzinfo=_OPS_TZ)
+    if target <= now:
+        target += datetime.timedelta(days=1)
+    return int((target - now).total_seconds())
+
+
+def _ops_scheduler_loop():
+    while True:
+        time.sleep(_ops_next_delay_seconds())
+        try:
+            target_date = _ops_target_date()
+            # 跨进程幂等：同一天只抓一次（gunicorn 多 worker 下也安全）
+            if db.try_acquire_daily_lock("imate_ops", target_date):
+                _ops_fetch()
+            else:
+                print("[ops] 今日已抓取，跳过", flush=True)
+        except Exception as e:
+            print(f"[ops] 定时抓取失败: {e}", flush=True)
+
+
+def _start_ops_scheduler():
+    def _boot():
+        # 启动时若今日尚未抓取，则立即补抓一次（首次部署/重启后数据不缺失）
+        try:
+            target_date = _ops_target_date()
+            existing = read_json("imate_ops", {})
+            if existing.get("data_date") != target_date and db.try_acquire_daily_lock("imate_ops", target_date):
+                _ops_fetch()
+        except Exception as e:
+            print(f"[ops] 启动抓取失败: {e}", flush=True)
+
+    threading.Thread(target=_boot, daemon=True, name="ops-boot-fetch").start()
+    threading.Thread(target=_ops_scheduler_loop, daemon=True, name="ops-scheduler").start()
+    print("[ops] 已启动：每日 8:00 抓取 imate 运营数据", flush=True)
+
+
+_start_ops_scheduler()
+
+
 # ===================== AI 对话助手（函数调用查工作台数据） =====================
 
 def _call_hunyuan_raw(messages, tools=None, max_tokens=1200, temperature=0.4, timeout=70):
-    """通用混元调用：支持 tools；返回完整 message dict（chat.completion 的 message）。"""
-    if not HYUNYUAN_API_KEY:
-        raise RuntimeError("HYUNYUAN_API_KEY 未配置")
-    url = HYUNYUAN_BASE_URL + "/chat/completions"
-    body = {"model": HYUNYUAN_MODEL, "messages": messages, "max_tokens": max_tokens, "temperature": temperature}
+    """通用 DeepSeek 调用：支持 tools；返回完整 message dict（chat.completion 的 message）。"""
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY 未配置")
+    url = AI_BASE_URL + "/chat/completions"
+    body = {"model": AI_MODEL, "messages": messages, "max_tokens": max_tokens, "temperature": temperature}
     if tools:
         body["tools"] = tools
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers={
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + HYUNYUAN_API_KEY,
+        "Authorization": "Bearer " + AI_API_KEY,
     })
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
@@ -2657,6 +3291,9 @@ def healthz():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8765"))
-    # 本地新闻抓取线程已停用（数据源由外部 Agent 经 /api/news/sync 写入）
+    # 启动 AI 资讯 + GitHub Trending 定时抓取线程
+    _start_news_scheduler()
+    # 启动豆瓣热门每日定时刷新线程
+    _start_douban_scheduler()
     # threaded=True：避免单线程下慢接口（天气外呼/图片代理/豆瓣热榜初始化）阻塞整个服务导致页面一直转圈
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
