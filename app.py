@@ -2971,16 +2971,49 @@ def _ops_target_date():
     return (datetime.datetime.now(_OPS_TZ).date() - datetime.timedelta(days=1)).isoformat()
 
 
-def _ops_fetch():
-    """抓取 imate 运营数据（项目协作 + 整体大盘）并落库，返回快照 payload。"""
+def _snapshot_has_data(payload):
+    """判断抓取结果是否有效：项目协作 KPI 至少有一个非空值。
+
+    灯塔 MCP 限流时 _fetch_with_retry 会静默返回空数组，导致整份快照
+    KPI 全为 null。此时视为抓取失败，拒绝覆盖旧数据。
+    """
+    kpi = (payload or {}).get("kpi", {}) or {}
+    for v in kpi.values():
+        if isinstance(v, dict):
+            if any(x is not None for x in v.values()):
+                return True
+        elif v is not None:
+            return True
+    return False
+
+
+def _ops_fetch_once():
+    """单次抓取并落库；数据无效时抛异常，绝不把有效快照洗成空数据。"""
     snap = beacon_fetcher.build_snapshot()
     overall = beacon_fetcher.build_overall_snapshot()
     payload = dict(snap)
     payload["overall"] = overall
     payload["updated_at"] = _now()
+    if not _snapshot_has_data(payload):
+        raise RuntimeError("抓取结果为空（可能触发灯塔限流），已拒绝覆盖旧数据")
     write_json("imate_ops", payload)
     print(f"[ops] imate 运营数据抓取完成，截止 {snap.get('data_date')}", flush=True)
     return payload
+
+
+def _ops_fetch():
+    """带退避重试的抓取：最多 3 次，全部失败则保留旧数据并告警。"""
+    last_err = None
+    for attempt in range(3):
+        if attempt:
+            time.sleep(30 * attempt)
+        try:
+            return _ops_fetch_once()
+        except Exception as e:
+            last_err = e
+            print(f"[ops] 第 {attempt + 1} 次抓取失败: {e}", flush=True)
+    print(f"[ops] 抓取全部失败，保留旧数据: {last_err}", flush=True)
+    return None
 
 
 @app.route("/api/imate_ops", methods=["GET"])
@@ -3032,7 +3065,9 @@ def _start_ops_scheduler():
         try:
             target_date = _ops_target_date()
             existing = read_json("imate_ops", {})
-            if existing.get("data_date") != target_date and db.try_acquire_daily_lock("imate_ops", target_date):
+            # 日期不匹配，或日期匹配但数据为空（上次抓取被限流洗空），都需补抓
+            need_fetch = existing.get("data_date") != target_date or not _snapshot_has_data(existing)
+            if need_fetch and db.try_acquire_daily_lock("imate_ops", target_date):
                 _ops_fetch()
         except Exception as e:
             print(f"[ops] 启动抓取失败: {e}", flush=True)

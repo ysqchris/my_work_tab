@@ -38,9 +38,9 @@ def _get_pool():
             if _pool is None:
                 _pool = PooledDB(
                     creator=pymysql,
-                    maxconnections=10,
-                    mincached=1,
-                    maxcached=5,
+                    maxconnections=3,
+                    mincached=0,
+                    maxcached=1,
                     blocking=True,
                     ping=1,
                     host=DB_HOST,
