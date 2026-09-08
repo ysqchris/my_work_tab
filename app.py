@@ -329,6 +329,7 @@ def refresh_news():
         return jsonify({"ok": True, "count": 0, "note": "抓取为空，未覆盖现有数据"})
     with _lock_for("news"):
         write_json("news", {"items": items, "updated_at": _now()})
+    _accumulate_news_history(items)
     touch_meta()
     return jsonify({"ok": True, "count": len(items), "updated_at": _now()})
 
@@ -403,6 +404,50 @@ make_crud("bookmarks")
 make_crud("creators")
 
 # ---------------------------------------------------------------------------
+# 每日工作总结：纯展示型资源，不在后端做任何抓取/分析。
+# 内容由外部路径（企微聊天总结等）经 POST 写入，同一天多次写入按 date 覆盖同一条。
+# ---------------------------------------------------------------------------
+@app.route("/api/daily_brief", methods=["GET"])
+def get_daily_brief():
+    """默认返回今天（东八区）的总结；?date=YYYY-MM-DD 可查历史某天。"""
+    date = request.args.get("date") or _now()[:10]
+    data = read_json("daily_brief", {"items": []})
+    item = next((it for it in data.get("items", []) if it.get("date") == date), None)
+    return jsonify(item or {"date": date, "content": "", "empty": True})
+
+@app.route("/api/daily_brief", methods=["POST"])
+def upsert_daily_brief():
+    """按 date 覆盖写入当天总结；不传 date 时默认today。"""
+    body = request.get_json(force=True, silent=True) or {}
+    date = (body.get("date") or _now()[:10])[:10]
+    content = body.get("content") or ""
+    data = read_json("daily_brief", {"items": []})
+    items = data.setdefault("items", [])
+    existing = next((it for it in items if it.get("date") == date), None)
+    if existing:
+        existing["content"] = content
+        existing["source"] = body.get("source") or existing.get("source")
+        existing["updated_at"] = _now()
+    else:
+        items.insert(0, {
+            "id": uuid.uuid4().hex[:12],
+            "date": date,
+            "content": content,
+            "source": body.get("source") or "外部写入",
+            "created_at": _now(),
+            "updated_at": _now(),
+        })
+    # 只保留最近 90 天，避免无限增长
+    items.sort(key=lambda x: x.get("date") or "", reverse=True)
+    data["items"] = items[:90]
+    data["updated_at"] = _now()
+    with _lock_for("daily_brief"):
+        write_json("daily_brief", data)
+    touch_meta()
+    item = next((it for it in data["items"] if it.get("date") == date), None)
+    return jsonify(item), 201
+
+# ---------------------------------------------------------------------------
 # 视频关注：B 站 UP 主 / YouTube 频道最新投稿聚合
 # B 站需要 WBI 签名（2025-05 起强制），且投稿列表接口对部分机房 IP 有风控，
 # 抓取失败时静默降级为空列表，不影响其他博主正常展示。
@@ -430,31 +475,12 @@ _bili_fail_reminded = False
 
 
 def _bili_note_cookie_expired(code, message):
-    """B 站接口返回风控/未登录时，往工作台待办里插一条提醒（仅首次一次，避免刷屏）。"""
+    """B 站接口返回风控/未登录时，仅打印服务日志提醒（不再写入工作台待办，仅首次一次避免刷屏）。"""
     global _bili_fail_reminded
     if _bili_fail_reminded:
         return
     _bili_fail_reminded = True
-    try:
-        tasks = read_json("tasks", {"items": []})
-        title = "B站Cookie已失效，视频订阅暂停，请更新SESSDATA"
-        # 已有同标题提醒则跳过
-        if any((t.get("title") or "") == title for t in tasks.get("items", [])):
-            return
-        tasks.setdefault("items", []).insert(0, {
-            "title": title,
-            "priority": "高",
-            "date": _now()[:10],
-            "source": "助手记录",
-            "id": uuid.uuid4().hex[:12],
-            "created_at": _now(),
-        })
-        tasks["updated_at"] = _now()
-        with _lock_for("tasks"):
-            write_json("tasks", tasks)
-        touch_meta()
-    except Exception:
-        pass  # 提醒失败不阻断抓取流程
+    print(f"[bili] Cookie 已失效，视频订阅暂停，请更新 SESSDATA（code={code} message={message}）", flush=True)
 
 
 def _bili_get_json(url, referer="https://www.bilibili.com/", timeout=8):
@@ -1294,12 +1320,21 @@ def media_img_proxy():
     if headers is None:
         return "host not allowed", 400
     req = urllib.request.Request(src, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            data = resp.read()
-            content_type = resp.headers.get("Content-Type", "image/jpeg")
-    except Exception:
-        # 源图不存在（如失效的默认头像占位地址）或抓取超时，返回占位图而非报错，
+    data = None
+    content_type = "image/jpeg"
+    last_err = None
+    # 源站偶发抖动/瞬时超时较常见，做一次快速重试，避免单次失败就返回占位图。
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = resp.read()
+                content_type = resp.headers.get("Content-Type", "image/jpeg")
+            break
+        except Exception as e:
+            last_err = e
+            continue
+    if data is None:
+        # 源图不存在（如失效的默认头像占位地址）或重试后仍抓取失败，返回占位图而非报错，
         # 避免浏览器控制台出现资源加载失败。
         return _img_proxy_placeholder()
     return Response(data, mimetype=content_type, headers={
@@ -1475,8 +1510,10 @@ def fetch_bookmark_meta():
     url = (request.args.get("url") or "").strip()
     if not url or not url.lower().startswith(("http://", "https://")):
         return jsonify({"error": "invalid url"}), 400
-    parsed = urllib.parse.urlsplit(url)
-    favicon = f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
+    # 不再猜测拼接 {scheme}://{netloc}/favicon.ico 作为默认兜底：很多站点根目录并不存在该文件
+    # （如 openai.com/favicon.ico 会 404），拼接后前端必然发出一次失败请求并留下控制台报错。
+    # 抓取失败或页面未声明 <link icon> 时保持为空，前端 bmIconHtml 对空 favicon 会展示默认 🔖 符号。
+    favicon = ""
     title = ""
     summary = ""
     final_url = url
@@ -3326,6 +3363,46 @@ def note_insight():
     return jsonify({"ok": True, "notes": arr})
 
 
+def _insight_to_markdown(item):
+    """把产品洞察结构转为 Markdown 正文，便于二次创作。"""
+    title = (item.get("title") or item.get("question") or "未命名洞察").strip()
+    md = f"# {title}\n\n"
+    if item.get("phenomenon"):
+        md += f"**现象**\n\n{item['phenomenon']}\n\n"
+    if item.get("question"):
+        md += f"**值得思考的问题**\n\n{item['question']}\n\n"
+    if item.get("why"):
+        md += f"**为什么值得关注**\n\n{item['why']}\n\n"
+    if item.get("source_label"):
+        md += f"**来源**：{item['source_label']}\n\n"
+    if item.get("url"):
+        md += f"**原文链接**：{item['url']}\n"
+    return md
+
+
+@app.route("/api/product_insights/sync_ima", methods=["POST"])
+def sync_insight_to_ima():
+    """把某条产品洞察直接同步为 IMA 笔记（草稿），供后续二次创作。"""
+    body = request.get_json(force=True, silent=True) or {}
+    item_id = body.get("id")
+    if not item_id:
+        return jsonify({"ok": False, "error": "参数缺失"}), 400
+    data = read_json("product_insights", {})
+    cands = data.get("candidates") or []
+    item = next((c for c in cands if c.get("id") == item_id), None)
+    if not item:
+        return jsonify({"ok": False, "error": "未找到该条洞察"}), 404
+    md = _insight_to_markdown(item)
+    code, resp = _ima_api("/openapi/note/v1/import_doc", {"content_format": 1, "content": md})
+    if code != 0:
+        return jsonify({"ok": False, "error": (resp or {}).get("msg") or (resp or {}).get("errmsg") or f"IMA 返回 {code}"})
+    synced = dict(data.get("ima_synced") or {})
+    synced[item_id] = {"note_id": (resp.get("data") or {}).get("note_id"), "synced_at": _now()}
+    data["ima_synced"] = synced
+    write_json("product_insights", data)
+    return jsonify({"ok": True, "note_id": synced[item_id].get("note_id")})
+
+
 def _insight_next_delay_seconds():
     """计算到下一个 7:30（东八区）的秒数。"""
     now = datetime.datetime.now(_INSIGHT_TZ)
@@ -3364,6 +3441,13 @@ def _start_insight_scheduler():
 
 
 _start_insight_scheduler()
+
+
+# ===================== 鹰眼（竞品动态） =====================
+# 数据源：全部竞品（含 WorkBuddy/Multica/CrewAI 等外网可及的，以及 Box-AI/狍子AI 等
+# 需内网鉴权的）统一由外部 Agent 抓取后经 POST /api/products_updates 写入，
+# 后端不再本地定时抓取，避免同一模块「一部分自动、一部分靠外部」的割裂状态。
+# radar_fetcher.py 保留文件但不再被调度调用。
 
 
 # ===================== AI 对话助手（函数调用查工作台数据） =====================

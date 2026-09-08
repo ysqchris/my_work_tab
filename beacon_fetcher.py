@@ -7,7 +7,7 @@
 - 响应为 text/event-stream，data: 行内是 JSON-RPC 结果；业务数据在 result.content[0].text
 
 看板：gongfeng / IMate - 团队协作（pageId=365227）
-数据按"7 天 / 30 天"两套拉取，落库后前端直接切换展示，无需二次请求。
+数据按"1 天 / 7 天 / 30 天"三套拉取，落库后前端直接切换展示，无需二次请求。
 
 限流策略：灯塔 mcp-query 按用户限流（"请求量太多"）。因此本模块采用
 "单 session 复用 + 串行 + 请求间隔"的方式，避免每个图卡重新握手产生 3 倍
@@ -242,21 +242,25 @@ def _fetch_with_retry(session, card_id, variables, tag, page_id=PAGE_ID, params_
 
 
 def build_snapshot():
-    """串行 + 单 session 复用，拉取完整运营数据快照（7 天 + 30 天）。
+    """串行 + 单 session 复用，拉取完整运营数据快照（1 天 + 7 天 + 30 天）。
 
     单图卡失败只记录日志、置空，不中断整体；session 失效会自动重建。
     """
+    dr1, _ = _date_range_value(1)
     dr7, data_date = _date_range_value(7)
     dr30, _ = _date_range_value(30)
+    var1 = [{"key": "date_range", "value": dr1}]
     var7 = [{"key": "date_range", "value": dr7}]
     var30 = [{"key": "date_range", "value": dr30}]
 
     # 生成全部抓取任务：(tag, card_id, variables)
     # 无 date_range 依赖（sw=False）的图卡：7d 用默认 paramsId（None）还原"最近 7 天"，
     #   强行传 date_range 变量反而会导致部分图卡（如活跃人数）返回空。
-    # 可切换（sw=True）的图卡：7d/30d 分别显式传对应 date_range。
+    # 可切换（sw=True）的图卡：1d/7d/30d 分别显式传对应 date_range。
     jobs = []
     for field, card_id, _key, sw in KPI_CARDS:
+        if sw:
+            jobs.append((f"kpi:{field}:1d", card_id, var1))
         jobs.append((f"kpi:{field}:7d", card_id, var7 if sw else None))
         if sw:
             jobs.append((f"kpi:{field}:30d", card_id, var30))
@@ -279,8 +283,9 @@ def build_snapshot():
     for field, _card_id, key, sw in KPI_CARDS:
         v7 = _first_value(results.get(f"kpi:{field}:7d", []), key)
         if sw:
+            v1 = _first_value(results.get(f"kpi:{field}:1d", []), key)
             v30 = _first_value(results.get(f"kpi:{field}:30d", []), key)
-            kpi[field] = {"7d": v7, "30d": v30}
+            kpi[field] = {"1d": v1, "7d": v7, "30d": v30}
         else:
             kpi[field] = {"7d": v7}
 
@@ -316,6 +321,21 @@ def build_snapshot():
 # IMate 整体大盘数据（看板 326786）：用户数据 / DAU / 累计量
 # ---------------------------------------------------------------------------
 OVERALL_PAGE_ID = 326786
+
+
+def _diff_cumulative(trend):
+    """累计序列差分得到每日增量序列，日期取后一日。
+
+    trend 形如 [{"date": "...", "value": 累计值}, ...]（按日期升序）。
+    灯塔累计用户数单调递增，相邻两日差值即当日新增量。
+    """
+    out = []
+    for i in range(1, len(trend)):
+        prev = trend[i - 1].get("value")
+        cur = trend[i].get("value")
+        if prev is not None and cur is not None:
+            out.append({"date": trend[i]["date"], "value": cur - prev})
+    return out
 
 
 def build_overall_snapshot():
@@ -356,19 +376,39 @@ def build_overall_snapshot():
         key=lambda x: x["date"],
     )
 
+    # 每日新增 = 相邻两日累计值差分（昨日维度的用户/客户端增量）
+    daily_new_users = _diff_cumulative(cum_user_total)
+    daily_new_clients = _diff_cumulative(cum_client_total)
+
+    # 「昨日新增」必须对齐到昨天（东八区）这一完整日，而非简单取序列最后一项：
+    # 手动/晚间抓取时灯塔可能已产生今天的部分数据，最后一项是「今天」，口径会错。
+    yesterday = (datetime.datetime.now(TZ8).date() - datetime.timedelta(days=1)).isoformat()
+
+    def _val_on(daily, day):
+        for pt in reversed(daily):
+            if pt.get("date") == day:
+                return pt.get("value")
+        return daily[-1]["value"] if daily else None
+
     kpi = {
         "total_users": cum_user_total[-1]["value"] if cum_user_total else None,
         "total_clients": cum_client_total[-1]["value"] if cum_client_total else None,
         "dau": dau_trend[-1]["dau"] if dau_trend else None,
         "dau_clients": dau_client_trend[-1]["dau"] if dau_client_trend else None,
+        # 昨日维度：昨天这一天新增的用户 / 客户端
+        "new_users": _val_on(daily_new_users, yesterday),
+        "new_clients": _val_on(daily_new_clients, yesterday),
     }
 
     return {
+        "data_date": yesterday,
         "kpi": kpi,
         "trends": {
             "dau": dau_trend,
             "dau_clients": dau_client_trend,
             "cum_users": cum_user_total,
             "cum_clients": cum_client_total,
+            "new_users": daily_new_users,
+            "new_clients": daily_new_clients,
         },
     }
