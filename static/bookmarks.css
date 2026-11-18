@@ -1,0 +1,341 @@
+/* Bookmark start page */
+body:has(#bookmarks.active) {
+  background: #f7f6f3;
+}
+
+body:has(#bookmarks.active) #topDate {
+  display: none;
+}
+
+#bookmarks {
+  --bm-ink: #252a32;
+  --bm-muted: #656973;
+  --bm-line: #e4e1da;
+  --bm-accent: #365b87;
+  --bm-accent-soft: #eaf0f7;
+  --bm-hover: #eeece7;
+  color: var(--bm-ink);
+}
+
+#bookmarks .bm-search-block {
+  position: static;
+  max-width: 860px;
+  margin: 0 auto 36px;
+  padding: 14px 0 0;
+  background: transparent;
+}
+
+#bookmarks .bm-topbar {
+  gap: 10px;
+  margin-bottom: 14px;
+  color: var(--bm-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+#bookmarks .bm-topbar-sep {
+  color: var(--bm-muted);
+}
+
+#bmTopbar:has(#bmWeather:empty) .bm-topbar-sep {
+  display: none;
+}
+
+#bookmarks #bmGoogleForm {
+  min-height: 58px;
+  gap: 10px;
+  padding: 7px 8px 7px 12px;
+  border: 1px solid var(--bm-line);
+  border-radius: 14px;
+  box-shadow: 0 3px 12px #2923170a;
+  transform: none;
+}
+
+#bookmarks #bmGoogleForm:focus-within {
+  border-color: #8ca5c0;
+  box-shadow: 0 0 0 3px var(--bm-accent-soft);
+}
+
+#bookmarks .bm-mode-toggle {
+  background: transparent;
+  padding: 0;
+}
+
+#bookmarks .bm-mode-btn {
+  border-radius: 7px;
+  color: var(--bm-muted);
+}
+
+#bookmarks .bm-mode-btn.active {
+  background: var(--bm-accent-soft);
+  color: var(--bm-accent);
+}
+
+#bookmarks #bmGoogleInput {
+  font-size: 15px;
+}
+
+#bookmarks .bm-google-btn {
+  min-height: 38px;
+  padding-inline: 18px;
+  border-radius: 8px;
+  background: var(--bm-accent);
+}
+
+#bookmarks .bm-google-btn:hover {
+  background: #29496e;
+}
+
+#bookmarks #bmGoogleInput:placeholder-shown + .bm-google-clear {
+  visibility: hidden;
+}
+
+#bookmarks .bm-layout {
+  max-width: 1180px;
+}
+
+#bookmarks .bm-section + .bm-section {
+  margin-top: 38px;
+}
+
+#bookmarks .bm-section-head {
+  position: relative;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-color: var(--bm-line);
+}
+
+#bookmarks .bm-section-head h2 {
+  font-size: 22px;
+  letter-spacing: -.03em;
+}
+
+#bookmarks .bm-add-toggle {
+  color: var(--bm-accent);
+  background: var(--bm-accent-soft);
+  border-color: transparent;
+  font-weight: 650;
+}
+
+#bookmarks .bm-add-toggle:hover {
+  background: #dee8f3;
+}
+
+#bookmarks .bm-quick {
+  flex-basis: 100%;
+}
+
+#bookmarks .bm-status {
+  position: static;
+  text-align: left;
+}
+
+#bookmarks .bm-group-block {
+  margin-bottom: 17px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#bookmarks .bm-group-block:last-child {
+  margin-bottom: 0;
+}
+
+#bookmarks .bm-group-head {
+  min-height: 24px;
+  margin-bottom: 4px;
+  padding: 0;
+  border: 0;
+}
+
+#bookmarks .bm-group-head .bm-grp-count {
+  padding: 0;
+  background: transparent;
+  color: var(--bm-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+#bookmarks .bm-group-block:focus-within .bm-grp-act {
+  opacity: 1;
+}
+
+#bookmarks .bm-grid {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 3px 8px;
+}
+
+#bookmarks .bm-grid > .empty {
+  grid-column: 1 / -1;
+}
+
+#bookmarks .bm-tile {
+  width: auto;
+  min-width: 0;
+  min-height: 78px;
+  padding: 7px 5px;
+  gap: 5px;
+  border-radius: 10px;
+}
+
+#bookmarks .bm-tile:hover,
+#bookmarks .bm-tile:focus-within,
+#bookmarks .bm-card:hover,
+#bookmarks .bm-card:focus-within {
+  background: var(--bm-hover);
+}
+
+#bookmarks .bm-tile-icon {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  font-size: 17px;
+  box-shadow: none;
+}
+
+#bookmarks .bm-tile-icon img {
+  width: 26px;
+  height: 26px;
+}
+
+#bookmarks .bm-letter-badge {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: #e7ebf0;
+  color: #52647a;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+#bookmarks .bm-tile-title {
+  max-width: 100%;
+  font-size: 13px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+#bookmarks .bm-tile .bm-act {
+  top: 2px;
+}
+
+#bookmarks .bm-tile .bm-act.edit { left: 2px; }
+#bookmarks .bm-tile .bm-act.group { left: 2px; top: 25px; }
+#bookmarks .bm-tile .bm-act.move { left: auto; right: 2px; top: 25px; }
+#bookmarks .bm-tile .bm-act.del { right: 2px; }
+
+#bookmarks .bm-new-group-row {
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+#bookmarks .bm-new-group-btn {
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--bm-accent);
+}
+
+#bookmarks .bm-new-group-btn:hover {
+  background: var(--bm-accent-soft);
+}
+
+#bookmarks #bmMemoGroups .bm-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 26px;
+  row-gap: 0;
+}
+
+#bookmarks .bm-card {
+  align-items: center;
+  min-height: 66px;
+  padding: 10px 76px 10px 7px;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--bm-line);
+  border-radius: 6px;
+  background: transparent;
+}
+
+#bookmarks .bm-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #eeece7;
+}
+
+#bookmarks .bm-card-title {
+  font-size: 13px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+#bookmarks .bm-card-meta {
+  display: flex;
+  gap: 6px;
+  margin-top: 3px;
+  color: var(--bm-muted);
+  font-size: 11px;
+}
+
+#bookmarks .bm-card-host {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#bookmarks .bm-card-meta time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+#bookmarks .bm-card .bm-act {
+  top: calc(50% - 10px);
+}
+
+#bookmarks .bm-tile:focus-within .bm-act,
+#bookmarks .bm-card:focus-within .bm-act {
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#bookmarks :is(a, button):focus-visible {
+  outline: 2px solid var(--bm-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  #bookmarks .bm-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  #bookmarks .bm-search-block {
+    margin-bottom: 24px;
+    padding-top: 4px;
+  }
+
+  #bookmarks #bmGoogleForm {
+    gap: 6px;
+    padding: 7px;
+  }
+
+  #bookmarks .bm-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 4px;
+  }
+
+  #bookmarks #bmMemoGroups .bm-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
