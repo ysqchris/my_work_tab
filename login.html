@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>登录 · 工作台</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<style>
+:root{color-scheme:light;--bg:#f7f7f8;--paper:#fff;--line:#e5e7eb;--text:#1a1d21;--muted:#6b7280;--accent:#2a2f35;--blue:#5b7cd6;--orange:#e8825a;--red:#d5574a}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;color:var(--text);background:var(--bg);display:grid;place-items:center;overflow:hidden}
+.glow{position:fixed;width:520px;height:520px;border-radius:50%;filter:blur(90px);opacity:.35;pointer-events:none;animation:drift 18s ease-in-out infinite alternate}
+.glow.a{background:#c7d4f6;top:-160px;left:-120px}
+.glow.b{background:#f6d6c7;bottom:-180px;right:-140px;animation-delay:-6s}
+@keyframes drift{to{transform:translate(60px,40px) scale(1.08)}}
+.card{position:relative;width:min(380px,calc(100vw - 32px));background:var(--paper);border:1px solid rgba(0,0,0,.06);border-radius:20px;padding:36px 32px 28px;box-shadow:0 20px 50px -24px rgba(17,24,39,.25);animation:rise .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+.brand img{width:40px;height:40px;border-radius:12px}
+.brand h1{font-size:20px;margin:0;letter-spacing:.5px}
+.brand p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
+.field{position:relative}
+input[type=password],input[type=text]{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;padding:0 44px 0 14px;font-size:15px;background:#fafafa;transition:border-color .2s,box-shadow .2s,background .2s;outline:none}
+input:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 4px rgba(91,124,214,.15)}
+.eye{position:absolute;right:8px;top:7px;width:32px;height:32px;border:0;background:none;border-radius:8px;cursor:pointer;color:var(--muted);font-size:16px}
+.eye:hover{background:#f1f2f4}
+.row{display:flex;align-items:center;justify-content:space-between;margin:14px 0 20px;font-size:13px;color:var(--muted)}
+.row input{margin:0 6px 0 0;accent-color:var(--accent)}
+.row label{display:flex;align-items:center;margin:0;cursor:pointer}
+button.go{width:100%;height:46px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:transform .15s,opacity .2s,box-shadow .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+button.go:hover{box-shadow:0 10px 24px -12px rgba(42,47,53,.6);transform:translateY(-1px)}
+button.go:active{transform:translateY(0)}
+button.go[disabled]{opacity:.6;cursor:default;transform:none}
+.spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;display:none}
+button.go[disabled] .spin{display:block}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{min-height:20px;margin-top:12px;font-size:13px;color:var(--red);text-align:center}
+.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.foot{margin-top:18px;text-align:center;font-size:12px;color:#9ca3af}
+</style>
+</head>
+<body>
+<div class="glow a"></div><div class="glow b"></div>
+<form class="card" id="form" autocomplete="on">
+  <div class="brand">
+    <img src="/static/favicon.svg" alt="">
+    <div><h1>工作台</h1><p>私有空间，请输入访问密码</p></div>
+  </div>
+  <label for="pw">访问密码</label>
+  <div class="field">
+    <input id="pw" type="password" name="password" autocomplete="current-password" autofocus required>
+    <button type="button" class="eye" id="eye" aria-label="显示密码">👁</button>
+  </div>
+  <div class="row"><label><input type="checkbox" id="remember" checked>保持登录 30 天</label></div>
+  <button class="go" id="go" type="submit"><span class="spin"></span><span id="goText">进入工作台</span></button>
+  <div class="err" id="err" role="alert"></div>
+  <div class="foot">连续输错 10 次将暂时锁定 10 分钟</div>
+</form>
+<script>
+const $=id=>document.getElementById(id);
+const next=new URLSearchParams(location.search).get('next')||'/';
+$('eye').onclick=()=>{const p=$('pw');p.type=p.type==='password'?'text':'password';p.focus()};
+$('form').onsubmit=async e=>{
+  e.preventDefault();
+  const btn=$('go'),err=$('err'),card=$('form');
+  err.textContent='';btn.disabled=true;$('goText').textContent='验证中…';
+  try{
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('pw').value,remember:$('remember').checked,next})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok){$('goText').textContent='欢迎回来';location.replace(j.next||'/');return}
+    err.textContent=j.error||('登录失败（'+r.status+'）');
+    card.classList.remove('shake');void card.offsetWidth;card.classList.add('shake');
+    $('pw').select();
+  }catch(ex){err.textContent='网络异常，请稍后重试'}
+  btn.disabled=false;$('goText').textContent='进入工作台';
+};
+</script>
+</body>
+</html>

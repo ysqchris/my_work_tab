@@ -8,7 +8,8 @@
   但仍然通过 read_json("creator_videos") / write_json("creator_videos") 的
   统一接口对外暴露，内部转换为对应的行级操作，避免影响业务代码。
 
-连接信息来自 PaaS MySQL 实例，通过环境变量注入，本地开发也可用默认值兜底。
+连接信息只来自环境变量（DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASSWORD），
+代码中不保留任何默认凭证；本地开发写进 .env（已被 .gitignore 忽略）。
 """
 import os
 import json
@@ -19,16 +20,29 @@ import pymysql
 from pymysql.cursors import DictCursor
 from dbutils.pooled_db import PooledDB
 
-DB_HOST = os.environ.get("DB_HOST", "21.63.222.55")
-DB_PORT = int(os.environ.get("DB_PORT", "3306"))
-DB_NAME = os.environ.get("DB_NAME", "oeq2zxw6")
-DB_USER = os.environ.get("DB_USER", "with_riystfnjvfcqursh")
-DB_PASSWORD = os.environ.get("DB_PASSWORD", "R3k^ANKeJ8xby*")
+DB_REQUIRED_ENV = ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD")
 
 _pool = None
 _pool_lock = threading.Lock()
 
 _CREATOR_VIDEO_STORE = "creator_videos"
+
+
+def db_config():
+    """连接信息只从环境变量读取（不在代码里留默认值，避免凭证随仓库泄露）。
+
+    在建连时才读取，保证 app.py 的 .env 加载、容器注入等方式都能生效。
+    """
+    missing = [k for k in DB_REQUIRED_ENV if not os.environ.get(k, "").strip()]
+    if missing:
+        raise RuntimeError("未配置数据库连接，缺少环境变量：" + ", ".join(missing))
+    return {
+        "host": os.environ["DB_HOST"].strip(),
+        "port": int(os.environ.get("DB_PORT", "3306") or 3306),
+        "database": os.environ["DB_NAME"].strip(),
+        "user": os.environ["DB_USER"].strip(),
+        "password": os.environ["DB_PASSWORD"],
+    }
 
 
 def _get_pool():
@@ -38,19 +52,16 @@ def _get_pool():
             if _pool is None:
                 _pool = PooledDB(
                     creator=pymysql,
-                    maxconnections=3,
+                    maxconnections=int(os.environ.get("DB_POOL_SIZE", "3") or 3),
                     mincached=0,
                     maxcached=1,
                     blocking=True,
                     ping=1,
-                    host=DB_HOST,
-                    port=DB_PORT,
-                    user=DB_USER,
-                    password=DB_PASSWORD,
-                    database=DB_NAME,
                     charset="utf8mb4",
                     cursorclass=DictCursor,
                     autocommit=True,
+                    connect_timeout=10,
+                    **db_config(),
                 )
     return _pool
 

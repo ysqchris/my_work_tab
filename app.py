@@ -24,6 +24,7 @@ import xml.etree.ElementTree as ET
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, send_from_directory
 import db
+import auth
 import beacon_fetcher
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -56,6 +57,7 @@ FILES = os.path.join(DATA, "files")
 STATIC = os.path.join(BASE, "static")
 
 app = Flask(__name__, static_folder=STATIC, template_folder=os.path.join(BASE, "templates"))
+auth.init_auth(app, BASE)
 os.makedirs(FILES, exist_ok=True)
 try:
     db.init_schema()
@@ -3471,6 +3473,10 @@ def _ops_scheduler_loop():
 
 
 def _start_ops_scheduler():
+    if not beacon_fetcher.get_token():
+        print("[ops] 未配置 TAI_IT_TOKEN，跳过灯塔运营数据抓取（公网部署无法访问内网灯塔）", flush=True)
+        return
+
     def _boot():
         # 启动时若今日尚未抓取，则立即补抓一次（首次部署/重启后数据不缺失）
         try:
@@ -4063,11 +4069,27 @@ def ai_chat():
 def healthz():
     return "ok"
 
+
+_BG_STARTED = False
+
+
+def _start_background_jobs():
+    """资讯 / 豆瓣定时任务：gunicorn 与直接运行都会走到这里，且只启动一次。
+
+    WORKTAB_SCHEDULERS=0 可关闭（例如多副本部署时只让一个实例跑定时任务）。
+    多 worker 部署会各跑一份，因此 Dockerfile 默认单 worker + 多线程。
+    """
+    global _BG_STARTED
+    if _BG_STARTED or os.environ.get("WORKTAB_SCHEDULERS", "1").strip() == "0":
+        return
+    _BG_STARTED = True
+    _start_news_scheduler()
+    _start_douban_scheduler()
+
+
+_start_background_jobs()
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8765"))
-    # 启动 AI 资讯 + GitHub Trending 定时抓取线程
-    _start_news_scheduler()
-    # 启动豆瓣热门每日定时刷新线程
-    _start_douban_scheduler()
     # threaded=True：避免单线程下慢接口（天气外呼/图片代理/豆瓣热榜初始化）阻塞整个服务导致页面一直转圈
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)

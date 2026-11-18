@@ -1,0 +1,75 @@
+# 工作台 · 云服务器（轻量应用服务器）一键部署
+#
+#   cp .env.example .env && vi .env      # 填密码、密钥
+#   docker compose up -d --build         # HTTP 直连：http://<服务器IP>/
+#   docker compose --profile https up -d --build   # 有域名时：自动申请 HTTPS 证书
+#
+# 数据都在命名卷里（mysql-data / app-data），重建容器不会丢。
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-worktable}
+      MYSQL_USER: ${DB_USER:-worktable}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?请在 .env 中设置 DB_PASSWORD}
+      TZ: Asia/Shanghai
+    # 轻量服务器内存小：关掉 performance_schema、收小缓冲池
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --performance-schema=OFF
+      - --innodb-buffer-pool-size=128M
+      - --max-connections=50
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    # 不对公网暴露 3306，只在 compose 内网可达
+
+  app:
+    build:
+      context: .
+      dockerfile: .with/Dockerfile
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.cloud.tencent.com/pypi/simple}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-worktable}
+      DB_USER: ${DB_USER:-worktable}
+      DB_PASSWORD: ${DB_PASSWORD}
+      APP_PASSWORD: ${APP_PASSWORD:?公网部署必须设置 APP_PASSWORD}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - app-data:/app/data
+    ports:
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-80}:8000"
+
+  # 可选：有域名时启用，Caddy 自动申请/续期 Let's Encrypt 证书
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${DOMAIN:-example.com} --to app:8000
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+    depends_on:
+      - app
+
+volumes:
+  mysql-data:
+  app-data:
+  caddy-data:
