@@ -28,6 +28,41 @@ try:
 except Exception:
     _translator = None
 
+
+def _load_dotenv():
+    """独立运行时也能读到 .env（经 app.py 加载时环境变量已就绪，此处仅补缺）。"""
+    import os
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip().strip("'\"")
+                if k and not os.environ.get(k, "").strip():
+                    os.environ[k] = v
+    except Exception:
+        pass
+
+
+_load_dotenv()
+
+# LLM 翻译后端（DeepSeek，OpenAI 兼容协议）。内网直连 Google 翻译常年失败，
+# 故以 LLM 为主力翻译通道：批量成句翻译，质量远好于离线词典的碎片拼接。
+import os as _os
+_AI_API_KEY = (_os.environ.get("AI_API_KEY", "") or _os.environ.get("HYUNYUAN_API_KEY", "")).strip()
+_AI_BASE_URL = (_os.environ.get("AI_BASE_URL", "") or _os.environ.get("HYUNYUAN_BASE_URL", "")
+                or "https://api.deepseek.com").rstrip("/")
+_AI_MODEL = (_os.environ.get("AI_MODEL", "") or _os.environ.get("HYUNYUAN_MODEL", "") or "deepseek-chat")
+
+# 翻译结果进程内缓存：原文 -> 中文，避免同一标题在多轮抓取中重复调用
+_TRANS_CACHE = {}
+_LLM_BATCH_SIZE = 20  # 单次请求最多翻译多少条，过大易触发截断
+
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 _AIHOT_UA = "Mozilla/5.0 (compatible; aihot-skill/0.2.0)"
@@ -41,8 +76,43 @@ GH_SOURCE = "GitHub Trending"
 _AIHOT_ITEMS = "https://aihot.virxact.com/api/public/items"
 _GH_TRENDING = "https://github.com/trending"
 
-_AIHOT_LIMIT = 20
+_AIHOT_LIMIT = 40
 _GH_LIMIT = 10
+
+# 覆盖模型发布/评测、产品发布/案例、行业人物分享，而非仅偏向办公Agent。
+_NEWS_SEARCH_KEYWORDS = [
+    "新模型", "模型评测", "benchmark", "GPT", "Claude", "Gemini", "DeepSeek", "Qwen",
+    "新产品", "产品发布", "产品案例", "AI应用", "融资", "访谈", "演讲", "Karpathy", "黄仁勋",
+]
+
+_MODEL_EVENT_RE = re.compile(
+    r"新模型|模型.{0,12}(发布|上线|开源|更新|评测|测评|评估)|"
+    r"(发布|推出|开源|评测|测评|评估).{0,16}(模型|大模型)|"
+    r"benchmark|leaderboard|模型榜单|模型对比|模型能力|model\s*(release|evaluation|benchmark)|"
+    r"(?:GPT|Claude|Gemini|DeepSeek|Qwen|Llama|GLM|Kimi|Veo|Sora)[\s-]*\d[\w. -]*",
+    re.I,
+)
+_PRODUCT_EVENT_RE = re.compile(
+    r"产品|应用|客户|案例|办公|浏览器|插件|访谈|演讲|分享|融资|收购|合作|"
+    r"customer|case\s*study|interview|podcast|partnership|funding|browser|workspace", re.I,
+)
+
+
+def classify_news_item(item):
+    """统一分类：GitHub来源独占趋势版，模型发布评测优先，其余归行业版。"""
+    if item.get("source") == GH_SOURCE or item.get("topic") == GH_TOPIC:
+        return "github"
+    title = " ".join(str(item.get(k) or "") for k in ("title", "title_en"))
+    category = str(item.get("category") or "").lower()
+    if _MODEL_EVENT_RE.search(title):
+        return "models"
+    if _PRODUCT_EVENT_RE.search(title):
+        return "news"
+    if category in {"ai-models", "model", "models", "model-review", "benchmark", "evaluation"}:
+        return "models"
+    # 泛论文/tech标签不等于模型更新或GitHub趋势，避免误分类。
+    return "news"
+
 
 # Agent 协作重点产品关键词（AIhot 扩展搜索，逐个 q= 抓取补充）
 _AGENT_PRODUCT_KEYWORDS = [
@@ -209,13 +279,81 @@ def _translate_dict(en_text):
     return "".join(out)
 
 
+def _llm_translate_batch(texts):
+    """用 LLM 批量把英文翻译成中文，返回 {原文: 中文}。失败返回空字典。
+
+    批量成句翻译的好处：一次请求覆盖多条，既省调用又能让模型参考上下文，
+    且产品名/版本号可通过提示词要求保留不译。
+    """
+    if not _AI_API_KEY or not texts:
+        return {}
+    out = {}
+    uniq = []
+    for t in texts:
+        t = (t or "").strip()
+        if t and t not in uniq:
+            uniq.append(t)
+    for i in range(0, len(uniq), _LLM_BATCH_SIZE):
+        chunk = uniq[i:i + _LLM_BATCH_SIZE]
+        numbered = "\n".join(f"{n + 1}. {t}" for n, t in enumerate(chunk))
+        prompt = (
+            "你是科技资讯译者。把下面每行英文翻译成简洁、通顺的中文，用于中文资讯列表展示。\n"
+            "要求：\n"
+            "1) 产品名、公司名、模型名与版本号保留原文不译"
+            "（如 Claude / Gemini 3.5 Flash / GPT / OpenAI / GitHub）；\n"
+            "2) 每条控制在 40 字内，不加书名号、引号或结尾句号；\n"
+            "3) 只输出一个 JSON 数组，元素为字符串，顺序和数量与输入完全一致，不要任何解释文字。\n\n"
+            + numbered
+        )
+        body = json.dumps({
+            "model": _AI_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 1600,
+            "temperature": 0.2,
+        }).encode("utf-8")
+        req = urllib.request.Request(_AI_BASE_URL + "/chat/completions", data=body, headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + _AI_API_KEY,
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+            content = payload["choices"][0]["message"]["content"].strip()
+            # 模型可能用 ```json 包裹，先剥掉围栏再取数组
+            content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content).strip()
+            m = re.search(r"\[[\s\S]*\]", content)
+            arr = json.loads(m.group(0) if m else content)
+            if not isinstance(arr, list):
+                raise ValueError("返回不是数组")
+            for src, zh in zip(chunk, arr):
+                zh = re.sub(r"\s+", " ", str(zh or "")).strip()
+                if zh and _has_cjk(zh):
+                    out[src] = zh
+        except Exception as e:
+            print(f"[news_fetcher] LLM 批量翻译失败（{len(chunk)} 条）: {e}", flush=True)
+    return out
+
+
+def prewarm_translations(texts):
+    """抓取完成后统一批量翻译并写入缓存，供 translate_to_zh 命中。"""
+    pending = [t for t in texts
+               if t and not _has_cjk(t) and t.strip() not in _TRANS_CACHE]
+    if not pending:
+        return 0
+    got = _llm_translate_batch(pending)
+    _TRANS_CACHE.update(got)
+    if got:
+        print(f"[news_fetcher] LLM 翻译完成 {len(got)}/{len(pending)} 条", flush=True)
+    return len(got)
+
+
 def translate_to_zh(text):
-    """把项目描述翻译成中文（优先 Google 翻译，失败回退离线词典）。
+    """把英文文本翻译成中文。
 
     入参 text 可能为空或已含中文：
       - 空：返回空串
       - 已含中文：直接返回中文部分（去掉尾部英文赘余）
-      - 纯英文：调用翻译后端；异常时回退 _translate_dict
+      - 纯英文：依次尝试 缓存 → LLM → Google 翻译 → 离线词典
     """
     if not text:
         return ""
@@ -223,6 +361,15 @@ def translate_to_zh(text):
         # 取从首个中文字符到最后一个中文字符之间的整段（含其间英文/标点）
         m = re.search(r"[\u4e00-\u9fff][\s\S]*[\u4e00-\u9fff]", text)
         return (m.group(0) if m else text.strip()).strip()
+    key = text.strip()
+    if key in _TRANS_CACHE:
+        return _TRANS_CACHE[key]
+    # 主力通道：LLM（内网可直连，质量好于词典拼接）
+    got = _llm_translate_batch([key])
+    if got.get(key):
+        _TRANS_CACHE[key] = got[key]
+        return got[key]
+    # 次选：Google 翻译（内网多数环境不可达，作为额外兜底保留）
     if _translator is not None:
         try:
             zh = _translator.translate(text)
@@ -230,12 +377,14 @@ def translate_to_zh(text):
                 # Google 偶尔对含专有名词的句子返回原文（视为未翻译），回退词典
                 norm = lambda s: re.sub(r"\s+", "", (s or "")).lower()
                 if norm(zh) != norm(text):
+                    _TRANS_CACHE[key] = zh.strip()
                     return zh.strip()
-            print(f"[news_fetcher] Google 翻译无效，回退词典: {text[:60]}")
-        except Exception as e:
-            print(f"[news_fetcher] Google 翻译失败，回退词典: {e}")
+        except Exception:
+            pass
     dzh = _translate_dict(text)
-    return dzh or text.strip()
+    result = dzh or text.strip()
+    _TRANS_CACHE[key] = result
+    return result
 
 
 def _to_local_date(iso_utc):
@@ -360,15 +509,13 @@ def fetch_github_trending(limit=_GH_LIMIT):
             stars_today = int(sm_today.group(1).replace(",", "")) if sm_today else None
 
             url = "https://github.com/" + repo_path
-            # 中文摘要（优先 Google 翻译，已含中文则直用，失败回退离线词典）
-            summary_zh = translate_to_zh(desc_en)
             hay = (repo_path + " " + desc_en).lower()
 
             items.append({
                 "title": repo_path,
                 "url": url,
                 "date": _today(),
-                "desc": summary_zh[:160],
+                "desc": "",           # 中文摘要由 fetch_all 批量翻译后回填
                 "desc_en": desc_en[:200],
                 "lang": lang,
                 "stars_total": stars_total,
@@ -527,22 +674,36 @@ def _parse_clickup(txt, base, limit):
 
 
 def _parse_rss(txt, base, limit):
+    from email.utils import parsedate_to_datetime
     out = []
     try:
         root = ET.fromstring(txt)
     except Exception:
         return out
-    for item in root.iter("item"):
-        title = (item.findtext("title", default="") or "").strip()
-        link = (item.findtext("link", default="") or "").strip()
-        pub = item.findtext("pubDate", default="") or ""
-        e = _entry(title, link)
+    for item in root.iter():
+        if item.tag.rsplit("}", 1)[-1] not in {"item", "entry"}:
+            continue
+        fields = {c.tag.rsplit("}", 1)[-1]: c for c in item}
+        def text(key):
+            node = fields.get(key)
+            return "" if node is None else "".join(node.itertext()).strip()
+        link = text("link")
+        for node in item:
+            if node.tag.rsplit("}", 1)[-1] == "link" and node.get("href") and node.get("rel", "alternate") == "alternate":
+                link = node.get("href")
+                break
+        e = _entry(text("title"), urljoin(base, link) if link else "")
         if e:
+            pub = text("pubDate") or text("published") or text("updated")
             try:
-                dt = datetime.datetime.strptime(pub, "%a, %d %b %Y %H:%M:%S %Z")
-                e["date"] = dt.strftime("%Y-%m-%d")
-            except Exception:
-                pass
+                dt = parsedate_to_datetime(pub) if text("pubDate") else datetime.datetime.fromisoformat(pub.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=datetime.timezone.utc)
+                e["date"] = dt.astimezone(datetime.timezone(datetime.timedelta(hours=8))).date().isoformat()
+                e["published_at"] = dt.isoformat()
+            except (ValueError, TypeError, OverflowError):
+                e["date"] = ""
+            e["desc"] = re.sub(r"\s+", " ", _strip_tags(text("description") or text("summary") or text("content")))[:500]
             out.append(e)
         if len(out) >= limit:
             break
@@ -629,7 +790,11 @@ _PARSERS = {
 
 
 def fetch_product_cases(per_source=4):
-    """抓取各产品官方博客的用法案例，标记 category=product-case。"""
+    """抓取各产品官方博客的用法案例，标记 category=product-case。
+
+    英文标题不在此处逐条翻译（那样每条一次请求，慢且易触发限流），
+    统一交由 fetch_all 批量翻译。
+    """
     items = []
     for src in _PRODUCT_CASE_SOURCES:
         try:
@@ -640,24 +805,47 @@ def fetch_product_cases(per_source=4):
             parser = _PARSERS.get(src["kind"], _parse_coze)
             for e in parser(txt, src["url"], per_source):
                 e["source"] = src["name"]
-                # 英文标题翻译为中文（已含中文则保留原文）
-                if not _has_cjk(e["title"]):
-                    zh = translate_to_zh(e["title"])
-                    if zh and len(zh) >= 6 and zh != e["title"]:
-                        e["desc"] = zh[:160]
                 items.append(e)
         except Exception as ex:
             print(f"[news_fetcher] 产品案例源「{src['name']}」抓取失败: {ex}")
     return items
 
 
+def _localize_titles(items):
+    """把英文标题批量译成中文：title 换成中文，原文存入 title_en。
+
+    只处理不含中文的标题；翻译失败的条目保持原样，不会丢内容。
+    """
+    targets = [it for it in items if not _has_cjk(it.get("title") or "")]
+    if not targets:
+        return
+    prewarm_translations([it["title"] for it in targets])
+    for it in targets:
+        en = it["title"].strip()
+        zh = _TRANS_CACHE.get(en)
+        if zh and _has_cjk(zh) and zh != en:
+            it["title_en"] = en          # 原文留存，前端可做 hover 对照
+            it["title"] = zh
+            # desc 若为空或与译文重复，则不再冗余展示
+            if not (it.get("desc") or "").strip():
+                it["desc"] = ""
+
+
 def fetch_all():
     """汇总所有源，去重后返回 items（Agent 协作相关优先，其余按时间倒序）。"""
+    from concurrent.futures import ThreadPoolExecutor
+    sources = [
+        lambda: fetch_aihot(limit=_AIHOT_LIMIT),
+        lambda: fetch_aihot_keywords(keywords=_NEWS_SEARCH_KEYWORDS, per_kw=4),
+        lambda: fetch_github_trending(limit=_GH_LIMIT),
+        lambda: fetch_product_cases(per_source=6),
+    ]
     items = []
-    items += fetch_aihot(limit=_AIHOT_LIMIT)               # 精选 20 条 AI 资讯
-    items += fetch_aihot_keywords()                        # Agent 协作重点产品关键词搜索
-    items += fetch_github_trending(limit=_GH_LIMIT)        # GitHub Trending 热榜
-    items += fetch_product_cases()                         # 产品官方 changelog/博客 用法案例
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for batch in pool.map(lambda fetch: fetch(), sources):
+            items.extend(batch)
+    for item in items:
+        item["board"] = classify_news_item(item)
     # 去重：同 url 或同 title 只保留第一条
     seen = set()
     cleaned = []
@@ -671,6 +859,20 @@ def fetch_all():
     cleaned.sort(key=lambda x: (x.get("date") or "", x.get("created_at") or ""), reverse=True)
     # 稳定排序：Agent 协作相关的整体前置
     cleaned.sort(key=lambda x: 0 if x.get("agent_related") else 1)
+
+    # —— 统一本地化：一次批量翻译覆盖全部英文内容 ——
+    # GitHub 条目的 title 是仓库名（owner/repo），属专有名词不译，只译其描述。
+    gh = [it for it in cleaned if it.get("topic") == GH_TOPIC]
+    others = [it for it in cleaned if it.get("topic") != GH_TOPIC]
+    try:
+        prewarm_translations([it.get("desc_en") or "" for it in gh])
+        for it in gh:
+            en = (it.get("desc_en") or "").strip()
+            if en:
+                it["desc"] = (_TRANS_CACHE.get(en) or translate_to_zh(en))[:160]
+        _localize_titles(others)
+    except Exception as e:
+        print(f"[news_fetcher] 批量翻译异常，保留原文: {e}", flush=True)
     return cleaned
 
 

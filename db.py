@@ -103,6 +103,27 @@ def init_schema():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                 """
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS service_credentials (
+                    service VARCHAR(64) NOT NULL PRIMARY KEY,
+                    client_id VARCHAR(255) NOT NULL,
+                    api_key TEXT NOT NULL,
+                    updated_at DATETIME NOT NULL
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """
+            )
+
+
+def read_service_credentials(service):
+    """仅供后端读取，不通过业务 JSON 存储或 HTTP 接口公开凭证。"""
+    with _conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT client_id, api_key FROM service_credentials WHERE service=%s",
+                (service,),
+            )
+            return cur.fetchone() or {}
 
 
 # ---------------------------------------------------------------------------

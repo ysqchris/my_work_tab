@@ -1,54 +1,32 @@
-# Multi-stage build for production
 FROM python:3.11-slim AS base
 
-# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Install system dependencies (PyMySQL 纯 Python，无需额外编译依赖)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Dependencies stage
 FROM base AS deps
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.tencent.com/pypi/simple/ --trusted-host mirrors.tencent.com
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Production stage
 FROM base AS runner
-
-# Create non-root user
 RUN useradd -m -u 1001 appuser
-
-# Copy dependencies from deps stage
 COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
-
-# Copy application
 COPY --chown=appuser:appuser . .
+RUN python -m py_compile app.py db.py && mkdir -p /app/data/files && chown -R appuser:appuser /app/data
 
-# Environment variables
-# 数据库连接（默认值已在 db.py 中兜底，此处声明便于平台注入覆盖）
 ENV PORT=8000 \
-    DB_HOST=21.63.222.55 \
-    DB_PORT=3306 \
-    DB_NAME=oeq2zxw6 \
-    DB_USER=with_riystfnjvfcqursh \
-    DB_PASSWORD="R3k^ANKeJ8xby*" \
-    WEREAD_API_KEY="wrk-IGowOUKIS7S0wmkrhhyDzQAA" \
-    TAI_IT_TOKEN="" \
-    HYUNYUAN_API_KEY="" \
-    HYUNYUAN_BASE_URL="https://api.lkeap.cloud.tencent.com/plan/v3" \
-    HYUNYUAN_MODEL="hy3" \
-    WORKTAB_DATA_DIR="/app/data"
+    WORKTAB_DATA_DIR=/app/data \
+    IMA_KNOWLEDGE_BASE_NAME="草稿箱" \
+    IMA_KNOWLEDGE_BASE_ID=""
+# 微信读书：WEREAD_API_KEY（wrk- 开头）必须由运行环境注入，不要写进镜像。
+# 缺失时「书影音 → 书籍」会提示「未配置 WEREAD_API_KEY」，不会白屏。
 
 USER appuser
-
 EXPOSE 8000
-
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--worker-class", "gthread", "--workers", "2", "--threads", "4", "--timeout", "120", "app:app"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT', '8000') + '/healthz', timeout=3)" || exit 1
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-8000} --worker-class gthread --workers 2 --threads 4 --timeout 120 app:app"]
