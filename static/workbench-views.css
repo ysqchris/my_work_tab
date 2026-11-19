@@ -108,17 +108,64 @@
 #radar .radar-item:hover { background: var(--bm-hover); }
 #radar .radar-item.is-unread .article-score { color: var(--bm-accent); }
 
-#media .media-section-head { flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
-#media :is(.media-card, .wr-sidebar) { background: transparent; border-color: transparent; box-shadow: none; }
-#media .media-card { border-radius: 9px; }
-#media .media-cover { border-radius: 8px; }
-#media .media-body { padding-inline: 0; }
+#media .media-page-layout { display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 24px; align-items: start; }
+#media .media-section-links {
+  position: sticky;
+  top: 76px;
+  display: grid;
+  gap: 3px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+#media .media-section-links a {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+#media .media-category-links { display: grid; margin: 0 0 3px 10px; padding-left: 4px; border-left: 1px solid var(--line); }
+#media .media-category-links:empty { display: none; }
+#media .media-category-links a { color: var(--worktable-muted); font-size: 12px; font-weight: 500; }
+#media .media-section-links a:is(:hover, :focus-visible) { background: var(--bm-accent-soft); color: var(--bm-accent); }
+#media :is(.media-section, .media-type-group) { scroll-margin-top: 76px; }
+#media .media-section-head { flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+#media .media-section > .media-section-head h2 { font-size: 17px; }
+#media .media-section + .media-section { margin-top: 36px; }
+#media .media-type-group { margin-top: 18px; }
+#media .media-type-group + .media-type-group { margin-top: 24px; }
+#media .media-type-group h3 { margin: 0 0 10px; font-size: 14px; }
+#media .media-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+#media .media-feed-status { color: var(--worktable-muted); font-size: 12px; }
+#media .media-card { min-width: 0; padding: 7px; border-radius: 11px; }
+#media .media-card:is(:hover, :focus-within) { border-color: #cbd0d5; }
+#media .media-cover { border-radius: 6px; }
+#media .media-rating {
+  top: 7px;
+  left: 7px;
+  padding: 3px 7px;
+  background: #b4232b;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+#media .media-body { padding: 8px 2px 2px; }
+#media .media-title { min-height: 2.6em; overflow-wrap: anywhere; }
+#media .media-card-meta { min-height: 30px; }
+#media .media-card-meta .media-sub { -webkit-line-clamp: 1; }
+#media .media-icon-row { border-top: 1px solid var(--line); padding-top: 6px; }
 #media .wr-sidebar { border-left: 1px solid var(--line); }
 #media .media-status.done { background: var(--bm-accent-soft); color: var(--bm-accent); }
-#media .media-icon-btn { background: transparent; border-color: transparent; }
+#media .media-icon-btn { width: auto; min-width: 28px; padding-inline: 6px; background: var(--soft); border-color: transparent; font-size: 11px; }
+#media .media-icon-btn svg { width: 13px; height: 13px; }
 #media .media-icon-btn:is(.on, :hover) { background: var(--bm-accent-soft); color: var(--bm-accent); }
 #media .media-icon-btn.danger:hover { background: #f8e8e5; color: #a12929; }
-#media .media-grid > .empty { grid-column: 1 / -1; }
 
 #creators .workspace-follow-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; }
 #creators .vid-add-status { grid-column: 1 / -1; }
@@ -155,10 +202,14 @@
   #radar .radar-nav { border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 6px; }
   #radar .radar-nav-item { width: auto; }
   #creators .vid-sidebar, #media .wr-sidebar { border-left: 0; border-top: 1px solid var(--line); }
+  #media .media-page-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  #media .media-section-links { z-index: 2; display: flex; overflow-x: auto; white-space: nowrap; }
+  #media .media-category-links { display: contents; }
+  #media :is(.media-section, .media-type-group) { scroll-margin-top: 130px; }
 }
 @media (max-width: 560px) {
   #news .np-search { width: 100%; }
   #news .np-search input { width: 100%; }
-  #media .media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #media .media-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   #creators .vid-sidebar { order: -1; max-height: 260px; }
 }
