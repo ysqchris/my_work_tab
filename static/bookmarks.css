@@ -1,5 +1,5 @@
 /* Bookmark start page */
-body:has(#bookmarks.active) {
+body:has(:is(#bookmarks, #home, #news, #radar, #media, #creators, #notes, #knowledge).active) {
   background: #f7f6f3;
 }
 
@@ -7,7 +7,7 @@ body:has(#bookmarks.active) #topDate {
   display: none;
 }
 
-#bookmarks {
+:is(#bookmarks, #home, #news, #radar, #media, #creators, #notes, #knowledge) {
   --bm-ink: #252a32;
   --bm-muted: #656973;
   --bm-line: #e4e1da;
