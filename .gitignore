@@ -22,3 +22,7 @@ index.html.bak
 !static/**/*.png
 
 .agent
+
+# 敏感文件(勿提交)
+.env.bak*
+对接方案*.md

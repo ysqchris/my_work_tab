@@ -85,7 +85,7 @@
 #news .np-sections { border-color: var(--line); }
 #news :is(.np-desk-index, .np-desk-en) { display: none; }
 #news .pulse-mode { background: transparent; }
-#news .pulse-mode button.active { background: var(--bm-accent-soft); color: var(--bm-accent); }
+#news .pulse-mode button.active { background: transparent; color: var(--bm-accent); }
 #news .np-type-btn { font-family: inherit; font-size: 13px; }
 #news .np-lead .np-article-text p::first-letter { float: none; font-size: inherit; padding: 0; }
 #news :is(.report-sec-emoji, .report-empty-emoji) { display: none; }
