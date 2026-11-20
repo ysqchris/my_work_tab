@@ -124,6 +124,27 @@
 .followup-suggestion-actions { display: flex; gap: 2px; }
 .followup-feedback:not(:empty) { margin-top: 7px; }
 .followup-example-task { color: #405a83; }
+.brief-note .brief-ul > .brief-task-item { list-style: none; }
+.brief-task-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.brief-task-option:is(:hover, :focus-within) { background: #f2f5fa; }
+.brief-task-option input { margin: .45em 0 0; accent-color: #405a83; }
+.brief-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 20px;
+}
+.brief-task-actions button:disabled { opacity: .55; cursor: default; }
+.brief-task-actions [role="status"] { color: #475569; font-size: 13px; }
 .followup-due { font-weight: 700; color: #7b4c16; }
 .followup-due.overdue { color: #a12929; }
 #briefUpdated:not(:empty) { margin-top: 3px; }

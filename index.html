@@ -1,9 +1,8 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>工作台</title>
-<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="/static/favicon-32.png" type="image/png" sizes="32x32">
-<link rel="icon" href="/static/favicon-16.png" type="image/png" sizes="16x16">
-<link rel="apple-touch-icon" href="/static/apple-touch-icon.png" sizes="180x180">
+<link rel="icon" href="/static/favicon-32.png?v=2" type="image/png" sizes="32x32">
+<link rel="icon" href="/static/favicon-16.png?v=2" type="image/png" sizes="16x16">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=2" sizes="180x180">
 <meta name="theme-color" content="#2a2f35">
 <style>
 :root{color-scheme:light;--bg:#f7f7f8;--paper:#fff;--soft:#f3f4f6;--line:#e5e7eb;--text:#1a1d21;--worktable-muted:#343a40;--green:#2a2f35;--lime:#e9ecef;--orange:#e8825a;--blue:#5b7cd6;--red:#d5574a;--shadow:none}*{box-sizing:border-box}button,input,textarea,select{color:inherit;font:inherit}::placeholder{color:#6b7280;opacity:1}input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{-webkit-text-fill-color:var(--text);-webkit-box-shadow:0 0 0 1000px #fff inset;transition:background-color 9999s ease-out}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Yahei",sans-serif}.app{min-height:100vh}main{min-width:0}.top{padding:12px 34px;border-bottom:1px solid var(--line);background:rgba(247,247,248,.88);backdrop-filter:blur(10px);position:sticky;top:0;z-index:4;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px}.brand-mini{display:flex;gap:9px;align-items:center;cursor:pointer;padding:6px 16px 6px 8px;margin:-6px 2px -6px -8px;border-right:1px solid var(--line);border-radius:10px;flex:0 0 auto;justify-self:start}.brand-mini:hover{background:var(--soft)}.brand-mini.active{background:#eef0f2}.brand-mini.active b{color:var(--green)}.brand-mini b{font-size:15px}.mark{width:29px;height:29px;border-radius:9px;background:var(--green);color:var(--lime);display:grid;place-items:center;font-weight:800;font-size:15px;flex:0 0 auto;overflow:hidden}.mark img{width:100%;height:100%;display:block;object-fit:cover}.pillnav{display:flex;gap:3px;overflow-x:auto;justify-self:center;max-width:100%;scrollbar-width:none}.pillnav::-webkit-scrollbar{display:none}.pill{padding:7px 14px;border-radius:9px;color:#343a40;cursor:pointer;display:flex;gap:7px;align-items:center;white-space:nowrap;font-weight:600;flex:0 0 auto;position:relative;transition:color .16s,background .16s}.pill:hover{color:var(--text);background:rgba(0,0,0,.045)}.pill.active{color:var(--text);font-weight:700;background:var(--soft)}.tab-dot{width:8px;height:8px;border-radius:50%;background:var(--red);flex:0 0 auto;margin-left:-1px;box-shadow:0 0 0 2px rgba(213,87,74,.18)}.pill.active .tab-dot{background:var(--red)}.badge{background:#e2e8e2;border-radius:12px;padding:1px 7px;font-size:11px;color:#343a40}.pill.active .badge{background:rgba(42,47,53,.14);color:var(--green)}.top-right{justify-self:end;color:var(--worktable-muted);font-size:12px;flex:0 0 auto}.avatar{display:inline-grid;place-items:center;width:30px;height:30px;margin-left:8px;border-radius:50%;background:#e8eaec;color:var(--green);font-weight:700}.page{max-width:1680px;margin:auto;padding:32px 34px 60px}.page:has(#bookmarks.active){max-width:none}.view{display:none}.view.active{display:block}.hero{display:flex;justify-content:space-between;align-items:end;margin-bottom:14px}.hero:empty{display:none}.eyebrow{color:var(--green);font-size:12px;font-weight:700;letter-spacing:.05em}.hero h1{font-size:28px;margin:4px 0 4px;letter-spacing:-.04em}.hero p{color:var(--worktable-muted);margin:0}.date{color:var(--worktable-muted);font-size:13px}.grid{display:grid;grid-template-columns:minmax(430px,1.45fr) minmax(280px,.85fr);gap:18px}.home-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}.home-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.home-hero{margin-bottom:20px}.home-hero .eyebrow{margin:0 0 2px}.home-hero h1{font-size:30px;margin:0;letter-spacing:-.03em}.home-hero .date{font-size:13px;color:var(--worktable-muted);margin-top:4px}.brief-card{padding:18px 20px;border-left:4px solid var(--green);background:#f6f7f8;border-radius:16px}.brief-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}.brief-badge{font-size:12px;font-weight:800;color:var(--green);background:#eef0f2;border-radius:999px;padding:3px 12px;letter-spacing:.02em}.brief-meta{margin-left:auto;font-size:11px;color:var(--worktable-muted)}.brief-body{font-size:14px;line-height:1.75;color:#3a3f45}.brief-items{display:flex;flex-direction:column;gap:11px}.brief-item{display:flex;align-items:flex-start;gap:10px;line-height:1.55}.bi-tag{flex:0 0 auto;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;margin-top:2px;white-space:nowrap}.bi-tag.urg{background:#fdeaea;color:#d93025}.bi-tag.line{background:#eef0f2;color:#2a2f35}.bi-tag.live{background:#eaf1fd;color:#1a5fd0}.bi-tag.prod{background:#f3ecfd;color:#6b3fae}.bi-tag.news{background:#fff4e5;color:#b26a00}.bi-tag.fun{background:#fdeaf5;color:#c23386}.bi-txt{flex:1 1 auto}.brief-body h4{margin:10px 0 4px;font-size:13px;font-weight:700;color:var(--green)}.brief-body h4:first-child{margin-top:0}.brief-body ul{margin:0;padding-left:18px}.brief-body li{margin:3px 0}.brief-body li a{color:var(--green);text-decoration:none}.brief-body li a:hover{text-decoration:underline}.brief-body .brief-empty{color:var(--worktable-muted)}.home-cols{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}.home-left{display:flex;flex-direction:column;gap:18px;min-width:0}.home-right{display:flex;flex-direction:column;gap:18px;min-width:0}.lives-card{padding:16px 18px;border-radius:16px}.lives-card .article{padding:9px 0}.lives-card .article:last-child{border:0}.news-panel{background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:16px;padding:14px 16px 0;display:flex;flex-direction:column;box-sizing:border-box;min-width:0;overflow:hidden}.news-panel .bm-news-head{padding:0 2px 12px;margin-bottom:6px}.news-panel .bm-news-groups{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 2px 8px 0}.news-panel .bm-news-groups::-webkit-scrollbar{width:4px}.news-panel .bm-news-groups::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}.todo-panel{background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:16px;padding:18px}.todo-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.todo-head h2{margin:0;font-size:16px}.todo-compose{margin-bottom:4px}.todo-compose>input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--soft)}.todo-compose>input:focus{background:white;outline:none;border-color:#cbd0d5}.todo-compose-extra{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}.todo-compose.open .todo-compose-extra{display:block}.todo-compose .richbox{min-height:72px;max-height:160px}.todo-compose .field{margin:8px 0 0}.todo-compose .field label{margin-bottom:3px}.todo-compose-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}.todo-list{margin-top:8px}.richbox{width:100%;min-height:120px;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit;line-height:1.6}.richbox:focus{outline:none;border-color:#9aa1a8}.richbox:empty:before{content:attr(data-placeholder);color:#9aa39c}.richbox img{max-width:100%;border-radius:8px;display:block;margin:8px 0}.field-row{display:flex;gap:10px}.field-row .field{flex:1}.task-del{margin-left:6px;color:var(--worktable-muted);cursor:pointer;opacity:.5;flex:0 0 auto}.task-del:hover{opacity:1;color:var(--red)}.bm-act svg{width:12px;height:12px;display:block}.bm-google-clear svg{width:14px;height:14px}.media-icon-btn svg{width:14px;height:14px}.task-del svg,.note-del svg{width:13px;height:13px}.ai-close svg{width:16px;height:16px}.card{background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:16px;padding:19px;transition:box-shadow .2s ease,border-color .2s ease}.card:hover{border-color:#daddE0}.card.linkable{cursor:pointer;transition:box-shadow .15s,border-color .15s}.card.linkable:hover{box-shadow:none;border-color:#d3d7db}.card-title{font-size:14px;font-weight:750;display:flex;align-items:center;gap:8px;margin-bottom:14px}.quick-note{margin:-4px 0 12px}.quick-note>input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--soft);cursor:text}.quick-note>input:focus{background:white;outline:none;border-color:#cbd0d5}.home-layout,.hero,.top{transition:transform .22s ease,opacity .22s ease,filter .22s ease}body.write-mode{overflow:hidden}body.write-mode .top{opacity:.35;pointer-events:none}body.write-mode .hero{opacity:.25;transform:scale(.97);transform-origin:top left}body.write-mode .home-layout{transform:scale(.9);opacity:.28;filter:blur(.6px);pointer-events:none;transform-origin:top center}.write-stage{position:fixed;top:50%;left:50%;z-index:30;display:flex;flex-direction:column;background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 60px rgba(26,29,33,.14);opacity:0;transform:translate(-50%,-50%) translateY(10px) scale(.985);transition:opacity .2s ease,transform .22s ease;visibility:hidden;pointer-events:none;width:min(820px,calc(100vw - 36px));height:calc((100vh - 36px) * 2 / 3);min-height:340px}.write-stage.show{opacity:1;transform:translate(-50%,-50%);visibility:visible;pointer-events:auto}.write-bar{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);flex:0 0 auto}.write-bar .hint{color:var(--worktable-muted);font-size:12px;margin-right:auto}.write-pad{flex:1;width:100%;overflow:auto;padding:34px 48px 40px;font:18px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft Yahei",sans-serif;outline:none;background:transparent;color:var(--text)}.write-pad:empty:before{content:attr(data-placeholder);color:#a3ada7;pointer-events:none}.write-pad img{max-width:min(100%,720px);border-radius:10px;display:block;margin:12px 0}.note-thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;flex:0 0 auto}.note-row{cursor:pointer;align-items:center}.note-row:hover{background:rgba(237,241,237,.55);margin:0 -10px;padding-left:10px;padding-right:10px;border-radius:8px}.note-del{margin-left:8px;color:var(--worktable-muted);cursor:pointer;opacity:.45;flex:0 0 auto;padding:4px 6px}.note-del:hover{opacity:1;color:var(--red)}.note-detail{white-space:pre-wrap;line-height:1.7;font-size:15px}.note-detail img{max-width:100%;border-radius:10px;display:block;margin:12px 0}.btn.shrink{min-width:76px}.card-title .sub{margin-left:auto;color:var(--worktable-muted);font-size:12px;font-weight:400}.focus{background:var(--text);color:white;border-color:var(--text)}.focus .card-title{color:var(--lime)}.task{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.14)}.task:last-child{border:0}.tick{height:19px;width:19px;border:1.5px solid #a7b2aa;border-radius:6px;cursor:pointer;flex:0 0 auto;display:grid;place-items:center}.tick.done{background:var(--green);border-color:var(--green);color:white}.focus .tick{border-color:#829086}.task-name{flex:1;min-width:0}.task.done .task-name{text-decoration:line-through;color:#aab3ad}.task-thumb{width:34px;height:34px;border-radius:8px;object-fit:cover;flex:0 0 auto}.task-note{color:var(--worktable-muted);font-size:12px;margin-top:2px;font-weight:400;white-space:normal}.focus .task-note{color:#c3ceca}.tag{display:inline-block;border-radius:5px;background:var(--soft);color:#58625d;padding:2px 7px;font-size:11px}.focus .tag{background:#3a3f45;color:#d4ddd6}.priority{height:7px;width:7px;border-radius:50%;background:var(--orange)}.inbox-row,.article,.note-row{padding:12px 0;border-bottom:1px solid var(--line);display:flex;gap:11px;align-items:flex-start}.inbox-row:last-child,.article:last-child,.note-row:last-child{border:0}.inbox-icon{height:28px;width:28px;border-radius:8px;background:#eef3fc;color:var(--blue);display:grid;place-items:center;overflow:hidden;flex:0 0 auto}.inbox-icon img{width:100%;height:100%;object-fit:cover}.row-main{flex:1;min-width:0}.row-title{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row-meta{color:var(--worktable-muted);font-size:12px;margin-top:3px}.link{color:var(--green);font-size:12px;cursor:pointer;font-weight:650}.signal{border-left:3px solid var(--orange);padding:2px 0 2px 11px;margin:13px 0}.signal b{display:block}.signal p{margin:3px 0;color:var(--worktable-muted);font-size:12px}.btn{border:1px solid var(--line);background:white;border-radius:8px;padding:8px 11px;color:var(--text);cursor:pointer;font:inherit;transition:border-color .15s,background .15s,color .15s}.btn:hover:not(:disabled){border-color:#cbd0d5;background:#f8f9fa}.btn:disabled{opacity:.55;cursor:default;pointer-events:none}.btn.primary{background:var(--green);border-color:var(--green);color:white;transition:background .15s,border-color .15s}.btn.primary:hover{background:#1a1e23;border-color:#1a1e23}.btn.ghost{border:1px solid var(--line);background:white;color:var(--text);transition:border-color .15s,background .15s}.btn.ghost:hover{border-color:#cbd0d5;background:#f8f9fa}.section-head{display:flex;align-items:center;margin:25px 0 12px}.section-head h2{margin:0;font-size:18px}.section-head .btn{margin-left:auto}.list-card{background:white;border:1px solid var(--line);border-radius:14px;padding:6px 18px}.filters{display:flex;gap:8px;margin-bottom:15px;flex-wrap:wrap}.filter{padding:6px 10px;border-radius:15px;border:1px solid var(--line);background:white;cursor:pointer;color:var(--worktable-muted)}.filter.active{background:var(--soft);border-color:var(--text);color:var(--text)}.article-score{font-weight:800;color:var(--orange);width:31px;font-size:17px}.article a{color:inherit;text-decoration:none}.article a:hover{color:var(--green)}.article .actions{margin-left:auto;white-space:nowrap}.empty{color:var(--worktable-muted);text-align:center;padding:35px}.radar-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px;align-items:start}.radar-nav{background:white;border:1px solid var(--line);border-radius:14px;padding:12px 10px;position:sticky;top:88px;max-height:calc(100vh - 110px);overflow:auto}.radar-nav-head{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 12px;color:var(--worktable-muted);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.radar-nav-item{padding:8px 10px;border-radius:8px;cursor:pointer;color:#343a40;display:flex;align-items:center;gap:8px;margin:2px 0}.radar-nav-item:hover,.radar-nav-item.active{background:var(--soft);color:var(--text);font-weight:650}.radar-nav-item .count{margin-left:auto;font-size:11px;color:var(--worktable-muted)}.radar-nav-item .count.unread{background:var(--orange);color:#fff;border-radius:10px;padding:1px 7px;font-weight:700;min-width:18px;text-align:center}.radar-nav-item.is-paused{opacity:.55}.pause-tag{font-size:10px;color:var(--worktable-muted);background:var(--soft);border-radius:8px;padding:1px 6px;margin-left:4px;font-weight:650}.paused-banner{background:#f4f4f5;color:#8a6d1f;border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:10px;font-weight:650}.article.radar-item{margin:6px -8px;padding:12px 10px;border-radius:10px;border-bottom:0;cursor:pointer;align-items:center}.article.radar-item.is-unread{background:#f2f4f5;border:1px solid #e2e5e8}.article.radar-item.is-unread .article-score{color:var(--orange)}.article.radar-item.is-unread .row-title{font-weight:750}.article.radar-item.is-read{background:var(--soft);border:1px solid transparent;opacity:.78}.article.radar-item.is-read .article-score{color:#a7b2aa}.article.radar-item.is-read .row-title{font-weight:550;color:#343a40}.radar-nav-group{padding:12px 8px 4px;color:var(--worktable-muted);font-size:11px;font-weight:700}.radar-main{min-width:0}.product-profile{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}.product-profile h2{margin:0 0 6px;font-size:20px}.pp-head{display:flex;align-items:center;gap:12px;margin-bottom:8px}.pp-head h2{margin:0}.product-profile .meta{color:var(--worktable-muted);font-size:13px;margin-bottom:8px}.product-profile .actions{display:flex;gap:8px;margin-top:12px}.day-cards{display:flex;flex-direction:column;gap:14px}.day-card{background:white;border:1px solid var(--line);border-radius:14px;padding:4px 18px 10px}.day-card-head{display:flex;align-items:baseline;gap:10px;padding:14px 0 8px;border-bottom:1px solid var(--line);margin-bottom:4px}.day-card-head b{font-size:16px;letter-spacing:-.02em}.day-card-head span{color:var(--worktable-muted);font-size:12px}.cat-group{display:flex;align-items:center;gap:8px;padding:14px 0 6px}.cat-group .tag{font-weight:650}.cat-group span{color:var(--worktable-muted);font-size:12px}.article.km{display:grid;grid-template-columns:28px minmax(0,1fr) 168px 84px;gap:12px;align-items:center;padding:12px 0}.article.km .article-score{width:28px;text-align:center}.article.km .row-main{min-width:0}.article-metrics{display:grid;grid-template-columns:repeat(3,56px);gap:0;justify-content:end}.metric{text-align:right;line-height:1.15}.metric b{display:block;font-size:14px;font-variant-numeric:tabular-nums;color:var(--text);font-weight:700}.metric small{color:var(--worktable-muted);font-size:11px}.article.km .actions{justify-self:end}.btn.fav{min-width:72px;padding:7px 10px}.btn.fav.on{background:#fff7e8;border-color:#f0c36a;color:#c47a12}.month-select{padding:6px 10px;border-radius:15px;border:1px solid var(--line);background:white;color:var(--worktable-muted);font:inherit;cursor:pointer}.month-select.active{background:var(--soft);border-color:var(--text);color:var(--text)}.hero-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.kb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}.kb-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px;flex-wrap:wrap}.kb-head .filters{margin-bottom:0}.kb-grid>.empty{grid-column:1/-1;background:white;border:1px solid var(--line);border-radius:14px}.kb-card{background:white;border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:168px;cursor:pointer;transition:border-color .15s;overflow:hidden}.kb-card.has-thumb{padding-top:0}.kb-card:hover{border-color:#cbd0d5}.kb-thumb{margin:0 -16px 0;height:140px;background:var(--soft);overflow:hidden}.kb-thumb-broken{display:flex;align-items:center;justify-content:center;font-size:32px;opacity:.4}.kb-thumb img{width:100%;height:100%;object-fit:cover;display:block}.kb-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.kb-card.has-thumb .kb-card-top{padding-top:12px}.kb-card-icon{width:34px;height:34px;border-radius:10px;background:var(--soft);color:var(--green);display:grid;place-items:center;font-size:15px;overflow:hidden;flex:0 0 auto}.kb-card-icon img{width:100%;height:100%;object-fit:cover}.km-compact-head{display:flex;align-items:center;gap:24px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--line)}.km-title{display:flex;align-items:baseline;gap:10px;flex:0 0 auto}.km-title .eyebrow{font-size:11px}.km-title h1{font-size:22px;margin:0;letter-spacing:-.04em}.km-title>span{color:var(--worktable-muted);font-size:12px}.km-filter-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;min-width:0}.km-filter-bar .filters{margin:0}.km-filter-group{display:flex;align-items:center;gap:6px}.km-filter-label{font-size:11px;color:var(--worktable-muted);font-weight:650;white-space:nowrap}.km-segment{display:flex;align-items:center;gap:2px;padding:3px;background:var(--soft);border-radius:9px}.km-segment button{border:0;background:transparent;color:var(--worktable-muted);padding:4px 9px;border-radius:6px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}.km-segment button:hover{color:var(--text)}.km-segment button.active{background:white;color:var(--text);box-shadow:0 1px 3px rgba(26,29,33,.08);font-weight:650}.km-segment em{font-style:normal;color:var(--worktable-muted);font-size:10px;margin-left:2px}.km-filter-select{height:29px;padding:0 24px 0 9px;border:1px solid var(--line);border-radius:8px;background:white;color:var(--text);font:inherit;font-size:12px;cursor:pointer;max-width:180px}.km-filter-select:focus{outline:none;border-color:#9aa1a8}.km-month-select{min-width:96px;max-width:135px}.km-day-cards{gap:12px}.km-day-cards .day-card{padding:0 16px 14px}.km-day-cards .day-card-head{padding:11px 0 8px;margin-bottom:8px}.km-article-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}.km-card{display:flex!important;flex-direction:column;align-items:stretch!important;gap:0;margin:0!important;padding:12px 14px!important;border:1px solid var(--line)!important;border-radius:11px!important;background:var(--paper);min-height:0;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s}.km-card:hover{border-color:#cbd0d5!important;box-shadow:none;transform:translateY(-1px)}.km-filter-bar .km-filter-select{vertical-align:middle}.km-card-title{font-size:14px;font-weight:700;line-height:1.42;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-align:left}.km-card-row2{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:5px}.km-card-author{font-size:12px;color:var(--worktable-muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.km-card-date{font-size:11px;color:var(--worktable-muted);flex:0 0 auto;white-space:nowrap}.km-card-divider{border-top:1px solid var(--soft);margin:8px 0 7px;margin-top:auto}.km-card-stats-row{display:flex;align-items:center;gap:8px}.km-card-stats{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--worktable-muted);flex:1;min-width:0}.km-card-stats span{white-space:nowrap}.km-card-stats-row .fav{margin-left:auto;flex:0 0 auto;min-width:0;padding:3px 8px;font-size:11px;border-radius:6px}.bm-google{max-width:720px;margin:0 auto 8px;text-align:center}.bm-topbar{display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:8px;color:var(--text);font-size:15px;font-weight:600}.bm-topbar-sep{color:var(--line)}#bmWeather{display:flex;align-items:center;gap:4px;color:var(--text);font-weight:700}#bmWeather img{width:22px;height:22px;display:block}.bm-header-row{display:flex;align-items:flex-start;justify-content:flex-start;gap:24px;margin-bottom:25px;flex-wrap:wrap}.bm-header-row .hero{margin-bottom:0;flex:0 0 auto}.bm-google-form,#bmGoogleForm{display:flex;align-items:center;gap:8px;background:white;border:1px solid var(--line);border-radius:24px;padding:8px 8px 8px 14px;box-shadow:var(--shadow);transition:border-color .15s,box-shadow .15s,transform .15s}#bmGoogleForm:hover,#bmGoogleForm:focus-within{border-color:#cbd0d5;box-shadow:none;transform:translateY(-1px)}.bm-mode-toggle{display:flex;gap:2px;flex:0 0 auto;align-items:center}.bm-mode-divider{width:1px;height:20px;background:var(--line);flex:0 0 auto;margin:0 4px}.bm-mode-btn{border:0;background:transparent;color:var(--worktable-muted);padding:5px 11px;border-radius:14px;font:inherit;font-size:12px;font-weight:650;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap}.bm-mode-btn:hover{background:var(--soft);color:var(--text)}.bm-mode-btn.active{background:var(--soft);color:var(--text)}#bmGoogleInput{flex:1;border:0;outline:none;font:inherit;font-size:14px;background:transparent;min-width:0}.bm-google-btn{border:0;background:var(--soft);color:var(--text);padding:7px 14px;border-radius:16px;font:inherit;font-size:12px;font-weight:650;cursor:pointer;flex:0 0 auto}.bm-google-btn:hover{background:#e6e8ea}.bm-google-clear{border:0;background:transparent;color:var(--worktable-muted);width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1;display:grid;place-items:center;flex:0 0 auto;transition:background .15s,color .15s}.bm-google-clear:hover{background:var(--soft);color:var(--text)}.bm-news-panel::-webkit-scrollbar{width:4px}.bm-news-panel::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}.bm-news-head{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 2px 12px;color:var(--text);font-size:13px;font-weight:700;border-bottom:1px solid var(--line);margin-bottom:10px}.bm-news-head-top{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%}.bm-news-head-right{display:flex;align-items:center;gap:6px}.bm-news-updated{font-size:10px;color:var(--worktable-muted);font-weight:400}.bm-news-count{color:var(--green);font-weight:800;font-size:12px;background:#eef0f2;border-radius:10px;padding:1px 8px}.bm-news-tabs{display:flex;gap:2px;padding:0 2px 0;border-bottom:1px solid var(--line);margin-bottom:10px;overflow-x:auto;scrollbar-width:none}.bm-news-tabs::-webkit-scrollbar{display:none}.bm-news-tab{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--worktable-muted);font:inherit;font-size:13px;font-weight:600;padding:8px 14px 10px;border-radius:0;cursor:pointer;position:relative;transition:color .15s;white-space:nowrap}.bm-news-tab:hover{background:transparent;color:var(--text)}.bm-news-tab::after{content:'';position:absolute;left:14px;right:14px;bottom:-1px;height:2px;border-radius:1px;background:var(--green);transform:scaleX(0);transform-origin:center;transition:transform .18s ease}.bm-news-tab:hover::after{transform:scaleX(.5)}.bm-news-tab.active{background:transparent;color:var(--green);font-weight:700}.bm-news-tab.active::after{transform:scaleX(1)}.bm-news-tab .tab-num{font-size:11px;font-weight:700;color:inherit;opacity:.65}.bm-news-group{margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:8px}.bm-news-group:last-child{border-bottom:0}.bm-news-topic{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;border:0;font:inherit;font-size:12px;font-weight:700;color:var(--green);background:transparent;border-radius:7px;padding:7px 6px;margin:0 0 3px;text-align:left;cursor:pointer}.bm-news-topic:hover{background:var(--soft)}.bm-news-topic .chevron{font-size:13px;color:var(--worktable-muted);transition:transform .15s}.bm-news-topic.is-collapsed .chevron{transform:rotate(-90deg)}.bm-news-topic .topic-count{font-size:10px;color:var(--worktable-muted);font-weight:600;margin-left:auto;margin-right:4px}.bm-news-items.is-collapsed{display:none}.bm-news-item{display:block;padding:9px 8px;border-radius:8px;color:var(--text);text-decoration:none;font-size:12.5px;line-height:1.5;margin-bottom:3px;transition:background .15s}.bm-news-item:hover{background:var(--soft)}.bm-news-item .t{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-weight:600}.bm-news-item .m{display:block;color:var(--worktable-muted);font-size:11px;margin-top:4px}.bm-news-item .ns{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;color:#3c463f;font-size:12px;line-height:1.5;margin-top:5px;font-weight:400}.bm-news-empty{color:var(--worktable-muted);font-size:12px;text-align:center;padding:24px 4px}.bm-news-foot{display:flex;justify-content:flex-end;padding:4px 2px 0}.bm-news-toggle-all{border:0;background:transparent;color:var(--worktable-muted);font:inherit;font-size:11px;cursor:pointer;padding:4px}.bm-news-toggle-all:hover{color:var(--green)}.bm-main{flex:1;min-width:0}
@@ -599,7 +598,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     width: 100%;
   }
 }
-</style><link rel="stylesheet" href="/static/bookmarks.css"><link rel="stylesheet" href="/static/work-followup.css"><link rel="stylesheet" href="/static/workbench-views.css"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/favicon.svg" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
+</style><link rel="stylesheet" href="/static/bookmarks.css"><link rel="stylesheet" href="/static/work-followup.css"><link rel="stylesheet" href="/static/workbench-views.css?v=2"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
 <section id="home" class="view">
 <section class="followup" aria-labelledby="followupTitle">
 <header class="followup-heading"><h2 id="followupTitle">工作跟进</h2></header>
@@ -692,7 +691,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 </div>
 </div>
 </section>
-<section id="knowledge" class="view"><header class="workspace-view-head"><h1>知识库</h1></header><div class="kb-head"><div class="filters" id="knowledgeFilters"></div><div class="hero-actions"><button class="btn" onclick="triggerKnowledgeUpload()">↑ 上传文件</button><button class="btn primary" onclick="openKnowledgeDoc()">＋ 写文档</button></div></div><div class="workspace-find"><input type="search" id="knowledgeSearch" aria-label="搜索知识库" placeholder="搜索标题、内容或来源" oninput="renderKnowledgeList()"><span id="knowledgeSearchCount" role="status"></span></div><div class="kb-grid" id="knowledgeList"></div><input type="file" id="knowledgeFileInput" multiple hidden onchange="uploadKnowledgeFiles(this)"></section>
+<section id="knowledge" class="view"><header class="workspace-view-head"><h1>知识库</h1></header><div class="kb-head"><div class="filters" id="knowledgeFilters"></div><div class="hero-actions"><button class="btn" onclick="openKnowledgeLink()">＋ 添加链接</button><button class="btn" onclick="triggerKnowledgeUpload()">上传文件</button><button class="btn primary" onclick="openKnowledgeDoc()">＋ 写文档</button></div></div><div class="workspace-find"><input type="search" id="knowledgeSearch" aria-label="搜索知识库" placeholder="搜索标题、内容或来源" oninput="renderKnowledgeList()"><span id="knowledgeSearchCount" role="status"></span></div><p class="knowledge-upload-status" id="knowledgeUploadStatus" role="status" hidden></p><div class="knowledge-list" id="knowledgeList"></div><input type="file" id="knowledgeFileInput" multiple hidden onchange="uploadKnowledgeFiles(this)"></section>
 <section id="bookmarks" class="view"><div class="bm-search-block"><div class="bm-topbar" id="bmTopbar">
  <span id="bmClock"></span><span class="bm-topbar-sep">·</span><span id="bmWeather"></span>
 </div><div class="bm-google"><form id="bmGoogleForm" onsubmit="return submitBmGoogleSearch(event)"><div class="bm-mode-toggle" id="bmModeToggle"><button type="button" class="bm-mode-btn active" data-mode="google" onclick="setBmMode('google')">Google</button><button type="button" class="bm-mode-btn" data-mode="chatgpt" onclick="setBmMode('chatgpt')">ChatGPT</button><button type="button" class="bm-mode-btn" data-mode="gemini" onclick="setBmMode('gemini')">Gemini</button></div><span class="bm-mode-divider"></span><input id="bmGoogleInput" type="text" aria-label="搜索或对话内容" placeholder="搜索 Google…" autocomplete="off"><button type="button" class="bm-google-clear" id="bmGoogleClear" title="清空" onclick="$('bmGoogleInput').value='';$('bmGoogleInput').focus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button><button type="submit" class="bm-google-btn" id="bmGoogleBtn">搜索</button></form></div></div><div class="bm-layout"><div class="bm-main"><div class="bm-section"><div class="bm-section-head"><h2>常用</h2><button type="button" class="btn ghost bm-add-toggle" id="bmAddToggleBtn" onclick="toggleBmQuick()">＋ 添加书签</button><div class="bm-quick" id="bmQuick"><div class="bm-quick-row"><div class="bm-kind-toggle" id="bmKindToggle"><button type="button" data-kind="frequent" onclick="setBmAddKind('frequent')">常用</button><button type="button" class="active" data-kind="memo" onclick="setBmAddKind('memo')">备忘</button></div><input id="bmQuickUrl" placeholder="粘贴链接，回车收藏…" onkeydown="if(event.key==='Enter')quickAddBookmark()"></div><div id="bmQuickStatus" class="bm-status"></div></div></div><div id="bmFrequentGroups"></div><div class="bm-new-group-row"><button type="button" class="btn ghost bm-new-group-btn" onclick="openNewGroupModal('frequent')">＋ 新建分组</button></div></div><div class="bm-section"><div class="bm-section-head"><h2>备忘</h2></div><div id="bmMemoGroups"></div><div class="bm-new-group-row"><button type="button" class="btn ghost bm-new-group-btn" onclick="openNewGroupModal('memo')">＋ 新建分组</button></div></div></div></div></section>
@@ -716,7 +715,19 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 </div>
 </section>
 <section id="creators" class="view"><header class="workspace-view-head"><h1>视频订阅</h1></header><form class="vid-add-row workspace-follow-form" onsubmit="event.preventDefault();quickAddCreator()"><input id="creatorQuickUrl" type="url" aria-label="博主主页或频道链接" placeholder="粘贴 B 站博主主页或 YouTube 频道链接" required><button type="submit" class="btn primary">关注</button><div id="creatorQuickStatus" class="vid-add-status" role="status"></div></form><div class="vid-layout"><div class="vid-main"><div class="vid-feed-head"><span class="hint" id="creatorFeedUpdated"></span><button type="button" class="btn ghost" onclick="loadCreatorVideos(true)">↻ 刷新</button></div><div class="vid-grid" id="creatorVideoList"></div></div><aside class="vid-sidebar"><div class="vid-sidebar-head" id="creatorSideHead">关注的博主 <span id="creatorSideCount" class="sub"></span></div><div class="vid-sidebar-filters" id="creatorSideFilters"><button type="button" class="vid-filter-btn active" aria-pressed="true" data-pf="" onclick="setPlatformFilter('')">全部</button><button type="button" class="vid-filter-btn" aria-pressed="false" data-pf="bilibili" onclick="setPlatformFilter('bilibili')">B站</button><button type="button" class="vid-filter-btn" aria-pressed="false" data-pf="youtube" onclick="setPlatformFilter('youtube')">YouTube</button></div><div class="vid-sidebar-search"><input id="creatorSearch" type="search" aria-label="搜索博主" placeholder="搜索博主…" oninput="onCreatorSearch(this.value)"></div><div class="vid-sidebar-list" id="creatorTiles"></div></aside></div></section>
-<section id="notes" class="view"><header class="workspace-view-head"><h1>笔记</h1><button class="btn primary" onclick="expandWrite()">＋ 写笔记</button></header><div class="workspace-find"><input type="search" id="noteSearch" aria-label="搜索笔记" placeholder="搜索标题、正文或主题" oninput="renderNotes()"><span id="noteSearchCount" role="status"></span></div><div class="kb-grid" id="noteList"></div></section>
+<section id="notes" class="view">
+  <header class="workspace-view-head"><h1>笔记</h1></header>
+  <form class="note-quick-form" id="noteQuickForm">
+    <textarea id="noteQuickText" rows="2" aria-label="随手记" placeholder="随手记点什么…"></textarea>
+    <div class="note-quick-footer">
+      <span id="noteQuickStatus" role="status"></span>
+      <button type="button" class="btn" onclick="expandWrite()">写长笔记</button>
+      <button type="submit" class="btn primary">记一条</button>
+    </div>
+  </form>
+  <div class="workspace-find"><input type="search" id="noteSearch" aria-label="搜索笔记" placeholder="搜索笔记" oninput="renderNotes()"><span id="noteSearchCount" role="status"></span></div>
+  <div id="noteList" class="note-feed"></div>
+</section>
 <section id="radar" class="view"><header class="workspace-view-head"><h1>鹰眼</h1></header><div class="radar-layout"><aside class="radar-nav" id="radarNav"></aside><div class="radar-main"><div class="vid-feed-head"><span class="hint" id="radarUpdated"></span><button type="button" class="btn ghost" id="radarRefreshBtn" onclick="refreshRadar()">↻ 刷新</button></div><div id="productProfile"></div><div class="filters" id="radarFavFilters"></div><div class="day-cards" id="radarList"></div></div></div></section>
 
 </div></main></div>
@@ -858,7 +869,7 @@ function mdToHtml(md){
   let out=[],listBuf=[],inList=false;
   function flushList(){if(inList){out.push('<ul class="brief-ul">'+listBuf.join('')+'</ul>');listBuf=[];inList=false}}
   function inline(s){
-    s=esc(s);
+    s=esc(s.replace(/\[([^\]]+)\]\(@(?:person|group)\)/g,'$1'));
     s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
     s=s.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g,'<em>$1</em>');
     s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
@@ -902,15 +913,100 @@ function renderBrief(){
   summary.innerHTML=renderBriefMarkdown(brief.content);
   const excerpts=[...summary.querySelectorAll('.brief-ul li,.brief-p')].slice(0,2);
   $('briefBody').innerHTML=excerpts.length
-    ? '<ul class="followup-excerpts">'+excerpts.map(item=>'<li>'+esc(item.textContent.replace(/\[([^\]]+)\]\(@(?:person|group)\)/g,'$1'))+'</li>').join('')+'</ul>'
+    ? '<ul class="followup-excerpts">'+excerpts.map(item=>'<li>'+esc(item.textContent)+'</li>').join('')+'</ul>'
     : '<p class="followup-meta">'+(brief.content?'打开全文查看总结。':'暂无工作总结。')+'</p>';
   if($('briefReader').open)syncBriefReader();
 }
+let briefReaderKey=null;
 function syncBriefReader(){
   const brief=data.brief||{};
   $('briefReaderMeta').textContent=$('briefUpdated').textContent;
-  $('briefReaderContent').innerHTML='<div class="brief-note">'+renderBriefMarkdown(brief.content)+'</div>'
+  const reader=$('briefReaderContent');
+  const key=JSON.stringify([brief.date,brief.content,brief.source]);
+  if(key===briefReaderKey)return;
+  briefReaderKey=key;
+  reader.innerHTML='<div class="brief-note">'+renderBriefMarkdown(brief.content)+'</div>'
     +(brief.source?'<div class="brief-src">来源：'+esc(brief.source)+'</div>':'');
+  addBriefTaskControls(reader,brief.date||'');
+}
+function addBriefTaskControls(reader,date){
+  let headingLevel=0;
+  const candidates=[];
+  for(const node of reader.querySelectorAll('.brief-h,.brief-ul > li')){
+    if(node.matches('.brief-h')){
+      const level=Number(node.tagName.slice(1));
+      if(headingLevel&&level<=headingLevel)break;
+      if(!headingLevel&&/^(?:[一二三四五六七八九十\d]+[、.．]\s*)?(?:待办|后续跟进|行动事项)/.test(node.textContent.trim()))headingLevel=level;
+      continue;
+    }
+    if(!headingLevel)continue;
+    const text=node.textContent.trim();
+    const title=node.querySelector('strong')?.textContent.trim().replace(/[：:]$/,'')||text;
+    if(text)candidates.push({node,text,title});
+  }
+  if(!candidates.length)return;
+
+  const actions=document.createElement('div');
+  actions.className='brief-task-actions';
+  actions.innerHTML='<button type="button" class="btn primary" disabled>生成所选待办</button><span role="status">勾选需要跟进的事项</span>';
+  candidates.at(-1).node.closest('ul').after(actions);
+  const button=actions.querySelector('button');
+  const status=actions.querySelector('[role="status"]');
+  const exists=(task,candidate)=>task.brief_date===date&&task.brief_item===candidate.text;
+  for(const candidate of candidates){
+    const label=document.createElement('label');
+    label.className='brief-task-option';
+    label.innerHTML='<input type="checkbox"><span></span>';
+    const checkbox=label.querySelector('input');
+    candidate.node.classList.add('brief-task-item');
+    label.lastElementChild.append(...candidate.node.childNodes);
+    candidate.node.append(label);
+    candidate.checkbox=checkbox;
+    checkbox.disabled=data.tasks.some(task=>exists(task,candidate));
+    if(checkbox.disabled)label.lastElementChild.append('（已生成）');
+  }
+  const selected=()=>candidates.filter(({checkbox})=>checkbox.checked&&!checkbox.disabled);
+  const updateButton=()=>{
+    const count=selected().length;
+    button.disabled=!count;
+    button.textContent=count?`生成 ${count} 项待办`:'生成所选待办';
+  };
+  for(const {checkbox} of candidates)checkbox.addEventListener('change',updateButton);
+  button.addEventListener('click',async()=>{
+    const pending=selected();
+    if(!pending.length)return;
+    button.disabled=true;
+    const enabled=candidates.filter(({checkbox})=>!checkbox.disabled);
+    for(const {checkbox} of enabled)checkbox.disabled=true;
+    status.textContent='正在生成…';
+    let created=0,skipped=0;
+    const finished=new Set();
+    try{
+      const {items}=await api('/api/tasks');
+      data.tasks=items;
+      for(const candidate of pending){
+        if(data.tasks.some(task=>exists(task,candidate)))skipped++;
+        else{
+          const task=await api('/api/tasks','POST',{
+            title:candidate.title,content:esc(candidate.text),priority:'中',date:'',
+            brief_date:date,brief_item:candidate.text
+          });
+          data.tasks.unshift(task);
+          created++;
+        }
+        finished.add(candidate);
+        candidate.checkbox.checked=false;
+        candidate.checkbox.nextElementSibling.append('（已生成）');
+      }
+      status.textContent=`已生成 ${created} 项待办${skipped?`，已有 ${skipped} 项`:''}。`;
+    }catch(error){
+      status.textContent=`已生成 ${created} 项，剩余事项可重试。`;
+    }finally{
+      for(const candidate of enabled)candidate.checkbox.disabled=finished.has(candidate);
+      updateButton();
+      renderTodoPanel();
+    }
+  });
 }
 function openBriefReader(){let dialog=$('briefReader');syncBriefReader();if(!dialog.open)dialog.showModal();$('briefReaderContent').scrollTop=0}
 function closeBriefReader(){$('briefReader').close()}
@@ -1127,9 +1223,59 @@ function knowledgeIcon(k){return k==='file'?'📄':k==='document'?'✎':'↗'}
 function knowledgeKindLabel(k){return k==='file'?'文件':k==='document'?'文档':'链接'}
 function isKnowledgeImage(x){if((x.kind||'')!=='file'||!x.stored_name)return false;if((x.mime||'').startsWith('image/'))return true;return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(x.filename||x.stored_name||'')}
 function knowledgeFileUrl(x){return x.stored_name?`/api/knowledge/files/${encodeURIComponent(x.stored_name)}`:''}
-function knowledgeExcerpt(x){let kind=x.kind||'link';if(kind==='document')return x.content||'空文档';if(kind==='file')return (x.filename||'')+(x.size!=null?' · '+formatSize(x.size):'');return (x.content&&x.content.trim())?x.content:'未填写摘要'}
 function knowledgeMiniHtml(x){let kind=x.kind||'link',title=esc(x.title||x.filename||'未命名'),icon=isKnowledgeImage(x)?`<img src="${esc(knowledgeFileUrl(x))}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${knowledgeIcon(kind)}'}))">`:knowledgeIcon(kind);return `<div class="article"><div class="inbox-icon">${icon}</div><div class="row-main"><div class="row-title"><span class="link" onclick="openKnowledgeItem('${x.id}')">${title}</span></div><div class="row-meta">${esc(knowledgeKindLabel(kind))}${x.topic?' · '+esc(x.topic):''}</div></div></div>`}
-function knowledgeCardHtml(x){let kind=x.kind||'link',title=esc(x.title||x.filename||'未命名'),img=isKnowledgeImage(x);let source=x.source||x.topic||'',date=x.date||(x.created_at||'').slice(0,10);let kindLabel=img?'图片':knowledgeKindLabel(kind);let kindIcon=img?'🖼':knowledgeIcon(kind);return `<article class="kb-card ${img?'has-thumb':''}" tabindex="0" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();this.click()}" onclick="openKnowledgeItem('${x.id}')">${img?`<div class="kb-thumb"><img src="${esc(knowledgeFileUrl(x))}" alt="${title}" loading="lazy" onerror="this.closest('.kb-thumb').outerHTML='<div class=&quot;kb-thumb kb-thumb-broken&quot;>🖼️</div>'"></div>`:''}<div class="kb-card-title">${title}</div><div class="kb-card-excerpt">${esc(knowledgeExcerpt(x))}</div><div class="kb-card-foot"><span class="kb-card-icon">${kindIcon}</span><span class="kb-card-kind">${esc(kindLabel)}</span>${source?`<span class="kb-meta-dot">·</span><span class="kb-card-source">${esc(source)}</span>`:''}${date?`<span class="kb-meta-dot">·</span><span class="kb-card-date">${esc(date)}</span>`:''}<button class="btn kb-del" onclick="event.stopPropagation();removeKnowledge('${x.id}')">删除</button>${kind==='link'?`<button class="btn kb-sync" title="同步到 IMA" onclick="event.stopPropagation();syncToIma('knowledge','${x.id}',this)">同步</button>`:''}</div></article>`}
+function knowledgeListKind(item){
+  const kind=item.kind||'link';
+  if(kind==='file'&&/\.(?:zip|rar|7z|tar|tgz|gz|bz2|xz)$/i.test(item.filename||item.stored_name||''))return 'archive';
+  return kind;
+}
+function knowledgeHttpUrl(value){
+  try{
+    const url=new URL(value);
+    return ['http:','https:'].includes(url.protocol)?url:null;
+  }catch(error){return null;}
+}
+function knowledgeRowIcon(item,kind,image,fileUrl){
+  if(image&&fileUrl)return `<span class="knowledge-row-icon"><img src="${esc(fileUrl)}" alt="" loading="lazy"></span>`;
+  const extension=(item.filename||item.stored_name||'').match(/\.([a-z0-9]{1,8})$/i)?.[1].toUpperCase();
+  let tone='neutral',label=extension||'文件';
+  if(kind==='link'){tone='link';label='↗';}
+  else if(kind==='document'){tone='document';label='文';}
+  else if(kind==='archive'){tone='archive';label=extension||'压缩';}
+  else if(extension==='PDF')tone='pdf';
+  else if(/^(?:DOCX?|ODT|RTF|TXT|MD)$/.test(extension))tone='document';
+  else if(/^(?:XLSX?|CSV|TSV|ODS)$/.test(extension))tone='sheet';
+  else if(/^(?:PPTX?|KEY|ODP)$/.test(extension))tone='slides';
+  return `<span class="knowledge-row-icon" data-format="${tone}" aria-hidden="true">${esc(label)}</span>`;
+}
+function knowledgeRowHtml(item){
+  const kind=knowledgeListKind(item);
+  const file=kind==='file'||kind==='archive';
+  const image=isKnowledgeImage(item);
+  const id=esc(item.id);
+  const title=esc(item.title||item.filename||'未命名');
+  const date=esc(String(item.date||item.created_at||'').slice(0,10));
+  const url=kind==='link'?knowledgeHttpUrl(item.url):null;
+  const fileUrl=file?knowledgeFileUrl(item):'';
+  const subtitle=file?[item.filename!==item.title?item.filename:'',item.size!=null?formatSize(item.size):''].filter(Boolean).join(' · '):
+    [url?.hostname,item.topic,item.content].filter(Boolean).join(' · ');
+  const name=kind==='document'? `<button class="knowledge-name" type="button" data-id="${id}" onclick="openKnowledgeItem(this.dataset.id)">${title}</button>`:
+    url||fileUrl?`<a class="knowledge-name" href="${esc(url?.href||fileUrl)}" target="_blank" rel="noopener">${title}</a>`:`<span class="knowledge-name">${title}</span>`;
+  const fileType=image?'图片':kind==='archive'?'压缩包':file?(item.filename||'').match(/\.([a-z0-9]{1,8})$/i)?.[1].toUpperCase()||'文件':knowledgeKindLabel(kind);
+  return `<article class="knowledge-list-row">
+    <div class="knowledge-row-main">
+      ${knowledgeRowIcon(item,kind,image,fileUrl)}
+      <div class="knowledge-row-label">${name}${subtitle?`<span class="knowledge-row-caption">${esc(subtitle)}</span>`:''}</div>
+    </div>
+    <span class="knowledge-row-kind">${esc(fileType)}</span>
+    <time class="knowledge-row-date"${date?` datetime="${date}"`:''}>${date}</time>
+    <div class="knowledge-row-actions">
+      ${fileUrl?`<a class="btn" href="${esc(fileUrl)}?download=1">下载</a>`:''}
+      ${url?`<button class="btn" type="button" data-id="${id}" onclick="syncToIma('knowledge',this.dataset.id,this)">同步</button>`:''}
+      <button class="btn" type="button" data-id="${id}" onclick="removeKnowledge(this.dataset.id)">删除</button>
+    </div>
+  </article>`;
+}
 function filterKnowledge(kind){
   const restoreFocus=$('knowledgeFilters').contains(document.activeElement);
   knowledgeKind=kind;
@@ -1146,9 +1292,9 @@ function workspaceSearch(items,inputId,fields,countId){
 }
 
 function renderKnowledge(){
-  const labels={all:'全部',link:'链接',document:'文档',file:'文件'};
-  const counts={all:data.knowledge.length,link:0,document:0,file:0};
-  data.knowledge.forEach(item=>{const kind=item.kind||'link';if(Object.hasOwn(labels,kind)&&kind!=='all')counts[kind]++});
+  const labels={all:'全部',link:'链接',document:'文档',file:'文件',archive:'压缩包'};
+  const counts={all:data.knowledge.length,link:0,document:0,file:0,archive:0};
+  data.knowledge.forEach(item=>{const kind=knowledgeListKind(item);if(Object.hasOwn(labels,kind)&&kind!=='all')counts[kind]++});
   $('knowledgeFilters').innerHTML=Object.entries(labels).map(([kind,label])=>{
     const selected=knowledgeKind===kind;
     return '<button type="button" class="filter '+(selected?'active':'')+'" aria-pressed="'+selected+'" data-kind="'+kind+'" onclick="filterKnowledge(this.dataset.kind)">'+label+' '+counts[kind]+'</button>';
@@ -1157,15 +1303,66 @@ function renderKnowledge(){
 }
 
 function renderKnowledgeList(){
-  const scoped=data.knowledge.filter(item=>knowledgeKind==='all'||(item.kind||'link')===knowledgeKind);
+  const scoped=data.knowledge.filter(item=>knowledgeKind==='all'||knowledgeListKind(item)===knowledgeKind);
   const items=workspaceSearch(scoped,'knowledgeSearch',item=>
     [item.title,item.filename,item.content,item.source,item.topic,item.url],'knowledgeSearchCount');
-  $('knowledgeList').innerHTML=items.length?items.map(knowledgeCardHtml).join(''):empty(
+  $('knowledgeList').innerHTML=items.length?items.map(knowledgeRowHtml).join(''):empty(
     $('knowledgeSearch').value.trim()?'没有匹配的知识库条目。':
-    knowledgeKind==='all'?'上传文件或写一篇文档开始整理。':'还没有'+knowledgeKindLabel(knowledgeKind)+'。');
+    knowledgeKind==='all'?'添加链接、写文档或上传文件。':'这个分类还没有内容。');
 }
 function triggerKnowledgeUpload(){$('knowledgeFileInput').click()}
-async function uploadKnowledgeFiles(input){let files=[...input.files];if(!files.length)return;for(const file of files){let fd=new FormData();fd.append('file',file);let r=await fetch('/api/knowledge/upload',{method:'POST',body:fd});if(!r.ok)throw Error(await r.text())}input.value='';await load();showView('knowledge',document.querySelector('[data-view=knowledge]'))}
+async function uploadKnowledgeFiles(input){
+  const files=[...input.files];
+  if(!files.length||input.disabled)return;
+  const status=$('knowledgeUploadStatus');
+  input.disabled=true;
+  status.hidden=false;
+  status.textContent='上传中…';
+  const failed=[];
+  for(const file of files){
+    const form=new FormData();
+    form.append('file',file);
+    try{
+      const response=await fetch('/api/knowledge/upload',{method:'POST',body:form});
+      if(!response.ok)throw Error(response.status);
+      data.knowledge.unshift(await response.json());
+    }catch(error){failed.push(file.name);}
+  }
+  input.value='';
+  input.disabled=false;
+  $('knowledgeSearch').value='';
+  filterKnowledge('all');
+  status.textContent='已上传 '+(files.length-failed.length)+' 个文件'+(failed.length?'。上传失败：'+failed.join('、'):'。');
+}
+function openKnowledgeLink(){
+  modal(`<h3>添加链接</h3><form onsubmit="saveKnowledgeLink(event)">
+    <div class="field"><label for="knowledgeLinkUrl">网址</label><input id="knowledgeLinkUrl" type="url" required placeholder="https://"></div>
+    <div class="field"><label for="knowledgeLinkTitle">标题（可选）</label><input id="knowledgeLinkTitle"></div>
+    <p id="knowledgeLinkStatus" role="status"></p>
+    <div class="modal-actions"><button class="btn" type="button" onclick="closeModal()">取消</button><button class="btn primary" type="submit">保存链接</button></div>
+  </form>`);
+  $('knowledgeLinkUrl').focus();
+}
+async function saveKnowledgeLink(event){
+  event.preventDefault();
+  const button=event.currentTarget.querySelector('[type="submit"]');
+  const status=$('knowledgeLinkStatus');
+  const url=knowledgeHttpUrl($('knowledgeLinkUrl').value.trim());
+  if(!url){status.textContent='请输入有效的 HTTP 或 HTTPS 网址。';return;}
+  if(button.disabled)return;
+  button.disabled=true;
+  try{
+    const item=await api('/api/knowledge','POST',{
+      kind:'link',url:url.href,title:$('knowledgeLinkTitle').value.trim()||url.hostname
+    });
+    data.knowledge.unshift(item);
+    if(status.isConnected)closeModal();
+    $('knowledgeSearch').value='';
+    filterKnowledge('link');
+  }catch(error){
+    status.textContent='链接保存失败，请重试。';
+  }finally{button.disabled=false;}
+}
 function openKnowledgeDoc(existing){let x=existing||{};modal(`<h3>${existing?'编辑文档':'写文档'}</h3><div class="field"><label>标题</label><input id="mTitle" value="${esc(x.title||'')}"></div><div class="field"><label>主题</label><input id="mTopic" value="${esc(x.topic||'')}" placeholder="例如：竞品分析"></div><div class="field"><label>正文</label><textarea id="mContent" rows="12" placeholder="写下可复用的判断、纪要或分析…">${esc(x.content||'')}</textarea></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveKnowledgeDoc(${existing?`'${x.id}'`:'null'})">保存</button></div>`,true)}
 async function saveKnowledgeDoc(id){let title=$('mTitle').value.trim(),content=$('mContent').value.trim();if(!title&&!content)return;let body={kind:'document',title:title||'未命名文档',content,topic:$('mTopic').value.trim(),source:'知识库'};if(id)await api('/api/knowledge/'+id,'PUT',body);else await api('/api/knowledge','POST',body);closeModal();await load();showView('knowledge',document.querySelector('[data-view=knowledge]'))}
 function openKnowledgeItem(id){let x=data.knowledge.find(i=>i.id===id);if(!x)return;if((x.kind||'link')==='document'){modal(`<h3>${esc(x.title||'未命名文档')}</h3><div class="kb-meta">${esc(x.topic||'未分类')} · ${esc(x.date||x.created_at||'')}</div><pre class="kb-doc">${esc(x.content||'（空文档）')}</pre><div class="modal-actions"><button class="btn" onclick="closeModal()">关闭</button><button class="btn" onclick="openKnowledgeDoc(data.knowledge.find(i=>i.id==='${id}'))">编辑</button><button class="btn" onclick="removeKnowledge('${id}')">删除</button></div>`,true);return}if((x.kind||'link')==='file'&&x.stored_name)window.open('/api/knowledge/files/'+x.stored_name,'_blank');else if(x.url)window.open(x.url,'_blank')}
@@ -1477,13 +1674,80 @@ function notePlain(html){return String(html||'').replace(/<img[^>]*>/g,' [图片
 function noteThumb(html){let m=String(html||'').match(/<img[^>]*src="([^"]+)"/);return m?m[1]:''}
 function noteBodyHtml(content){let c=content||'';return /<[a-z][\s\S]*>/i.test(c)?`<div class="note-detail">${c}</div>`:`<pre class="kb-doc">${esc(c||'（空笔记）')}</pre>`}
 function noteHtml(x){let thumb=noteThumb(x.content),preview=notePlain(x.content);return `<div class="note-row" onclick="openNoteDetail('${x.id}')">${thumb?`<img class="note-thumb" src="${esc(thumb)}" alt="" onerror="this.outerHTML='<div class=&quot;inbox-icon&quot;>✦</div>'">`:`<div class="inbox-icon">✦</div>`}<div class="row-main"><div class="row-title">${esc(x.title||'未命名想法')}</div><div class="row-meta">${esc(preview||'（含图片）')}${x.topic?' · #'+esc(x.topic):''}${x.date||x.created_at?' · '+esc((x.date||x.created_at||'').slice(0,10)):''}</div></div><span class="note-del" onclick="event.stopPropagation();removeNote('${x.id}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span></div>`}
-function noteCardHtml(x){let thumb=noteThumb(x.content),preview=notePlain(x.content),title=esc(x.title||'未命名笔记'),topic=x.topic||'',date=x.date||(x.created_at||'').slice(0,10);return `<article class="kb-card ${thumb?'has-thumb':''}" tabindex="0" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();this.click()}" onclick="openNoteDetail('${x.id}')">${thumb?`<div class="kb-thumb"><img src="${esc(thumb)}" alt="${title}" loading="lazy" onerror="this.closest('.kb-thumb').outerHTML='<div class=&quot;kb-thumb kb-thumb-broken&quot;>🖼️</div>'"></div>`:''}<div class="kb-card-title">${title}</div><div class="kb-card-excerpt">${esc(preview||'（含图片）')}</div><div class="kb-card-foot"><span class="kb-card-icon">✦</span><span class="kb-card-kind">笔记</span>${topic?`<span class="kb-meta-dot">·</span><span class="kb-card-source">${esc(topic)}</span>`:''}${date?`<span class="kb-meta-dot">·</span><span class="kb-card-date">${esc(date)}</span>`:''}<button class="btn kb-del" onclick="event.stopPropagation();removeNote('${x.id}')">删除</button><button class="btn kb-sync" title="同步到 IMA" onclick="event.stopPropagation();syncToIma('note','${x.id}',this)">同步</button></div></article>`}
+function noteListText(content){
+  const raw=String(content||'');
+  if(!/<[a-z][\s\S]*>/i.test(raw))return raw.trim();
+  const preview=document.createElement('template');
+  preview.innerHTML=raw
+    .replace(/<img\b[^>]*>/gi,' [图片] ')
+    .replace(/<br\b[^>]*>|<\/(?:p|div|li|blockquote)>/gi,'\n');
+  return preview.content.textContent.replace(/\n{3,}/g,'\n\n').trim();
+}
+function noteListItemHtml(note){
+  const text=noteListText(note.content);
+  const title=(note.title||'').trim();
+  const id=esc(note.id);
+  const showTitle=title&&!text.startsWith(title);
+  return `<article class="note-feed-item">
+    <button class="note-feed-entry" type="button" data-id="${id}" onclick="openNoteDetail(this.dataset.id)">
+      ${showTitle?`<strong>${esc(title)}</strong>`:''}
+      ${text||!title?`<span class="note-feed-text">${esc(text||'空笔记')}</span>`:''}
+      ${note.topic?`<span class="note-feed-topic">#${esc(note.topic)}</span>`:''}
+    </button>
+    <div class="note-feed-actions">
+      <button class="btn" type="button" data-id="${id}" onclick="syncToIma('note',this.dataset.id,this)">同步</button>
+      <button class="btn" type="button" data-id="${id}" onclick="removeNote(this.dataset.id)">删除</button>
+    </div>
+  </article>`;
+}
 function renderNotes(){
   const items=workspaceSearch(data.notes,'noteSearch',item=>
-    [item.title,item.topic,notePlain(item.content)],'noteSearchCount');
-  $('noteList').innerHTML=items.length?items.map(noteCardHtml).join(''):empty(
-    $('noteSearch').value.trim()?'没有匹配的笔记。':'还没有笔记，点「写笔记」开始。');
+    [item.title,item.topic,noteListText(item.content)],'noteSearchCount');
+  const groups=new Map();
+  for(const item of items){
+    const date=String(item.date||item.created_at||'').slice(0,10);
+    if(!groups.has(date))groups.set(date,[]);
+    groups.get(date).push(item);
+  }
+  $('noteList').innerHTML=items.length?[...groups].sort(([a],[b])=>b.localeCompare(a)).map(([date,notes])=>
+    `<section class="note-feed-day"><h2>${esc(shortDate(date)||'日期未记录')}</h2>${notes.map(noteListItemHtml).join('')}</section>`).join(''):empty(
+    $('noteSearch').value.trim()?'没有匹配的笔记。':'还没有笔记。');
 }
+async function saveQuickNote(event){
+  event.preventDefault();
+  const input=$('noteQuickText');
+  const text=input.value.trim();
+  const button=$('noteQuickForm').querySelector('[type="submit"]');
+  if(!text||button.disabled)return;
+  const status=$('noteQuickStatus');
+  input.readOnly=true;
+  button.disabled=true;
+  status.textContent='保存中…';
+  try{
+    const note=await api('/api/notes','POST',{
+      title:text.split('\n')[0].trim().slice(0,40),
+      content:'<div>'+esc(text).replace(/\n/g,'<br>')+'</div>'
+    });
+    data.notes.unshift(note);
+    input.value='';
+    $('noteSearch').value='';
+    renderNotes();
+    status.textContent='已保存';
+  }catch(error){
+    status.textContent='保存失败，请重试';
+  }finally{
+    input.readOnly=false;
+    button.disabled=false;
+    input.focus();
+  }
+}
+$('noteQuickForm').addEventListener('submit',saveQuickNote);
+$('noteQuickText').addEventListener('keydown',event=>{
+  if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)&&!event.isComposing){
+    event.preventDefault();
+    $('noteQuickForm').requestSubmit();
+  }
+});
 function openNoteDetail(id){let x=data.notes.find(n=>n.id===id);if(!x)return;expandWrite(x)}
 async function removeNote(id){if(!confirm('确认删除这条笔记？'))return;await api('/api/notes/'+id,'DELETE');closeModal();await load()}
 async function syncToIma(kind,id,btn){if(!id)return;let label=kind==='note'?'这条笔记':'这个链接';if(!confirm(`确认把${label}同步到 IMA？`))return;if(btn){btn.textContent='同步中…';btn.disabled=true}try{let r=await api('/api/ima/sync','POST',{kind,id});if(r&&r.ok){if(btn){btn.textContent='已同步';btn.classList.add('synced')}else{alert('已同步到 IMA ✓')}}else{if(btn){btn.textContent='同步';btn.disabled=false}alert('同步失败：'+(r&&r.error||'未知错误'))}}catch(e){if(btn){btn.textContent='同步';btn.disabled=false}alert('同步失败：'+e)}}
