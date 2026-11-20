@@ -184,11 +184,10 @@
 :is(#notes, #knowledge) .kb-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
 :is(#notes, #knowledge) .kb-grid > .empty { grid-column: 1 / -1; }
 :is(#notes, #knowledge) .kb-card {
-  background: transparent;
-  border: 0;
-  border-top: 1px solid var(--line);
-  border-radius: 0;
-  padding: 12px 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
   gap: 7px;
   min-height: 125px;
 }
