@@ -1266,7 +1266,7 @@ _DOUBAN_HOT_CACHE_NAME = "douban_hot"
 # ---------------------------------------------------------------------------
 # 天气：代理 weatherapi.com，前端小时钟/天气小标题用，缓存 20 分钟避免频繁请求。
 # ---------------------------------------------------------------------------
-_WEATHER_API_KEY = "d92b0294d0ee41e587933457260603"
+_WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY", "").strip()
 _weather_cache = {"data": None, "ts": 0}
 _weather_lock = threading.Lock()
 
@@ -1280,12 +1280,12 @@ def get_weather():
         if cached and cached.get("city") == city and now_ts - _weather_cache.get("ts", 0) < 1200:
             return jsonify(cached)
     try:
-        import ssl as _ssl
+        if not _WEATHER_API_KEY:
+            raise RuntimeError("未配置 WEATHER_API_KEY")
         params = urllib.parse.urlencode({"q": city, "days": "1", "key": _WEATHER_API_KEY})
         url = f"https://api.weatherapi.com/v1/forecast.json?{params}"
         req = urllib.request.Request(url, headers={"Accept": "application/json"})
-        ctx = _ssl._create_unverified_context()
-        with urllib.request.urlopen(req, context=ctx, timeout=3) as resp:
+        with urllib.request.urlopen(req, timeout=3) as resp:
             payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
         result = {
             "city": city,
@@ -1652,6 +1652,54 @@ def _img_proxy_placeholder():
         "Cache-Control": "public, max-age=300",
     })
 
+# ---------------------------------------------------------------------------
+# SSRF 防护：代用户抓取任意 URL 的接口（书签标题/图标）只允许访问公网地址，
+# 禁止本机、内网、链路本地（含云厂商元数据服务 169.254.x.x）等，重定向时逐跳复查。
+# 需要抓取内网站点时（仅内网部署）可设置 ALLOW_PRIVATE_FETCH=1。
+# ---------------------------------------------------------------------------
+import ipaddress
+import socket
+
+
+def _is_public_host(host):
+    if os.environ.get("ALLOW_PRIVATE_FETCH", "").strip() == "1":
+        return True
+    if not host:
+        return False
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except Exception:
+        return False
+    if not infos:
+        return False
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0].split("%")[0])
+        except ValueError:
+            return False
+        if ip.version == 6 and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
+        if not ip.is_global or ip.is_multicast:
+            return False
+    return True
+
+
+class _PublicOnlyRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _is_public_host(urllib.parse.urlparse(newurl).hostname):
+            raise urllib.error.URLError("redirect to non-public host blocked")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_public_opener = urllib.request.build_opener(_PublicOnlyRedirect)
+
+
+def _open_public(req, timeout):
+    """等价于 urlopen，但目标（含重定向）必须是公网地址，否则抛 URLError。"""
+    if not _is_public_host(urllib.parse.urlparse(req.full_url).hostname):
+        raise urllib.error.URLError("host not allowed")
+    return _public_opener.open(req, timeout=timeout)
+
 @app.route("/api/media/img-proxy", methods=["GET"])
 def media_img_proxy():
     src = (request.args.get("url") or "").strip()
@@ -1728,7 +1776,7 @@ def _fetch_bookmark_icon(src, host):
             headers.update(overrides)
             break
     req = urllib.request.Request(src, headers=headers)
-    with urllib.request.urlopen(req, timeout=2.5) as resp:
+    with _open_public(req, timeout=2.5) as resp:
         content_type = resp.headers.get_content_type()
         if not content_type.startswith("image/") and content_type != "application/octet-stream":
             return None
@@ -1991,7 +2039,7 @@ def fetch_bookmark_meta():
             "Accept": "text/html,application/xhtml+xml",
             "Accept-Encoding": "identity",
         })
-        with urllib.request.urlopen(req, timeout=6) as resp:
+        with _open_public(req, timeout=6) as resp:
             raw = resp.read(300 * 1024)
             if resp.headers.get("Content-Encoding", "").lower() == "gzip":
                 import gzip as _gzip
@@ -2894,8 +2942,6 @@ def _weread_call(api_name, **params):
     body = {"api_name": api_name, "skill_version": _WEREAD_SKILL_VERSION}
     body.update(params)
     payload = json.dumps(body).encode("utf-8")
-    import ssl as _ssl
-    ctx = _ssl._create_unverified_context()
 
     last_err = None
     for attempt in range(_WEREAD_RETRY + 1):
@@ -2913,7 +2959,7 @@ def _weread_call(api_name, **params):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 raw = resp.read().decode("utf-8", errors="ignore")
                 ctype = (resp.headers.get("Content-Type") or "").lower()
         except urllib.error.HTTPError as e:

@@ -165,8 +165,10 @@ def _get(url, timeout=15, ua=None):
 
 def _get_via_curl(url, timeout=15, ua=None):
     """用系统 curl 抓取，解决 urllib 的 SSL/TLS 兼容问题。"""
+    if not str(url).lower().startswith(("http://", "https://")):
+        return ""
     cmd = ["curl", "-sL", "--max-time", str(timeout),
-           "-A", ua or _UA, "--compressed", url]
+           "-A", ua or _UA, "--compressed", "--", url]
     try:
         out = subprocess.run(cmd, capture_output=True, timeout=timeout + 5)
     except Exception:
