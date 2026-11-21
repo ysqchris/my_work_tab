@@ -198,7 +198,15 @@ def make_crud(resource):
                     changed = True
         if changed:
             with _lock_for(R):
+                if R == "creators":
+                    # 同步可能已更新关注快照，只补全当前记录的缺失 ID。
+                    data = db.db_read_json(R, {"items": []})
+                    for it in data["items"]:
+                        if not it.get("id"):
+                            it["id"] = uuid.uuid5(uuid.NAMESPACE_URL, str(it.get("url") or it.get("title") or uuid.uuid4().hex)).hex[:12]
                 write_json(R, data)
+        if R == "creators":
+            return jsonify({**data, "items": _active_creators(data)})
         return jsonify(data)
 
     @app.route(f"/api/{R}", endpoint=f"create_{R}", methods=["POST"])
@@ -216,7 +224,14 @@ def make_crud(resource):
                 "link"
             )
         with _lock_for(R):
-            data = read_json(R, {"items": []})
+            data = (db.db_read_json if R == "creators" else read_json)(R, {"items": []})
+            if R == "creators" and item.get("platform") == "bilibili":
+                mid = _bili_creator_mid(item)
+                if mid not in _bili_follow_ids(data):
+                    return jsonify({"error": "请先在 B 站关注该博主，再点击「同步 B 站关注」。"}), 409
+                existing = next((it for it in data["items"] if _bili_creator_mid(it) == mid), None)
+                if existing:
+                    return jsonify(existing)
             data["items"].insert(0, item)
             data["updated_at"] = _now()
             write_json(R, data)
@@ -238,7 +253,7 @@ def make_crud(resource):
     def update_item(item_id):
         body = request.get_json(force=True, silent=True) or {}
         with _lock_for(R):
-            data = read_json(R, {"items": []})
+            data = (db.db_read_json if R == "creators" else read_json)(R, {"items": []})
             for i, it in enumerate(data["items"]):
                 if str(it.get("id")) == str(item_id):
                     it = {**it, **body}
@@ -255,7 +270,7 @@ def make_crud(resource):
     @app.route(f"/api/{R}/<item_id>", endpoint=f"delete_{R}", methods=["DELETE"])
     def delete_item(item_id):
         with _lock_for(R):
-            data = read_json(R, {"items": []})
+            data = (db.db_read_json if R == "creators" else read_json)(R, {"items": []})
             removed = [it for it in data["items"] if str(it.get("id")) == str(item_id)]
             if not removed:
                 return jsonify({"error": "not found"}), 404
@@ -508,7 +523,7 @@ def _bili_note_cookie_expired(code, message):
     if _bili_fail_reminded:
         return
     _bili_fail_reminded = True
-    print(f"[bili] Cookie 已失效，视频订阅暂停，请更新 SESSDATA（code={code} message={message}）", flush=True)
+    print(f"[bili] 请求受限或登录已失效（code={code} message={message}）", flush=True)
 
 
 def _bili_get_json(url, referer="https://www.bilibili.com/", timeout=8):
@@ -616,6 +631,28 @@ def _bili_followings():
 _bili_follow_sync_lock = threading.Lock()
 
 
+def _bili_follow_ids(doc):
+    return set(doc.get("bili_follow_ids") or ())
+
+
+def _bili_creator_mid(creator):
+    if creator.get("platform") != "bilibili":
+        return None
+    mid = creator.get("external_id")
+    if mid:
+        return str(mid)
+    match = _BILI_SPACE_RE.search(creator.get("url") or "")
+    return match.group(1) if match else None
+
+
+def _active_creators(doc):
+    following = _bili_follow_ids(doc)
+    return [
+        creator for creator in doc.get("items", [])
+        if creator.get("platform") != "bilibili" or _bili_creator_mid(creator) in following
+    ]
+
+
 @app.route("/api/creators/sync-bilibili", methods=["POST"])
 def sync_bilibili_creators():
     if not _BILI_COOKIE:
@@ -632,15 +669,9 @@ def sync_bilibili_creators():
         with _lock_for("creators"):
             doc = db.db_read_json("creators", {"items": []})
             creators = doc.get("items", [])
-            retained = [
-                creator for creator in creators
-                if creator.get("bili_follow_account") != account
-                or str(creator.get("external_id")) in following
-            ]
-            known = {
-                str(creator.get("external_id")) for creator in retained
-                if creator.get("platform") == "bilibili"
-            }
+            known = {mid for creator in creators if (mid := _bili_creator_mid(creator))}
+            previous = known & _bili_follow_ids(doc) if "bili_follow_ids" in doc else known
+            follow_ids = set(following)
             now = _now()
             added = [
                 {
@@ -655,10 +686,13 @@ def sync_bilibili_creators():
                 }
                 for external_id, profile in following.items() if external_id not in known
             ]
-            removed = len(creators) - len(retained)
-            if added or removed:
-                write_json("creators", {**doc, "items": added + retained, "updated_at": now})
-        return jsonify({"total": len(following), "added": len(added), "removed": removed})
+            if added or "bili_follow_ids" not in doc or follow_ids != _bili_follow_ids(doc):
+                write_json("creators", {
+                    **doc, "items": added + creators, "bili_follow_ids": sorted(follow_ids), "updated_at": now,
+                })
+        return jsonify({
+            "total": len(follow_ids), "added": len(follow_ids - previous), "removed": len(previous - follow_ids),
+        })
     finally:
         _bili_follow_sync_lock.release()
 
@@ -675,6 +709,9 @@ def _bili_user_videos(mid, limit=12, max_items=None):
     pn = 1
     seen = set()
     while len(out) < target:
+        # 后台队列或全量回填可能跨越一次同步，每次发请求前检查最新名单。
+        if str(mid) not in _bili_follow_ids(db.db_read_json("creators", {})):
+            break
         params = _bili_wbi_sign({"mid": mid, "pn": pn, "ps": per_page, "order": "pubdate"})
         url = "https://api.bilibili.com/x/space/wbi/arc/search?" + urllib.parse.urlencode(params)
         payload = _bili_get_json(url, referer=f"https://space.bilibili.com/{mid}/")
@@ -831,6 +868,10 @@ _creator_video_cache_lock = threading.Lock()
 _CREATOR_VIDEO_TTL = 20 * 60
 _CREATOR_VIDEO_STORE = "creator_videos"
 _creator_video_store_lock = threading.Lock()
+_bili_feed_lock = threading.Lock()
+_bili_feed_checked_at = None
+_bili_feed_error = None
+_bili_feed_scope = None
 
 
 def _load_creator_video_store():
@@ -845,6 +886,92 @@ def _load_creator_video_store():
 
 def _save_creator_video_store(data):
     write_json(_CREATOR_VIDEO_STORE, data)
+
+
+def _read_bili_video_feed(following):
+    """从已登录账号的关注动态批量读取最近投稿，只保留同步名单中的 UID。"""
+    videos = {}
+    offset = ""
+    cutoff = time.time() - 7 * 86400
+    for _ in range(12):
+        params = {"type": "video"}
+        if offset:
+            params["offset"] = offset
+        payload = _bili_get_json(
+            "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/all?" + urllib.parse.urlencode(params),
+            referer="https://t.bilibili.com/",
+            timeout=5,
+        )
+        if payload.get("code") != 0 or not isinstance(payload.get("data"), dict):
+            raise RuntimeError("B 站关注动态暂时不可用。")
+        page = payload["data"]
+        stamps = []
+        for item in page.get("items") or []:
+            if item.get("type") != "DYNAMIC_TYPE_AV":
+                continue
+            modules = item.get("modules") or {}
+            author = modules.get("module_author") or {}
+            mid = str(author.get("mid") or "")
+            archive = ((modules.get("module_dynamic") or {}).get("major") or {}).get("archive") or {}
+            bvid = archive.get("bvid")
+            try:
+                published = int(author.get("pub_ts") or 0)
+            except (ValueError, TypeError):
+                continue
+            if published:
+                stamps.append(published)
+            if mid not in following or not bvid or published < cutoff:
+                continue
+            videos[bvid] = (mid, {
+                "title": archive.get("title") or "",
+                "cover": (archive.get("cover") or "").replace("http://", "https://"),
+                "url": f"https://www.bilibili.com/video/{bvid}",
+                "published_at": published,
+                "stat": (archive.get("stat") or {}).get("play") or "",
+            })
+        next_offset = page.get("offset")
+        if (not page.get("has_more") or not next_offset or next_offset == offset
+                or (stamps and max(stamps) < cutoff)):
+            break
+        offset = next_offset
+    return videos.values()
+
+
+def _refresh_bili_video_feed(following, force):
+    global _bili_feed_checked_at, _bili_feed_error, _bili_feed_scope
+    with _bili_feed_lock:
+        ttl = 90 if _bili_feed_error else 300
+        if (not force and following == _bili_feed_scope and _bili_feed_checked_at is not None
+                and time.monotonic() - _bili_feed_checked_at < ttl):
+            return _bili_feed_error
+        try:
+            videos = _read_bili_video_feed(following)
+            with _lock_for("creators"):
+                doc = db.db_read_json("creators", {"items": []})
+                creators = {}
+                for creator in _active_creators(doc):
+                    mid = _bili_creator_mid(creator)
+                    if mid and creator.get("id"):
+                        creators.setdefault(mid, creator)
+                with _creator_video_store_lock:
+                    existing = {v.get("url") for v in _load_creator_video_store()["items"]}
+                    batch = []
+                    for mid, video in videos:
+                        creator = creators.get(mid)
+                        if creator and video["url"] not in existing:
+                            batch.append({
+                                **video, "creator_id": creator["id"], "creator_name": creator.get("name"),
+                                "creator_avatar": creator.get("avatar"), "platform": "bilibili",
+                            })
+                    if batch:
+                        write_json(_CREATOR_VIDEO_STORE, {"items": batch})
+            _bili_feed_error = None
+        except Exception as error:
+            print(f"[bili] 更新关注动态失败：{error}", flush=True)
+            _bili_feed_error = "B 站动态暂时拉取失败，仍显示已保存的投稿。"
+        _bili_feed_checked_at = time.monotonic()
+        _bili_feed_scope = following
+        return _bili_feed_error
 
 
 def _merge_videos_into_store(store, new_videos, creator):
@@ -876,7 +1003,7 @@ def _merge_videos_into_store(store, new_videos, creator):
 
 def _fetch_creator_videos(creator):
     platform = creator.get("platform")
-    external_id = creator.get("external_id")
+    external_id = _bili_creator_mid(creator) if platform == "bilibili" else creator.get("external_id")
     if not external_id:
         return []
     if platform == "bilibili":
@@ -892,7 +1019,7 @@ def _backfill_creator_history(creator, max_items=200):
     返回回填条数。
     """
     platform = creator.get("platform")
-    external_id = creator.get("external_id")
+    external_id = _bili_creator_mid(creator) if platform == "bilibili" else creator.get("external_id")
     if not external_id:
         return 0
     try:
@@ -934,11 +1061,33 @@ def _get_creator_videos_cached(creator, force=False):
     return videos, err
 
 
+def _refresh_creator_video_sources(creators, force=False):
+    following = {mid for creator in creators if (mid := _bili_creator_mid(creator))}
+    errors = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+        requests = {
+            pool.submit(_get_creator_videos_cached, creator, force): creator.get("id")
+            for creator in creators if creator.get("platform") != "bilibili"
+        }
+        bili_request = pool.submit(_refresh_bili_video_feed, following, force) if following else None
+        for future in concurrent.futures.as_completed(requests):
+            try:
+                _, error = future.result()
+            except Exception as exc:
+                error = str(exc)
+            if error:
+                errors[requests[future]] = error
+        if bili_request and (error := bili_request.result()):
+            errors["bilibili"] = error
+    return errors
+
+
 @app.route("/api/creators/videos", methods=["GET"])
 def get_creator_videos():
     """聚合所有关注博主的最新投稿。
     落盘存储历史视频，每次刷新增量追加新视频（按 url 去重），历史不丢。
-    返回：已落盘的全部视频按发布时间倒序（可搜历史），limit 列数截断。
+    返回：活跃订阅的 B 站视频及其他平台视频，按发布时间倒序。
+    指定博主 ID 时仍可查询其已保存的视频历史。
     refresh=1 强制重新抓取（拉取上次与本次之间的增量）。
     非 refresh 请求直接读落盘 store 秒回，过期博主的抓取放到后台异步进行，不阻塞页面。
     """
@@ -953,42 +1102,46 @@ def get_creator_videos():
         days = max(0, min(int(request.args.get("days", 7)), 365))
     except ValueError:
         days = 7
-    creators = read_json("creators", {"items": []}).get("items", [])
-    errors = {}
-    if force:
-        # 用户主动刷新：同步抓取（愿意等待），拿到本次错误。
-        if creators:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
-                futs = {pool.submit(_get_creator_videos_cached, c, True): c for c in creators}
-                for fut in concurrent.futures.as_completed(futs):
-                    c = futs[fut]
-                    try:
-                        _, err = fut.result()
-                    except Exception as e:
-                        err = str(e)
-                    if err:
-                        errors[c.get("id")] = err
-    else:
+    creators = _active_creators(read_json("creators", {"items": []}))
+    errors = _refresh_creator_video_sources(creators, force=True) if force and creators else {}
+    if not force and request.args.get("poll") != "1":
         # 常规打开：秒回落盘 store，过期博主放到后台异步刷新。
         _refresh_creator_videos_async(creators)
     # 从落盘视频库读取全量（历史 + 本次增量），按时间倒序截断。
     with _creator_video_store_lock:
         store = _load_creator_video_store()
     items = sorted(store.get("items", []), key=lambda x: x.get("published_at") or 0, reverse=True)
+    active_ids = {str(creator["id"]) for creator in creators if creator.get("id")}
+    creator_latest = {}
+    for item in items:
+        key = str(item.get("creator_id"))
+        if key in active_ids and item.get("published_at"):
+            creator_latest.setdefault(key, item["published_at"])
     # 选中单个博主时，返回该博主全部视频（不受时间窗口与全局 limit 影响），
     # 否则历史视频会被时间倒序的全局截断挤出窗口。
     if creator_id:
         items = [it for it in items if str(it.get("creator_id")) == str(creator_id)]
         limit = len(items) or 1
-    elif days:
-        # 以本地日历天为界：保留最近 days 天（含今天）内发布的视频。
-        today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        since = int((today - datetime.timedelta(days=days - 1)).timestamp())
-        items = [it for it in items if (it.get("published_at") or 0) >= since]
+    else:
+        active_bili_ids = {
+            str(creator["id"]) for creator in creators
+            if creator.get("platform") == "bilibili" and creator.get("id")
+        }
+        items = [
+            it for it in items
+            if it.get("platform") != "bilibili" or str(it.get("creator_id")) in active_bili_ids
+        ]
+        if days:
+            today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            since = int((today - datetime.timedelta(days=days - 1)).timestamp())
+            items = [it for it in items if (it.get("published_at") or 0) >= since]
     return jsonify({
         "items": items[:limit],
         "errors": errors,
-        "updated_at": store.get("updated_at") or _now(),
+        "creator_latest": creator_latest,
+        "refreshing": _creator_video_refresh_flag,
+        "bilibili_error": _bili_feed_error if any(c.get("platform") == "bilibili" for c in creators) else None,
+        "updated_at": store.get("updated_at"),
     })
 
 
@@ -1011,13 +1164,7 @@ def _refresh_creator_videos_async(creators):
     def _worker():
         global _creator_video_refresh_flag
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
-                futs = [pool.submit(_get_creator_videos_cached, c, False) for c in creators]
-                for fut in concurrent.futures.as_completed(futs):
-                    try:
-                        fut.result()
-                    except Exception:
-                        pass
+            _refresh_creator_video_sources(creators)
         finally:
             with _creator_video_refresh_lock:
                 _creator_video_refresh_flag = False
@@ -1037,7 +1184,7 @@ def backfill_creator_history():
         max_items = max(1, min(int(body.get("max_items", 200)), 500))
     except (TypeError, ValueError):
         max_items = 200
-    creators = read_json("creators", {"items": []}).get("items", [])
+    creators = _active_creators(read_json("creators", {"items": []}))
     targets = [c for c in creators if not cid or str(c.get("id")) == str(cid)]
     if not targets:
         return jsonify({"error": "no matching creator"}), 404
@@ -2403,21 +2550,16 @@ def _media_hot_ids():
 
 
 def _creator_video_ids():
-    """所有关注博主的视频 url 汇总（用缓存的聚合结果，避免重复抓取）。
-    视频唯一标识用 url（B站 bvid / YouTube watch id）。
-    """
-    creators = read_json("creators", {"items": []}).get("items", [])
-    ids = []
-    for c in creators:
-        try:
-            videos, _err = _get_creator_videos_cached(c, force=False)
-        except Exception:
-            videos = []
-        for v in videos or []:
-            u = v.get("url") or ""
-            if u:
-                ids.append(u)
-    return ids
+    """从已保存的近七天投稿计算未读，避免打开其他页面触发网络抓取。"""
+    creators = _active_creators(read_json("creators", {"items": []}))
+    active_ids = {str(c["id"]) for c in creators if c.get("id")}
+    today = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    since = int((today - datetime.timedelta(days=6)).timestamp())
+    return [
+        video["url"] for video in _load_creator_video_store()["items"]
+        if str(video.get("creator_id")) in active_ids
+        and (video.get("published_at") or 0) >= since and video.get("url")
+    ]
 
 
 @app.route("/api/unread", methods=["GET"])
