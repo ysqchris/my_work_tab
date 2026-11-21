@@ -576,7 +576,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     width: 100%;
   }
 }
-</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=2"><link rel="stylesheet" href="/static/workbench-views.css?v=16"><link rel="stylesheet" href="/static/ai-news.css?v=2"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
+</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=2"><link rel="stylesheet" href="/static/workbench-views.css?v=16"><link rel="stylesheet" href="/static/ai-news.css?v=7"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
 <section id="home" class="view">
 <section class="followup" aria-labelledby="followupTitle">
 <header class="followup-heading"><h2 id="followupTitle">工作跟进</h2></header>
@@ -641,29 +641,18 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 <section id="news" class="view">
 <div class="ai-news" id="pulseSection">
 <header class="ai-news-head">
-<div><h1>AI 今日简报</h1></div>
+<h1>AI 简报</h1>
 <span id="pulseUpdated" aria-live="polite"></span>
 </header>
 <div class="ai-news-toolbar">
-<div class="pulse-mode" aria-label="阅读版本">
-<button type="button" class="active" aria-pressed="true" data-mode="daily" onclick="setAiPulseMode('daily')">今日简报</button>
+<nav class="ai-news-navigation" aria-label="简报栏目">
+<button type="button" class="active" aria-pressed="true" data-mode="daily" onclick="setAiPulseMode('daily')">今日</button>
+<button type="button" aria-pressed="false" data-mode="models" onclick="setAiPulseMode('models')">模型更新</button>
 <button type="button" aria-pressed="false" data-mode="weekly" onclick="setAiPulseMode('weekly')">周报</button>
-</div>
-<div class="ai-news-tools">
-<label class="ai-news-search" id="newsSearchWrap"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="newsSearch" type="search" placeholder="搜索资讯" aria-label="搜索资讯" oninput="setNewsReadingQuery(this.value)"></label>
-<button type="button" class="btn ghost" id="pulseRefreshBtn" onclick="refreshPulseNews()">刷新资讯</button>
-</div>
-</div>
-<div class="ai-news-controls" id="newsControls">
-<nav id="newsSectionNav" aria-label="资讯类型">
-<button type="button" aria-pressed="true" data-section="all" onclick="setNewsReadingSection(this.dataset.section)">全部动态</button>
-<button type="button" aria-pressed="false" data-section="models" onclick="setNewsReadingSection(this.dataset.section)">模型更新</button>
-<button type="button" aria-pressed="false" data-section="collaboration" onclick="setNewsReadingSection(this.dataset.section)">Agent 与协作</button>
-<button type="button" aria-pressed="false" data-section="api" onclick="setNewsReadingSection(this.dataset.section)">API 与工具</button>
 </nav>
-<div class="ai-news-selects">
-<select aria-label="地区" onchange="newsRegion=this.value;newsLimit=10;renderNewsFilters();renderNewsReadingEdition()"><option value="">国内外</option><option value="domestic">国内</option><option value="overseas">海外</option></select>
-<select aria-label="平台" id="newsPlatform" onchange="newsPlatform=this.value;newsLimit=10;renderNewsReadingEdition()"><option value="">全部平台</option></select>
+<div class="ai-news-toolbar-actions">
+<a class="ai-news-external" href="https://aihot.news/" target="_blank" rel="noopener noreferrer">AI HOT <span aria-hidden="true">↗</span></a>
+<button type="button" class="btn ghost" id="pulseRefreshBtn" onclick="refreshPulseNews()">刷新资讯</button>
 </div>
 </div>
 <p id="newsStatus" class="ai-news-status" role="status" hidden></p>
@@ -1104,11 +1093,12 @@ function closeBriefReader(){$('briefReader').close()}
 $('briefReader').addEventListener('click',e=>{if(e.target!==e.currentTarget)return;let r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeBriefReader()});
 function renderHomeGreeting(){let n=new Date(),h=n.getHours();let greet=h<6?'夜深了':h<12?'早上好':h<14?'中午好':h<18?'下午好':h<22?'晚上好':'夜深了';let hh=String(n.getHours()).padStart(2,'0'),mm=String(n.getMinutes()).padStart(2,'0');let g=$('homeGreeting');if(g)g.textContent=`${greet}，${n.getFullYear()}年${n.getMonth()+1}月${n.getDate()}日 · ${WEEKDAYS[n.getDay()]} ${hh}:${mm}`}
 let aiPulseMode = 'daily';
-let newsItems = [], newsEdition = {}, newsReady = false;
-let newsReadingQuery = '', newsReadingSection = 'all', newsRegion = '', newsPlatform = '', newsLimit = 10;
+let newsItems = [], newsEdition = {}, newsReady = false, newsLimit = 10;
 let newsRequest = 0, newsPollTimer = 0;
-const newsTags = {models:'模型', agents:'Agent', api:'API'};
-const newsCategories = {'ai-products':'产品','ai-models':'模型','industry':'行业','paper':'论文','tip':'教程','opinion':'观点'};
+let newsModelFrame = 0;
+const newsOpenProducts = new Set();
+const newsSentence = typeof Intl.Segmenter === 'function' ?
+  new Intl.Segmenter('zh', {granularity:'sentence'}) : null;
 
 function newsKey(it) { return String(it.key || it.url || it.id || it.title); }
 function newsHref(url) { return /^https?:\/\//i.test(url || '') ? esc(url) : ''; }
@@ -1118,7 +1108,7 @@ function newsLink(url, label) {
 }
 function newsRank(a, b) {
   return Number(!!b.collaboration) - Number(!!a.collaboration)
-    || Number(b.tags.includes('models')) - Number(a.tags.includes('models'))
+    || Number(!!b.agent_product) - Number(!!a.agent_product)
     || (b.priority || 0) - (a.priority || 0)
     || (b.date || '').localeCompare(a.date || '')
     || (b.score || 0) - (a.score || 0);
@@ -1129,123 +1119,220 @@ function newsDaysAgo(days) {
 function newsRecent(item, days) {
   return item.date && item.date.length === 10 && item.date >= newsDaysAgo(days);
 }
-function newsCard(it, variant = '') {
+function newsCard(it, variant = '', heading = 'h2') {
+  const grouped = variant === 'ai-news-product-update';
   const title = it.title || '未命名资讯';
-  const desc = it.desc || it.desc_en || '';
-  const labels = [it.platform || it.source, it.region === 'domestic' ? '国内' : it.region === 'overseas' ? '海外' : '',
-    it.collaboration_kind || '', it.reading_type, ...it.tags.map(tag => newsTags[tag]),
-    (it.kind === 'github' || it.tags.length) ? '' : newsCategories[it.category], it.date].filter(Boolean);
+  const desc = (it.desc || it.desc_en || '').trim();
+  const firstSentence = newsSentence ? newsSentence.segment(desc)[Symbol.iterator]().next().value?.segment : '';
+  const source = grouped ? '' : it.platform || it.agent_product || it.source;
+  const tags = grouped ? [] : (it.display_tags || []).slice(0, 2);
+  const byline = [source,it.date].filter(Boolean).join(' · ');
   const sources = (it.sources || []).filter(source => newsHref(source.url));
   const sourceList = sources.length > 1 ? `<details class="ai-news-sources"><summary>${sources.length} 个来源</summary>
       <div>${sources.map(source => newsLink(source.url, source.label)).join('')}</div></details>` : '';
-  const encodedKey = encodeURIComponent(newsKey(it)).replace(/'/g, '%27');
+  const encodedKeys = encodeURIComponent(JSON.stringify(it.dismissKeys || [newsKey(it)])).replace(/'/g, '%27');
   return `<article class="ai-news-story ${variant}">
-    <div class="ai-news-meta">${[...new Set(labels)].map(label => `<span>${esc(label)}</span>`).join('')}</div>
-    <h3>${newsLink(it.url, title)}</h3>
-    ${desc ? `<p>${esc(desc)}</p>` : ''}
-    ${variant !== 'ai-news-repo' ? `<div class="ai-news-actions">${sourceList}
-      <button type="button" class="ai-news-skip" onclick="dismissPulseItem(decodeURIComponent('${encodedKey}'), this)">略过</button></div>` :
-      `<div class="ai-news-repo-meta">${it.lang ? esc(it.lang) : ''}${it.stars_today != null ? ` <span>+${Number(it.stars_today).toLocaleString()} Star</span>` : ''}</div>`}
+    ${tags.length || byline ? `<div class="ai-news-kicker">
+      ${tags.map(tag => `<span class="ai-news-tag${tag === '新收录' || tag === '协作' ? ' ai-news-tag-cue' : ''}">${esc(tag)}</span>`).join('')}
+      ${byline ? `<span class="ai-news-byline">${esc(byline)}</span>` : ''}
+    </div>` : ''}
+    <${heading}>${newsLink(it.url, title)}</${heading}>
+    ${desc ? `<p>${esc(variant === 'ai-news-model-entry' ? desc : firstSentence?.trim() || desc)}</p>` : ''}
+    <div class="ai-news-actions">${sourceList}
+      <button type="button" class="ai-news-skip" onclick="dismissPulseItem(JSON.parse(decodeURIComponent('${encodedKeys}')), this)">略过</button>
+    </div>
   </article>`;
 }
-function newsSection(title, content, extra = '') {
-  return `<section class="ai-news-panel"><header class="ai-news-panel-head"><h2>${title}</h2>${extra}</header>${content}</section>`;
+function queueModelOutline() {
+  if (newsModelFrame || aiPulseMode !== 'models' || !$('news').classList.contains('active')) return;
+  newsModelFrame = requestAnimationFrame(() => {
+    newsModelFrame = 0;
+    const nav = $('newsModelOutline');
+    if (!nav || aiPulseMode !== 'models' || !$('news').classList.contains('active')) return;
+    const sections = $('newsModelHistory').children;
+    const offset = parseFloat(getComputedStyle(sections[0]).scrollMarginTop) + 2;
+    const bottom = window.scrollY > 0 && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+    let index = 0;
+    if (bottom) {
+      index = sections.length - 1;
+    } else {
+      while (index + 1 < sections.length && sections[index + 1].getBoundingClientRect().top <= offset) index++;
+    }
+    const link = nav.children[index];
+    if (link.getAttribute('aria-current') === 'location') return;
+    nav.querySelector('[aria-current]')?.removeAttribute('aria-current');
+    link.setAttribute('aria-current','location');
+    const rect = link.getBoundingClientRect();
+    const viewport = nav.getBoundingClientRect();
+    if (rect.bottom > viewport.bottom) nav.scrollTop += rect.bottom - viewport.bottom + 6;
+    if (rect.top < viewport.top) nav.scrollTop -= viewport.top - rect.top + 6;
+    if (rect.right > viewport.right) nav.scrollLeft += rect.right - viewport.right + 6;
+    if (rect.left < viewport.left) nav.scrollLeft -= viewport.left - rect.left + 6;
+  });
 }
-function setNewsReadingQuery(value) {
-  newsReadingQuery = value.trim().toLowerCase();
-  newsLimit = 10;
-  renderNewsReadingEdition();
-}
-function setNewsReadingSection(key) {
-  newsReadingSection = key;
-  newsLimit = 10;
-  renderNewsFilters();
-  renderNewsReadingEdition();
-}
-function matchesNewsSection(item) {
-  if (newsReadingSection === 'all') return true;
-  if (newsReadingSection === 'collaboration') return !!item.collaboration;
-  return item.tags.includes(newsReadingSection);
-}
-function renderNewsFilters() {
-  const nav = $('newsSectionNav');
-  for (const button of nav.querySelectorAll('button')) {
-    button.setAttribute('aria-pressed', String(button.dataset.section === newsReadingSection));
+window.addEventListener('scroll', queueModelOutline, {passive:true});
+window.addEventListener('resize', queueModelOutline);
+
+function renderModelUpdates(wrap) {
+  const items = newsItems.filter(it => it.model_product).sort((a,b) => (b.date || '').localeCompare(a.date || '') || newsRank(a,b));
+  const groups = new Map();
+  for (const item of items) {
+    const name = item.model_product;
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(item);
   }
-  const platforms = [...new Set(newsItems.filter(it => matchesNewsSection(it) && it.platform && (!newsRegion || it.region === newsRegion))
-    .map(it => it.platform))].sort((a,b) => a.localeCompare(b,'zh'));
-  if (!platforms.includes(newsPlatform)) newsPlatform = '';
-  $('newsPlatform').innerHTML = '<option value="">全部平台</option>' + platforms.map(name =>
-    `<option value="${esc(name)}">${esc(name)}</option>`).join('');
-  $('newsPlatform').value = newsPlatform;
+  const active = document.activeElement;
+  const focusName = wrap.contains(active) ? active.dataset.modelProduct : '';
+  const catalog = [...groups].map(([name, updates]) => ({name, updates, id:'news-model-' + encodeURIComponent(name)}));
+  const products = catalog.map(({name,updates,id}) => `<a class="ai-news-model-option"
+    data-model-product="${esc(name)}" href="#${encodeURIComponent(id)}">
+    <span><strong>${esc(name)}</strong><small>${esc(updates[0].date || '')}</small></span>
+    <small>${updates.length} 条</small>
+  </a>`).join('');
+  const history = catalog.map(({name,updates,id}) => `<section class="ai-news-panel ai-news-model-group" id="${esc(id)}" tabindex="-1"
+    aria-labelledby="${esc(id)}-heading">
+    <header class="ai-news-panel-head"><h3 id="${esc(id)}-heading">${esc(name)}</h3><span>${updates.length} 条更新</span></header>
+    ${updates.map(it => newsCard(it,'ai-news-model-entry','h4')).join('')}
+  </section>`).join('');
+  wrap.innerHTML = `<section class="ai-news-models">
+    <header class="ai-news-model-heading"><h2>模型更新</h2><span>${groups.size} 个分组 · ${items.length} 条更新</span></header>
+    ${history ? `<div class="ai-news-model-layout">
+      <nav class="ai-news-model-list" id="newsModelOutline" aria-label="模型产品目录">${products}</nav>
+      <div id="newsModelHistory">${history}</div>
+    </div>` : '<p class="ai-news-empty">暂无模型更新。</p>'}
+  </section>`;
+  for (const link of wrap.querySelectorAll('[data-model-product]')) {
+    link.onclick = event => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const target = $(decodeURIComponent(link.hash.slice(1)));
+      if (!target) return;
+      event.preventDefault();
+      target.scrollIntoView({block:'start'});
+      target.focus({preventScroll:true});
+      queueModelOutline();
+    };
+    if (link.dataset.modelProduct === focusName) link.focus({preventScroll:true});
+  }
+  queueModelOutline();
 }
-function domesticProductUpdate(it) {
-  return it.region === 'domestic' && !it.tags.includes('models')
-    && (it.tags.includes('agents') || it.category === 'ai-products');
+function compareProductUpdates(a,b) {
+  return Number(newsRecent(b,1)) - Number(newsRecent(a,1))
+    || (b.product_relevance || 0) - (a.product_relevance || 0)
+    || (b.date || '').localeCompare(a.date || '')
+    || (b.desc || b.desc_en || '').length - (a.desc || a.desc_en || '').length
+    || newsRank(a,b);
 }
-function newsMatches(it) {
-  return matchesNewsSection(it)
-    && (!newsRegion || it.region === newsRegion)
-    && (!newsPlatform || it.platform === newsPlatform)
-    && (!newsReadingQuery || [it.title,it.title_en,it.desc,it.desc_en,it.source,it.platform,it.lang,
-      ...it.tags.map(tag=>newsTags[tag]), ...(it.sources||[]).map(source=>source.label)].join(' ').toLowerCase().includes(newsReadingQuery));
+
+function groupProductUpdates(feed) {
+  const products = new Map();
+  const entries = [];
+  for (const item of feed) {
+    const product = item.agent_product;
+    if (item.product_relevance < 0) continue;
+    if (!product || !item.display_tags?.includes('产品更新')) {
+      entries.push({item, date:item.date || ''});
+      continue;
+    }
+    if (!products.has(product)) products.set(product, []);
+    products.get(product).push(item);
+  }
+  for (const [product, items] of products) {
+    const topics = new Map();
+    for (const item of items.sort(compareProductUpdates)) {
+      // A repeated feature must also have the same publication day to merge.
+      const topic = item.product_topic && item.date?.length === 10 ?
+        `topic:${item.date}:${item.product_topic}` : `item:${newsKey(item)}`;
+      const existing = topics.get(topic);
+      const sources = item.sources?.length ? item.sources : [{url:item.url,label:item.source || '原文'}];
+      if (existing) {
+        existing.dismissKeys.push(newsKey(item));
+        const sourceUrls = new Set(existing.sources.map(source => source.url));
+        existing.sources.push(...sources.filter(source => source.url && !sourceUrls.has(source.url)));
+      } else {
+        topics.set(topic, {...item, sources:[...sources], dismissKeys:[newsKey(item)]});
+      }
+    }
+    const updates = [...topics.values()];
+    entries.push({product, updates, item:updates[0], date:items.map(it => it.date || '').sort().pop()});
+  }
+  return entries;
+}
+
+function productNewsHtml(entry) {
+  const {product, updates, date} = entry;
+  const cue = updates.some(it => it.agent_discovered) ? '新收录' :
+    updates.some(it => it.collaboration) ? '协作' : '';
+  const others = updates.length - 2;
+  const renderUpdate = it => newsCard({...it, date:it.date === date ? '' : it.date},'ai-news-product-update','h3');
+  return `<section class="ai-news-product-group" aria-label="${esc(product)}动态">
+    <header class="ai-news-product-head">
+      <h2>${esc(product)}</h2>
+      <span class="ai-news-tag">产品更新</span>
+      ${cue ? `<span class="ai-news-tag ai-news-tag-cue">${esc(cue)}</span>` : ''}
+      <span class="ai-news-byline">${esc([date,updates.length + ' 项'].filter(Boolean).join(' · '))}</span>
+    </header>
+    <div class="ai-news-product-items">${updates.slice(0,2).map(renderUpdate).join('')}
+      ${others > 0 ? `<details class="ai-news-product-more" data-product="${esc(product)}" ${newsOpenProducts.has(product) ? 'open' : ''}>
+        <summary>其余 ${others} 项更新</summary>${updates.slice(2).map(renderUpdate).join('')}</details>` : ''}
+    </div>
+  </section>`;
 }
 function renderNewsReadingEdition() {
-  if (aiPulseMode !== 'daily' || !newsReady) return;
+  if (aiPulseMode === 'weekly' || !newsReady) return;
   const wrap = $('pulseGroups');
-  const filtered = !!(newsReadingQuery || newsRegion || newsPlatform || newsReadingSection !== 'all');
-  const platform = newsItems.filter(it => it.kind !== 'github');
+  if (aiPulseMode === 'models') {
+    renderModelUpdates(wrap);
+    return;
+  }
   const now = newsDaysAgo(0);
-  const picked = platform.filter(it => (it.priority && newsEdition.date === now)
-    || (newsRecent(it, 1) && !it.deep && (it.collaboration || it.tags.includes('models')))).sort(newsRank);
-  const highlights = picked.slice(0, 4);
-  if (highlights.length && !highlights.some(it => it.tags.includes('models'))) {
-    const model = picked.find(it => it.tags.includes('models'));
-    if (model) highlights[highlights.length - 1] = model;
+  const seen = new Set();
+  const feed = newsItems.filter(it => {
+    const key = newsKey(it);
+    const eligible = it.dynamics_kind && !it.model_product && (newsRecent(it, 14) ||
+      it.date === now.slice(0, 7) || (it.priority && newsEdition.date === now));
+    if (!eligible || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const entries = groupProductUpdates(feed);
+  const today = entries.filter(entry => (entry.item.priority && newsEdition.date === now) ||
+    newsRecent({date:entry.date}, 1)).sort((a,b) =>
+      (b.item.product_relevance || 0) - (a.item.product_relevance || 0) || newsRank(a.item,b.item));
+  const highlights = today.slice(0,3);
+  const featured = new Set(highlights);
+  const rest = entries.filter(entry => !featured.has(entry))
+    .sort((a,b) => b.date.localeCompare(a.date) || newsRank(a.item,b.item));
+  const ordered = [...highlights, ...rest];
+  const focusMore = document.activeElement?.id === 'newsFeedMore';
+  wrap.innerHTML = ordered.length ? `<section class="ai-news-feed" aria-label="今日资讯">
+    ${ordered.slice(0,newsLimit).map(entry => entry.product ? productNewsHtml(entry) : newsCard(entry.item)).join('')}
+    ${ordered.length > newsLimit ? '<button type="button" class="btn ghost ai-news-more" id="newsFeedMore">查看更多</button>' : ''}
+    </section>` : '<p class="ai-news-empty">暂无近期资讯。</p>';
+  for (const detail of wrap.querySelectorAll('.ai-news-product-more')) {
+    detail.ontoggle = () => {
+      if (detail.open) newsOpenProducts.add(detail.dataset.product);
+      else newsOpenProducts.delete(detail.dataset.product);
+    };
   }
-  const assigned = new Set(highlights.map(newsKey));
-  const deep = platform.filter(it => it.deep && !assigned.has(newsKey(it)) &&
-    (newsRecent(it, 7) || it.date === now.slice(0, 7))).sort((a, b) => newsRank(a, b)).slice(0, 3);
-  deep.forEach(it => assigned.add(newsKey(it)));
-  const repos = newsItems.filter(it => it.kind === 'github').sort((a,b) =>
-    Number(!!b.collaboration) - Number(!!a.collaboration) || (b.stars_today || 0) - (a.stars_today || 0))
-    .filter(it => it.collaboration || /\bAI\b|\bllm\b|\bagents?\b|machine learning|transformer|inference|diffusion/i.test(it.title + ' ' + (it.desc || it.desc_en || '')));
-  let list = (filtered ? newsItems.filter(newsMatches) : platform.filter(it => !assigned.has(newsKey(it))))
-    .sort((a,b) => (b.date || '').localeCompare(a.date || '') || newsRank(a,b));
-  if (!filtered) {
-    let domesticUpdates = highlights.filter(domesticProductUpdate).length;
-    list = list.filter(it => (newsRecent(it, 14) || it.date === now.slice(0, 7))
-      && (!domesticProductUpdate(it) || ++domesticUpdates <= 3));
-  }
-  const shown = list.slice(0, newsLimit);
-  const listHeader = filtered ? `<span>${list.length} 条</span>` : '';
-  const platformPanel = newsSection(newsReadingSection === 'collaboration' ? 'Agent 与协作' : '平台动态', shown.length ? shown.map(it => newsCard(it)).join('') +
-    (list.length > shown.length ? '<button class="btn ghost ai-news-more" onclick="newsLimit+=10;renderNewsReadingEdition()">查看更多</button>' : '') :
-    `<p class="ai-news-empty">${newsReadingSection === 'collaboration' ? '暂无匹配的多人协作、Agent 交接或人机审批动态。' : filtered ? '没有匹配的资讯。' : '暂无更多平台动态。'}</p>`, listHeader);
-  const lead = newsSection('今日重点',
-    highlights.length ? highlights.map((it,i) => newsCard(it, i === 0 ? 'ai-news-lead' : '')).join('') :
-      '<p class="ai-news-empty">今日重点待更新，可以先查看平台动态。</p>',
-    newsEdition.date === now && newsEdition.url ? newsLink(newsEdition.url, 'AI HOT 日报 ↗') : '');
-  const aside = newsSection('GitHub 趋势', repos.length ?
-    repos.slice(0,4).map(it=>newsCard(it,'ai-news-repo')).join('') :
-    '<p class="ai-news-empty">暂未发现相关开源项目。</p>', newsLink('https://github.com/trending','完整榜单 ↗'));
-  const reading = newsSection('深度阅读', deep.length ?
-    deep.map(it=>newsCard(it,'ai-news-deep')).join('') :
-    '<p class="ai-news-empty">近期暂无入选的官方文章。</p>');
-  wrap.innerHTML = (filtered ? '' : `<div class="ai-news-overview">${lead}<aside>${aside}</aside></div>`) +
-    (filtered ? platformPanel : `<div class="ai-news-lower">${platformPanel}<aside>${reading}</aside></div>`);
+  const more = $('newsFeedMore');
+  if (more) more.onclick = () => {
+    newsLimit += 10;
+    renderNewsReadingEdition();
+  };
+  if (focusMore) (more || [...wrap.querySelectorAll('.ai-news-story a')].filter(link => link.getClientRects().length).pop())?.focus({preventScroll:true});
 }
 function setAiPulseMode(mode) {
+  if (mode === aiPulseMode) return;
   aiPulseMode = mode;
   showNewsStatus('');
   $('pulseUpdated').textContent = '';
-  const isDaily = mode === 'daily';
   for (const button of $('pulseSection').querySelectorAll('[data-mode]')) {
     button.classList.toggle('active', button.dataset.mode === mode);
     button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
   }
-  for (const id of ['newsControls','newsSearchWrap','pulseRefreshBtn']) $(id).hidden = !isDaily;
-  $('pulseGroups').innerHTML = '<p class="ai-news-empty">正在加载…</p>';
+  $('pulseRefreshBtn').hidden = mode === 'weekly';
+  if (mode !== 'weekly' && newsReady) renderNewsReadingEdition();
+  else $('pulseGroups').innerHTML = '<p class="ai-news-empty">正在加载…</p>';
   renderAiPulse();
 }
 function reportHtml(report) {
@@ -1311,11 +1398,8 @@ async function renderAiPulse({check = true, pollUntil = 0} = {}) {
       return;
     }
     newsEdition = response.edition || {};
-    newsItems = (response.groups || []).flatMap(group => (group.items || []).map(item => ({
-      ...item, tags: Array.isArray(item.tags) ? item.tags : group.key === 'models' ? ['models'] : item.agent_related ? ['agents'] : []
-    })));
+    newsItems = (response.groups || []).flatMap(group => group.items || []);
     newsReady = true;
-    renderNewsFilters();
     if (busy && !newsItems.length) {
       wrap.innerHTML = '<p class="ai-news-empty">正在同步首批资讯…</p>';
     } else {
@@ -1326,19 +1410,18 @@ async function renderAiPulse({check = true, pollUntil = 0} = {}) {
     showNewsStatus('暂时无法加载资讯，请稍后重试。');
     $('pulseRefreshBtn').disabled = false;
     $('pulseRefreshBtn').textContent = '刷新资讯';
-    if (!wrap.querySelector('.ai-news-panel')) wrap.innerHTML = '';
+    if (!wrap.querySelector('.ai-news-panel, .ai-news-feed')) wrap.innerHTML = '';
   }
 }
 function showNewsStatus(message) {
   $('newsStatus').hidden = !message;
   $('newsStatus').textContent = message;
 }
-async function dismissPulseItem(key, button) {
+async function dismissPulseItem(keys, button) {
   button.disabled = true;
   try {
-    await api('/api/news/dismiss', 'POST', {key});
-    newsItems = newsItems.filter(item => newsKey(item) !== key);
-    renderNewsFilters();
+    await api('/api/news/dismiss', 'POST', {keys});
+    newsItems = newsItems.filter(item => !keys.includes(newsKey(item)));
     renderNewsReadingEdition();
     showNewsStatus('已略过这条资讯。');
   } catch (error) {

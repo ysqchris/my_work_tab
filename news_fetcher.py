@@ -887,11 +887,242 @@ _EDITION_FEEDS = (
     ("豆包 / 火山方舟", "https://ark.volcengine.com/region:cn-beijing/docs/agent-plan-personal-feature-release.md", "ark", "domestic"),
     ("Kimi", "https://platform.kimi.com/docs/changelog.md", "updates", "domestic"),
     ("MiniMax", "https://platform.minimax.cn/docs/release-notes/models.md", "models", "domestic"),
+    ("智谱 GLM", "https://docs.z.ai/release-notes/new-released.md", "model_notes", "domestic"),
+    ("小米 MiMo", "https://mimo.mi.com/docs/zh-CN/updates/model", "model_html", "domestic"),
+    ("腾讯混元 Hy-Nomas", "https://raw.githubusercontent.com/Tencent-Hunyuan/Hy-Nomas/main/README.md", "world_notes", "domestic"),
+    ("蚂蚁灵波 LingBot-World", "https://raw.githubusercontent.com/Robbyant/lingbot-world/main/README.md", "world_notes", "domestic"),
     ("WorkBuddy", "https://www.codebuddy.cn/docs/workbuddy/Changelog", "workbuddy", "domestic"),
 )
+_AGENT_WATCH_QUERIES = {
+    "Claude Tag": "Claude Tag", "Muse": "Meta Muse", "dots": "ChatGPT Dots",
+    "Manus": "Manus", "OpenClaw": "OpenClaw", "Personal Agent": "", "多智能体": "",
+}
+_AGENT_PRODUCTS = (
+    ("Claude Tag", r"\bclaude[ -]tag\b"),
+    ("Meta Muse", r"\bmuse\b(?:.{0,40}\bmeta\b)|\bmeta\b.{0,40}\bmuse\b|meta\.com/muse|introducing-muse-personal-ai-agent"),
+    ("ChatGPT Dots", r"(?:chatgpt|openai).{0,26}\bdots\b|\bdots\b.{0,26}(?:chatgpt|openai)|openai\.com/index/introducing-dots"),
+    ("Manus", r"\bmanus\b|manus\.im"),
+    ("OpenClaw", r"\bopenclaw\b"),
+    ("Perplexity Computer", r"\bperplexity\b.{0,18}(?:computer|多智能体|队友)"),
+    ("Claude Cowork", r"\bcowork\b"),
+    ("WorkBuddy", r"\bworkbuddy\b"),
+    ("千问办公", r"千问办公|\bqwenwork\b"),
+)
+_MODEL_PRODUCTS = (
+    ("GPT", r"(?<![a-z0-9])gpt(?:[-–‑ ](?:live|image|oss))?[-–‑ ]?\d"),
+    ("Claude", r"\bclaude[-–‑ ]+(?:opus|sonnet|haiku|fable|mythos)"),
+    ("Gemini", r"\bgemini[-–‑ ]*(?:omni[-–‑ ]*)?\d"),
+    ("Gemma", r"\bgemma[-–‑ ]*\d"),
+    ("千问", r"(?:千问|\bqwen)[-–‑ ]*\d"),
+    ("DeepSeek", r"\bdeepseek[-–‑ ]*[vr]\d"),
+    ("Kimi", r"\bkimi[-–‑ ]*k[-–‑ ]*\d"),
+    ("智谱 GLM", r"\bglm[-–‑ ]*(?:\d|image\b|ocr\b)"),
+    ("小米 MiMo", r"\bmimo[-–‑ ]*v?\d"),
+    ("豆包 Seed", r"豆包|\b(?:doubao|seedream|seedance)\b"),
+    ("MiniMax", r"\bminimax[-–‑ ]+(?:[mh]\d|music|speech)"),
+    ("腾讯混元", r"混元|\bhunyuan\b|\bhy\d"),
+    ("Meta Muse 系列", r"\bmuse[-–‑ ]+(?:spark|wonder)\b"),
+    ("Llama", r"\bllama[-–‑ ]*\d"),
+    ("Grok", r"\bgrok[-–‑ ]*\d"),
+    ("Inkling", r"\binkling[-–‑ ]*\d"),
+)
+_MODEL_FEED_KINDS = {"models", "model_notes", "model_html", "world_notes"}
+_WORLD_MODEL_SEARCH_URLS = tuple(
+    _AIHOT_ITEMS + "?" + urlencode({"mode": "all", "window": "7d", "limit": 24, "q": query})
+    for query in ("世界模型", "world model")
+)
+_WORLD_MODEL_RE = re.compile(
+    r"\b(?:project genie|genie[-–‑ ]*\d|hy[-–‑ ]*(?:world|nomas)|lingbot[-–‑ ]world)\b|"
+    r"\b(?:nvidia\s+cosmos|cosmos[-–‑ ](?:predict|transfer))\b|"
+    r"\b(?:atlas|marble)\b.{0,60}\bworld model\b|世界模型|\bworld models?\b",
+    re.I,
+)
+_WATCH_NOISE_RE = re.compile(r"调侃|玩梗|赞助商|sponsor(?:ship)?|\bjokes?\b", re.I)
+_RELEASE_LOG_RE = re.compile(r"/releases/(?:tag/|atom)|/changelog|版本发布|^.{0,30}· (?:release |发布 )?v?\d+\.\d+", re.I)
+_CASE_RE = re.compile(r"case study|customer stor(?:y|ies)|客户案例|用户案例|借助|用.{0,24}(?:构建|打造)|\bhow .+? (?:uses?|used|adopted)\b", re.I)
+
+
+_AGENT_DISCOVERY_QUERIES = (
+    {"category": "ai-products", "limit": 100},
+    {"q": "个人智能体", "window": "7d", "limit": 30},
+    {"q": "智能体平台", "window": "7d", "limit": 30},
+    {"q": "多智能体", "window": "7d", "limit": 30},
+)
+_AGENT_LAUNCH_URLS = tuple(
+    _AIHOT_ITEMS + "?" + urlencode({"mode": "all", "window": "24h", **query})
+    for query in _AGENT_DISCOVERY_QUERIES
+)
+_AGENT_DISCOVERY_CONTEXT = re.compile(
+    r"个人\s*(?:AI\s*)?(?:Agent|智能体)|多\s*(?:Agent|智能体)|团队智能体|"
+    r"智能体平台|(?:personal|coding|browser)\s+(?:AI\s+)?agents?|(?:new|an?)\s+AI\s+agent\b|"
+    r"multi[- ]agent|agent platform|autonomous (?:research |work )?agent",
+    re.I,
+)
+_AGENT_LAUNCH_RE = re.compile(
+    r"推出|发布|上线|亮相|首发|\b(?:introduc(?:e[sd]?|ing)|launch(?:es|ed)?|unveil(?:s|ed)?|releases?)\b",
+    re.I,
+)
+_AGENT_PRODUCT_NAME = r"[A-Z][A-Za-z0-9+.-]{1,24}(?:\s+[A-Z][A-Za-z0-9+.-]{0,19}){0,3}"
+_AGENT_LAUNCH_NAMES = (
+    re.compile(rf"(?:推出|发布|上线|亮相|首发)(?:了|其|全新|首款|自研|开源|个人AI智能体|个人智能体|多智能体平台|AI智能体|智能体平台|名为|\s)*"
+               rf"(?P<name>[“「『\"][^”」』\"]{{2,32}}[”」』\"]|{_AGENT_PRODUCT_NAME})(?![A-Za-z0-9]|\s+[a-z])"),
+    re.compile(rf"\b(?i:introduc(?:e[sd]?|ing)|launch(?:es|ed)?|unveil(?:s|ed)?|releases?)\s+"
+               rf"(?:(?:its|new|an?)\s+)*(?P<name>{_AGENT_PRODUCT_NAME})(?=\s*(?:[,:：—–]|$)|\s+(?:is|an?|the|for)\b)"),
+    re.compile(rf"^(?P<name>{_AGENT_PRODUCT_NAME})\s*(?:正式)?(?:上线|亮相|首发)"),
+    re.compile(r"名为[“「『\"]?(?P<name>[\u4e00-\u9fff]{2,10}?)[”」』\"]?的(?:个人|多|团队|AI)"),
+)
+_GENERIC_AGENT_NAMES = {"ai", "ai agent", "agent", "agents", "personal agent", "ai assistant",
+                        "agent platform", "multi", "multi agent", "ai agents", "beta", "preview"}
+
+
+def _agent_name_in_title(name, item):
+    titles = " ".join(item.get(field) or "" for field in ("title", "original_title", "title_en"))
+    return bool(re.search(rf"(?<![A-Za-z0-9]){re.escape(name)}(?![A-Za-z0-9])", titles, re.I))
+
+
+def _new_agent_name(item):
+    if item.get("category") not in {"ai-products", "industry"} or news_lanes(item)[0]:
+        return ""
+    title = item["title"]
+    context = f'{title} {item.get("desc") or ""} {item.get("original_title") or ""}'
+    if not _AGENT_DISCOVERY_CONTEXT.search(context) or not _AGENT_LAUNCH_RE.search(title):
+        return ""
+    for excerpt in (title, item.get("original_title") or ""):
+        for pattern in _AGENT_LAUNCH_NAMES:
+            match = pattern.search(excerpt)
+            if match:
+                name = re.sub(r"\s+", " ", match["name"].strip('“”「」『』" ')).rstrip(".-")
+                if (2 <= len(name) <= 40 and name.casefold() not in _GENERIC_AGENT_NAMES
+                    and not re.search(r"\b(?:API|SDK|benchmark|index|preview|v?\d+\.\d+)\b", name, re.I)):
+                    return name
+    return ""
+
+
+def _apply_agent_catalog(item, catalog, allow_discovery=False):
+    if agent_product(item):
+        return
+    known_match = next((record for record in catalog.values()
+                        if _agent_name_in_title(record["name"], item)), None)
+    if known_match:
+        item["agent_product"] = known_match["name"]
+        item["agent_discovered"] = _news_url_key(item.get("url")) == _news_url_key(known_match["url"])
+        return
+    if not allow_discovery:
+        return
+    name = _new_agent_name(item)
+    if name:
+        catalog[name.casefold()] = {
+            "name": name, "first_seen": _today(), "url": item["url"],
+            "title": item["title"], "region": item.get("region") or "",
+        }
+        item.update(agent_product=name, agent_discovered=True)
+
+
+def _agent_watch_url(query):
+    return _AIHOT_ITEMS + "?" + urlencode({"mode": "all", "window": "7d", "limit": 8, "q": query})
+
+
+def agent_product(item):
+    if item.get("agent_product"):
+        return item["agent_product"]
+    text = " ".join(item.get(field) or "" for field in ("title", "title_en", "original_title", "source", "url"))
+    return next((name for name, pattern in _AGENT_PRODUCTS if re.search(pattern, text, re.I)), "")
+
+
+def news_lanes(item):
+    """Assign feed topics using source titles and release context, independently of legacy tags."""
+    if item.get("topic") == GH_TOPIC or item.get("source") == GH_SOURCE:
+        return "", "", ""
+    title = " ".join(item.get(field) or "" for field in ("title_en", "original_title", "title"))
+    url = item.get("url") or ""
+    kind = item.get("feed_kind")
+    category = item.get("category")
+    product = agent_product(item)
+    model = next((name for name, pattern in _MODEL_PRODUCTS if re.search(pattern, title, re.I)), "")
+    release = any(pattern.search(title) for _, pattern in _EVENT_PHASES)
+    model_change = release or bool(re.search(r"^OpenAI API · |模型新增|模型更新|模型替换|上线|开放|上架|\bmodel update\b", title, re.I))
+    case = item.get("reading_type") == "用户案例" or "/customer-stories/" in url or bool(_CASE_RE.search(title))
+    reading = item.get("deep") or category == "paper" or item.get("reading_type") in {"研究", "工程实践"}
+    routine = kind in {"agent", "workbuddy", "updates", "deepseek", "ark"} or bool(_RELEASE_LOG_RE.search(title + " " + url))
+    model_feed = kind in _MODEL_FEED_KINDS
+    if kind == "world_notes" or (
+        category != "paper" and _WORLD_MODEL_RE.search(title) and (category == "ai-models" or model_change)
+    ):
+        model = "世界模型"
+    tool_release = kind in {"agent", "workbuddy"}
+    product_integration = product and bool(re.search(r"登陆|集成|适配|supports?|integrat", title, re.I))
+    if not case and not tool_release and not product_integration and (
+        model_feed or (category == "ai-models" and not (routine and not model))
+        or (model and model_change and not (reading and kind == "articles"))
+    ):
+        return model or item.get("platform") or "其他模型", "", product
+    if case:
+        return "", "案例", product
+    if reading:
+        return "", "博客与研究", product
+    if routine:
+        return "", "", product
+    if product or _AGENT_RE.search(title):
+        return "", "Agent 产品", product
+    if category in {"industry", "ai-products", "opinion", "tip", "product-case"} or kind in {"rss", "articles"}:
+        return "", "行业与产品", product
+    return "", "", product
+
+
+def news_display_tags(item, model_product, dynamics_kind, collaboration):
+    """Give each story a content label and at most one additional reading cue."""
+    title = " ".join(item.get(field) or "" for field in ("title", "title_en", "original_title"))
+    category = item.get("category")
+    if model_product:
+        kind = "模型"
+    elif dynamics_kind == "案例":
+        kind = "案例"
+    elif item.get("source") == GH_SOURCE or re.search(r"开源|开放源码|open[- ]sourc", title, re.I):
+        kind = "开源"
+    elif dynamics_kind == "博客与研究":
+        kind = "研究" if category == "paper" or item.get("reading_type") == "研究" else "博客"
+    elif dynamics_kind == "Agent 产品" or category == "ai-products":
+        kind = "产品更新"
+    else:
+        kind = "行业动态" if dynamics_kind else ""
+    cue = "新收录" if item.get("agent_discovered") else "协作" if collaboration else ""
+    return [tag for tag in (kind, cue) if tag]
+
+
+def product_update_details(item, collaboration):
+    """Return a conservative duplicate topic and the relevance of a product update."""
+    title = " ".join(item.get(field) or "" for field in ("title", "original_title", "title_en"))
+    description = item.get("desc_en") or item.get("desc") or ""
+    text = f"{title} {description}"
+    if re.search(r"本周动态回顾|回应已处理|将谈|weekly roundup", title, re.I):
+        return "", -1
+    topic = ""
+    if not re.search(r"下线|暂停|故障|禁用|deprecated|outage|removed", title, re.I):
+        if (re.search(r"\b(?:chrome|chromium)\b", title, re.I)
+                and re.search(r"委派|扩展|extension|delegate|now works", title, re.I)):
+            topic = "chromium-access"
+        elif re.search(r"marketplace", title, re.I) and re.search(
+            r"卖闲置|商品图|生成.{0,8}(?:商品|文案|定价)|上架|sell|listings?", title, re.I
+        ):
+            topic = "marketplace-listing"
+    if collaboration or re.search(r"(?:上线|推出|新增)[^，。]{0,18}(?:队友|多智能体|多\s*Agent)|"
+                                  r"(?:introducing|launches|now supports) .{0,18}(?:agent teams|multi-agent)", title, re.I):
+        return topic, 3
+    if re.search(r"委派任务|从.{0,18}委派|共享任务|任务交接|多人协作|人工审批|"
+                 r"delegat(?:e|ing|ion) (?:of )?(?:tasks?|work)|task handoff|shared tasks", text, re.I):
+        return topic, 2
+    if topic == "chromium-access" or re.search(
+        r"跨应用|跨标签页|收发邮件|后台执行|远程执行|multi[- ]app|across (?:apps|tabs)|"
+        r"send and receive (?:e-?)mail|run in the background", text, re.I
+    ):
+        return topic, 1
+    return topic, 0
+
+
 _PLATFORMS = (
     ("OpenAI", "overseas", r"openai|chatgpt|\bcodex\b|\bgpt[- ]?\d"),
     ("Anthropic", "overseas", r"anthropic|\bclaude\b"),
+    ("Meta", "overseas", r"\bmeta\b|脸书"),
     ("Google", "overseas", r"google|gemini|deepmind|\bgemma\b|谷歌"),
     ("DeepSeek", "domestic", r"deepseek|深度求索"),
     ("千问", "domestic", r"千问|\bqwen|qoder|阿里云"),
@@ -959,8 +1190,8 @@ _DEEP_RE = re.compile(
 )
 _MODEL_RE = re.compile(
     r"(?<![a-z0-9])(?:gemini|gpt(?:-live)?|claude\s+(?:opus|sonnet|haiku|fable|mythos)|"
-    r"qwen|deepseek[- ]?[vr]|glm|kimi[- ]?k|inkling|genie|minimax[- ]?[mh]|hy|seedream|seedance)[ -]?"
-    r"\d+(?:[.\-]\d+)*(?:[ -](?:pro|max|flash|mini|nano|astra|sol|neon|carbon|hydrogen|argon|lite|thinking|preview)){0,2}(?![a-z0-9])", re.I
+    r"qwen|deepseek[- ]?[vr]|glm|mimo[- ]?v?|kimi[- ]?k|inkling|genie|minimax[- ]?[mh]|hy|seedream|seedance)[ -]?"
+    r"\d+(?:[.\-]\d+)*(?:[ -](?:pro|max|flash|mini|nano|astra|sol|neon|carbon|hydrogen|argon|lite|thinking|preview|omni|tts|asr|ultraspeed)){0,2}(?![a-z0-9])", re.I
 )
 _EVENT_PHASES = (
     ("retire", re.compile(r"下线|退役|deprecat|retir", re.I)),
@@ -991,8 +1222,9 @@ def _editorial_tags(item, kind):
                                  re.search(r"模型新增|模型更新|模型.*下线|new model|^OpenAI API · [a-z]+[-\d]", text, re.I))
     item["tags"] = [
         tag for tag, matched in (
-            ("models", category == "ai-models" or kind == "models" or official_model_change or
-             (_MODEL_RE.search(title) and any(pattern.search(title) for _, pattern in _EVENT_PHASES))),
+            ("models", category == "ai-models" or kind in _MODEL_FEED_KINDS or official_model_change or
+             ((_MODEL_RE.search(title) or _WORLD_MODEL_RE.search(title)) and
+              any(pattern.search(title) for _, pattern in _EVENT_PHASES))),
             ("agents", kind in {"agent", "workbuddy"} or _AGENT_RE.search(text) or _AGENT_TOPIC_RE.search(text)),
             ("api", kind in {"deepseek", "updates", "ark"} or _API_RE.search(text)),
         ) if matched
@@ -1092,13 +1324,59 @@ def _dated_html(txt, base, kind):
             continue
         if kind == "workbuddy" and (not dm or "版本" not in title):
             continue
+        if kind == "model_html":
+            if not dm or heading[1] != "2":
+                continue
+            title = title[dm.end():].strip()
         end = headings[index + 1].start() if index + 1 < len(headings) else len(txt)
-        yield _official_entry(title, base + "#" + anchor[1], date, txt[heading.end():end])
+        desc = txt[heading.end():end]
+        fragment = anchor[1]
+        if kind == "model_html":
+            desc = re.sub(r"</(?:p|li|h[1-6])>", " ", desc)
+            fragment = quote(html.unescape(fragment))
+        yield _official_entry(title, base + "#" + fragment, date, desc)
 
 
 def _markdown_text(value):
     value = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", value)
     return re.sub(r"`|\*\*|^>\s*", "", value.strip()).strip()
+
+
+def _model_release_notes(txt, base):
+    parts = re.split(r"(?m)^\*\*(20\d\d-\d\d-\d\d)\*\*\s*$", txt)
+    for date, block in zip(parts[1::2], parts[2::2]):
+        lines = block.strip().splitlines()
+        if not lines:
+            continue
+        title = _markdown_text(lines[0])
+        link = re.search(r'\]\((https?://[^)]+)\)', block)
+        url = link[1].removesuffix(".md") if link else base + "#" + date
+        desc = next((_markdown_text(line[2:]) for line in lines[1:] if line.startswith("* ")), "")
+        yield _official_entry(title + " 发布", url, date, desc)
+
+
+def _world_release_notes(txt, url, name):
+    news = re.search(r"^## [^\n]*\bNews\s*\n(.*?)(?=^## |\Z)", txt, re.M | re.S)
+    if not news:
+        return
+    repo = urlsplit(url).path.split("/")[1:3]
+    page = "https://github.com/" + "/".join(repo) + "#-news"
+    for line in news[1].splitlines():
+        match = re.search(r"\b([A-Z][a-z]+ \d{1,2}, 20\d\d)(?:\*\*)?\s*[:—-]\s*(.+)", line)
+        if not match:
+            continue
+        text = _markdown_text(match[2]).lstrip(" :🎉🚀")
+        if not re.search(r"model weights|release .+ models\b|initial code release", text, re.I):
+            continue
+        month, day, year = match[1].split()
+        date = datetime.datetime.strptime(f"{month[:3]} {day} {year}", "%b %d, %Y").strftime("%Y-%m-%d")
+        title, separator, desc = text.partition(":")
+        if not separator:
+            title, desc = text.split(". ", 1)[0].rstrip("."), ""
+        item = _official_entry(f"{name} · {title}", page, date, desc)
+        if item:
+            item["id"] = _gen_id(f'{page}|{date}|{item["title"]}')
+            yield item
 
 
 def _markdown_updates(txt, base, kind):
@@ -1188,8 +1466,12 @@ def _fetch_official(feed):
     txt = _get(url, timeout=10)
     if kind in {"rss", "agent"}:
         items = _parse_rss(txt, url, 18)
-    elif kind in {"articles", "deepseek", "workbuddy"}:
+    elif kind in {"articles", "deepseek", "workbuddy", "model_html"}:
         items = _dated_html(txt, url, kind)
+    elif kind == "model_notes":
+        items = _model_release_notes(txt, url.removesuffix(".md"))
+    elif kind == "world_notes":
+        items = _world_release_notes(txt, url, name)
     else:
         items = _markdown_updates(txt, url.removesuffix(".md"), kind)
     result = []
@@ -1224,12 +1506,15 @@ def _article_keys(item):
     keys = set()
     if item.get("aihot_id"):
         keys.add(("aihot", item["aihot_id"]))
-    if url and item.get("feed_kind") not in {"updates", "ark"}:
+    if url and item.get("feed_kind") not in {"updates", "ark", "world_notes"}:
         keys.add(("url", _news_url_key(url)))
     for title in (item.get("title"), item.get("original_title")):
         normalized = re.sub(r"[^\w\u4e00-\u9fff]", "", (title or "").casefold())
         if len(normalized) >= 10:
-            keys.add(("title", normalized))
+            if item.get("feed_kind") in {"model_html", "world_notes"}:
+                keys.add(("dated-title", normalized, item.get("date")))
+            else:
+                keys.add(("title", normalized))
     event = _event_key(item)
     if event:
         keys.add(("event", event))
@@ -1267,12 +1552,17 @@ def _merge_edition_items(items):
             item["desc"] = summaries[0]["desc"]
         item["priority"] = max(it.get("priority", 0) for it in copies)
         item["tags"] = list(dict.fromkeys(tag for it in copies for tag in it.get("tags", [])))
+        identified = next((it for it in copies if it.get("agent_product")), None)
+        if identified:
+            item["agent_product"] = identified["agent_product"]
+            item["agent_discovered"] = any(it.get("agent_discovered") for it in copies)
         reading = next((it for it in copies if it.get("deep")), None)
         item["deep"] = not item["priority"] and bool(reading)
         item["reading_type"] = reading.get("reading_type", "") if item["deep"] else ""
         item["aliases"] = list(dict.fromkeys(
             key for it in copies for key in (
-                it.get("url"), it.get("aihot_url"), it.get("id"),
+                it.get("url") if it.get("feed_kind") != "world_notes" else None,
+                it.get("aihot_url"), it.get("id"),
                 (it.get("aihot_url") or "").replace("https://aihot.news/", "https://aihot.virxact.com/"),
             ) if key))
         links = {}
@@ -1325,6 +1615,11 @@ def fetch_edition(previous=None):
             return key, dict(old, retry_at=time.time() + 60), False
 
     items_url = f"{_AIHOT_ITEMS}?mode=selected&window=24h&limit={_AIHOT_LIMIT}"
+    catalog = {key: dict(record) for key, record in previous.get("agent_catalog", {}).items()}
+    catalog_urls = {_agent_watch_url(record["name"]): record for record in catalog.values()}
+    watch_urls = {_agent_watch_url(query): expected for query, expected in _AGENT_WATCH_QUERIES.items()}
+    due_products = sorted(catalog_urls, key=lambda url: catalog_urls[url].get("watch_after", 0))
+    scheduled = [url for url in due_products if catalog_urls[url].get("watch_after", 0) <= time.time()][:4]
     with ThreadPoolExecutor(max_workers=6) as pool:
         jobs = [
             pool.submit(collect, "selected", lambda old: _read_aihot(items_url, old),
@@ -1335,12 +1630,24 @@ def fetch_edition(previous=None):
         ]
         jobs.extend(pool.submit(collect, feed[1], lambda _, f=feed: {"items": _fetch_official(f)},
                                 lambda r: bool(r["items"]), 900) for feed in _EDITION_FEEDS)
+        jobs.extend(pool.submit(collect, url, lambda old, u=url: _read_aihot(u, old),
+                                lambda r: isinstance(r.get("data", {}).get("items"), list), 900)
+                    for url in (*watch_urls, *_AGENT_LAUNCH_URLS, *_WORLD_MODEL_SEARCH_URLS, *scheduled))
         results = [job.result() for job in jobs]
     sources = {key: value for key, value, _ in results if value}
+    for url in catalog_urls.keys() - sources.keys():
+        cached = previous_sources.get(url)
+        if cached and time.time() - cached.get("checked_at", 0) < 7 * 86400:
+            sources[url] = cached
+    for url, value, ok in results:
+        if url in catalog_urls:
+            catalog_urls[url]["watch_after"] = (
+                time.time() + 86400 if ok else (value.get("retry_at") or value.get("checked_at", time.time()) + 86400)
+            )
     if not any(ok for _, _, ok in results):
-        if sources == previous_sources:
+        if sources == previous_sources and catalog == previous.get("agent_catalog", {}):
             return previous
-        return {**previous, "sources": sources}
+        return {**previous, "sources": sources, "agent_catalog": catalog}
     report = sources.get("daily", {}).get("data", {}).get("report") or {}
     selected = sources.get("selected", {}).get("data", {}).get("items", [])
     timestamps = {it.get("id"): it.get("publishedAt") or it.get("discoveredAt") for it in selected}
@@ -1352,16 +1659,48 @@ def fetch_edition(previous=None):
         item = _parse_aihot_item(raw)
         if item:
             items.append(_editorial_tags(item, "selected"))
+    for url in _WORLD_MODEL_SEARCH_URLS:
+        for raw in sources.get(url, {}).get("data", {}).get("items", []):
+            item = _parse_aihot_item(raw)
+            if item and not _WATCH_NOISE_RE.search(item["title"]):
+                _editorial_tags(item, "selected")
+                if news_lanes(item)[0] == "世界模型":
+                    items.append(item)
+    for url in _AGENT_LAUNCH_URLS:
+        for raw in sources.get(url, {}).get("data", {}).get("items", []):
+            item = _parse_aihot_item(raw)
+            if not item or _WATCH_NOISE_RE.search(item["title"]):
+                continue
+            _editorial_tags(item, "selected")
+            _apply_agent_catalog(item, catalog, allow_discovery=True)
+            if news_lanes(item)[1] and (agent_product(item) or _AGENT_RE.search(item["title"])):
+                items.append(item)
+    catalog_watch = {url: record["name"] for url, record in catalog_urls.items()}
+    for url, expected in {**watch_urls, **catalog_watch}.items():
+        for raw in sources.get(url, {}).get("data", {}).get("items", []):
+            item = _parse_aihot_item(raw)
+            if not item or _WATCH_NOISE_RE.search(item["title"]):
+                continue
+            _editorial_tags(item, "selected")
+            _apply_agent_catalog(item, catalog)
+            _, dynamics, product = news_lanes(item)
+            if expected and product != expected:
+                continue
+            if (dynamics and (product or _AGENT_RE.search(item["title"]))) or collaboration_kind(item):
+                items.append(item)
     for feed in _EDITION_FEEDS:
         items.extend(sources.get(feed[1], {}).get("items", []))
     github = [dict(item) for item in sources.get("github", {}).get("items", [])]
     for item in github:
         item["desc"] = item["desc"] or item.get("desc_en", "")
+    for item in items:
+        _apply_agent_catalog(item, catalog)
     items = _merge_edition_items(items) + github
     localize_news_items(items, previous.get("items", []))
     return {
         "items": items,
         "sources": sources,
+        "agent_catalog": catalog,
         "edition": {"date": report.get("date", ""), "url": (report.get("links") or {}).get("aihot", "")},
     }
 

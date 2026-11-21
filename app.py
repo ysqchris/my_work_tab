@@ -323,7 +323,8 @@ def sync_news():
     # 按 date 倒序、同 date 按 created_at 倒序，保证最新在前
     cleaned.sort(key=lambda x: (x.get("date") or "", x.get("created_at") or ""), reverse=True)
     with _lock_for("news"):
-        write_json("news", {"items": cleaned, "updated_at": _now()})
+        catalog = read_json("news", {}).get("agent_catalog", {})
+        write_json("news", {"items": cleaned, "updated_at": _now(), "agent_catalog": catalog})
     touch_meta()
     return jsonify({"ok": True, "count": len(cleaned), "removed_duplicates": len(items) - len(cleaned)})
 
@@ -3288,10 +3289,17 @@ def _fetch_ai_pulse_news(fetcher):
     return fresh
 
 
-def _news_item_brief(n, collaboration):
+def _news_item_brief(n, fetcher):
     """把 news 条目规整为前端统一结构，并标识板块归属（github / aihot）。"""
     source = (n.get("source") or "").strip()
     is_gh = source == "GitHub Trending"
+    collaboration = fetcher.collaboration_kind(n)
+    model_product, dynamics_kind, agent_product = fetcher.news_lanes(n)
+    display_tags = fetcher.news_display_tags(n, model_product, dynamics_kind, collaboration)
+    product_topic, product_relevance = (
+        fetcher.product_update_details(n, collaboration)
+        if agent_product and "产品更新" in display_tags else ("", 0)
+    )
     return {
         "title": n.get("title") or "",
         "url": n.get("url") or "",
@@ -3309,9 +3317,16 @@ def _news_item_brief(n, collaboration):
         "published_at": n.get("published_at") or "",
         "created_at": n.get("created_at") or "",
         "agent_related": bool(n.get("agent_related")),
-        "key": (n.get("id") if n.get("feed_kind") in {"updates", "ark"} else n.get("url")) or n.get("id") or "",
+        "key": (n.get("id") if n.get("feed_kind") in {"updates", "ark", "world_notes"} else n.get("url")) or n.get("id") or "",
         "tags": n.get("tags"),
+        "display_tags": display_tags,
         "platform": n.get("platform") or "",
+        "model_product": model_product,
+        "dynamics_kind": dynamics_kind,
+        "agent_product": agent_product,
+        "product_topic": product_topic,
+        "product_relevance": product_relevance,
+        "agent_discovered": bool(n.get("agent_discovered")),
         "region": n.get("region") or "",
         "deep": bool(n.get("deep")),
         "reading_type": n.get("reading_type") or "",
@@ -3337,7 +3352,7 @@ def _ai_pulse_groups_raw(news_items=None, hidden=None):
 
     fetcher = _load_news_fetcher()
     for n in news:
-        brief = _news_item_brief(n, fetcher.collaboration_kind(n))
+        brief = _news_item_brief(n, fetcher)
         if not brief["title"]:
             continue
         keys = {brief["key"], brief["id"], *n.get("aliases", [])}
@@ -3381,21 +3396,30 @@ def get_ai_pulse():
     return jsonify({
         "mode": "daily", "state": state, "groups": groups,
         "updated_at": cached.get("updated_at", ""), "edition": cached.get("edition", {}),
+        "agent_catalog": [
+            {key: record[key] for key in ("name", "first_seen", "url", "title", "region")}
+            for record in cached.get("agent_catalog", {}).values()
+        ],
     })
 
 
 @app.route("/api/news/dismiss", methods=["POST"])
 def dismiss_news():
-    """标记一条资讯为「已了解」，之后每日资讯中不再展示。key 为 url（优先）或 id。"""
+    """Dismiss an item or the source entries represented by a grouped update."""
     body = request.get_json(force=True, silent=True) or {}
-    key = (body.get("key") or body.get("url") or body.get("id") or "").strip()
-    if not key:
+    if not isinstance(body, dict):
+        return jsonify({"error": "invalid keys"}), 400
+    requested = body.get("keys") if "keys" in body else [body.get("key") or body.get("url") or body.get("id")]
+    if not isinstance(requested, list) or not all(isinstance(key, str) and key.strip() for key in requested):
+        return jsonify({"error": "invalid keys"}), 400
+    if not requested:
         return jsonify({"error": "missing key"}), 400
     with _lock_for("news_read"):
         data = read_json("news_read", {"items": []})
         keys = data.get("items") or []
-        if key not in keys:
-            write_json("news_read", {**data, "items": [*keys, key], "updated_at": _now()})
+        updated = list(dict.fromkeys([*keys, *(key.strip() for key in requested)]))
+        if updated != keys:
+            write_json("news_read", {**data, "items": updated, "updated_at": _now()})
     return jsonify({"ok": True})
 
 
