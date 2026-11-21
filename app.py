@@ -3601,6 +3601,59 @@ def get_imate_ops():
     return jsonify(read_json("imate_ops", {}))
 
 
+@app.route("/api/imate_ops", methods=["PUT"])
+def put_imate_ops():
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 415
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Expected a JSON snapshot object"}), 400
+
+    data_date = payload.get("data_date")
+    if not isinstance(data_date, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", data_date):
+        return jsonify({"error": "data_date must be YYYY-MM-DD"}), 400
+    try:
+        datetime.date.fromisoformat(data_date)
+    except ValueError:
+        return jsonify({"error": "data_date must be a valid date"}), 400
+
+    sections = ("kpi", "trends", "distributions", "overall")
+    if any(not isinstance(payload.get(key), dict) for key in sections):
+        return jsonify({"error": "kpi, trends, distributions and overall must be objects"}), 400
+    for field, periods in payload["kpi"].items():
+        if not isinstance(periods, dict) or any(
+            value is not None and type(value) not in (int, float) for value in periods.values()
+        ):
+            return jsonify({"error": f"kpi.{field} must map periods to numbers or null"}), 400
+    if not _snapshot_has_data(payload):
+        return jsonify({"error": "At least one project KPI value is required"}), 400
+
+    overall = payload["overall"]
+    if overall.get("data_date") != data_date or any(
+        not isinstance(overall.get(key), dict) for key in ("kpi", "trends")
+    ):
+        return jsonify({"error": "overall requires the same data_date and kpi/trends objects"}), 400
+    if any(value is not None and type(value) not in (int, float) for value in overall["kpi"].values()):
+        return jsonify({"error": "overall.kpi values must be numbers or null"}), 400
+
+    series_groups = [overall["trends"]]
+    for section in ("trends", "distributions"):
+        for periods in payload[section].values():
+            if not isinstance(periods, dict):
+                return jsonify({"error": f"{section} entries must map periods to arrays"}), 400
+            series_groups.append(periods)
+    if any(
+        not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows)
+        for group in series_groups for rows in group.values()
+    ):
+        return jsonify({"error": "Chart series must be arrays of objects"}), 400
+
+    snapshot = {key: payload[key] for key in sections}
+    snapshot.update(data_date=data_date, updated_at=_now())
+    write_json("imate_ops", snapshot)
+    return jsonify(ok=True, data_date=data_date, updated_at=snapshot["updated_at"])
+
+
 @app.route("/api/imate_ops/sync", methods=["POST"])
 def sync_imate_ops():
     if _OPS_LOCK.locked():
