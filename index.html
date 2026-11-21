@@ -598,7 +598,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     width: 100%;
   }
 }
-</style><link rel="stylesheet" href="/static/bookmarks.css"><link rel="stylesheet" href="/static/work-followup.css"><link rel="stylesheet" href="/static/workbench-views.css?v=5"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
+</style><link rel="stylesheet" href="/static/bookmarks.css"><link rel="stylesheet" href="/static/work-followup.css"><link rel="stylesheet" href="/static/workbench-views.css?v=8"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
 <section id="home" class="view">
 <section class="followup" aria-labelledby="followupTitle">
 <header class="followup-heading"><h2 id="followupTitle">工作跟进</h2></header>
@@ -719,13 +719,23 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
   <header class="workspace-view-head"><h1>笔记</h1></header>
   <form class="note-quick-form" id="noteQuickForm">
     <textarea id="noteQuickText" rows="2" aria-label="随手记" placeholder="随手记点什么…"></textarea>
+    <input id="noteQuickImages" type="file" accept="image/*" multiple hidden>
+    <div id="noteQuickAttachments" class="note-quick-attachments"></div>
     <div class="note-quick-footer">
       <span id="noteQuickStatus" role="status"></span>
+      <button type="button" class="btn" id="noteQuickAddImages" onclick="$('noteQuickImages').click()">添加图片</button>
       <button type="button" class="btn" onclick="expandWrite()">写长笔记</button>
       <button type="submit" class="btn primary">记一条</button>
     </div>
   </form>
   <div class="workspace-find"><input type="search" id="noteSearch" aria-label="搜索笔记" placeholder="搜索笔记" oninput="renderNotes()"><span id="noteSearchCount" role="status"></span></div>
+  <div class="note-category-tools">
+    <label><input id="noteAutoCategory" type="checkbox"> AI 自动打标签</label>
+    <span class="note-category-hint">开启后将笔记文字发送给后台配置的 AI 服务。</span>
+    <select id="noteCategoryFilter" aria-label="按标签筛选"><option value="">全部标签</option><option>日记</option><option>思考</option><option>分享</option><option>待整理</option></select>
+    <button type="button" class="btn" id="noteCategoryBatch">给未标记笔记补标签</button>
+    <span id="noteCategoryStatus" role="status"></span>
+  </div>
   <div class="note-archive">
     <aside class="note-calendar" aria-labelledby="noteCalendarTitle">
       <div class="note-calendar-head">
@@ -745,6 +755,10 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
       <div id="noteList" class="note-feed"></div>
     </div>
   </div>
+  <dialog id="noteImageViewer" class="note-image-viewer" aria-label="笔记图片预览">
+    <button type="button" class="note-image-close" aria-label="关闭图片预览" autofocus>×</button>
+    <img alt="">
+  </dialog>
 </section>
 <section id="radar" class="view"><header class="workspace-view-head"><h1>鹰眼</h1></header><div class="radar-layout"><aside class="radar-nav" id="radarNav"></aside><div class="radar-main"><div class="vid-feed-head"><span class="hint" id="radarUpdated"></span><button type="button" class="btn ghost" id="radarRefreshBtn" onclick="refreshRadar()">↻ 刷新</button></div><div id="productProfile"></div><div class="filters" id="radarFavFilters"></div><div class="day-cards" id="radarList"></div></div></div></section>
 
@@ -1728,12 +1742,21 @@ function noteRichHtml(content){
       else element.replaceWith(...element.childNodes);
     }
     if(tag==='img'){
-      const url=src&&safeUrl(src);
+      const inlineImage=/^data:image\/(?:png|jpeg|gif|webp|bmp|avif);base64,[a-z\d+/=\s]+$/i.test(src||'');
+      const url=src&&(inlineImage?src:safeUrl(src));
       if(!url){element.remove();continue;}
       element.src=url;
       element.alt=alt||'笔记图片';
       element.loading='lazy';
       element.referrerPolicy='no-referrer';
+      if(!element.closest('a')){
+        const trigger=document.createElement('button');
+        trigger.type='button';
+        trigger.className='note-image-trigger';
+        trigger.setAttribute('aria-label','放大查看：'+element.alt);
+        element.replaceWith(trigger);
+        trigger.append(element);
+      }
     }
   }
   const walker=document.createTreeWalker(template.content,NodeFilter.SHOW_TEXT);
@@ -1776,6 +1799,10 @@ function noteListItemHtml(note){
       ${showTitle?`<strong>${esc(title)}</strong>`:''}
       ${body.trim()||!title?`<div class="note-feed-text">${body.trim()||'空笔记'}</div>`:''}
       ${note.topic?`<span class="note-feed-topic">#${esc(note.topic)}</span>`:''}
+      <select class="note-category-select" data-note-id="${id}" aria-label="更改笔记标签">
+        <option value="" disabled${noteCategories.includes(note.category)?'':' selected'}>添加标签</option>
+        ${noteCategories.map(category=>`<option${category===note.category?' selected':''}>${category}</option>`).join('')}
+      </select>
     </div>
     <div class="note-feed-actions">
       <button class="btn" type="button" data-id="${id}" onclick="openNoteDetail(this.dataset.id)">编辑</button>
@@ -1785,6 +1812,64 @@ function noteListItemHtml(note){
   </article>`;
 }
 let noteSelectedDate='';
+const noteCategories=['日记','思考','分享','待整理'];
+const noteCategoryPending=new Set();
+const noteAutoCategory=$('noteAutoCategory');
+try{noteAutoCategory.checked=localStorage.getItem('noteAutoCategory')==='1';}catch(error){}
+noteAutoCategory.addEventListener('change',()=>{
+  try{localStorage.setItem('noteAutoCategory',noteAutoCategory.checked?'1':'0');}catch(error){}
+});
+$('noteCategoryFilter').addEventListener('change',renderNotes);
+async function requestNoteCategory(id,category){
+  const result=await api('/api/notes/'+encodeURIComponent(id)+'/category',category?'PUT':'POST',
+    category?{category}:undefined);
+  const note=data.notes.find(item=>String(item.id)===String(id));
+  if(note)note.category=result.category;
+}
+async function autoCategorizeNote(id){
+  if(!noteAutoCategory.checked||!id||noteCategoryPending.has(id))return;
+  noteCategoryPending.add(id);
+  try{
+    await requestNoteCategory(id);
+    renderNotes();
+  }catch(error){
+    $('noteCategoryStatus').textContent='自动打标签失败，笔记已保存，可稍后补标签。';
+  }finally{noteCategoryPending.delete(id);}
+}
+$('noteList').addEventListener('change',async event=>{
+  const select=event.target.closest('.note-category-select');
+  if(!select)return;
+  select.disabled=true;
+  const status=$('noteCategoryStatus');
+  try{
+    await requestNoteCategory(select.dataset.noteId,select.value);
+    status.textContent='标签已更新。';
+  }catch(error){status.textContent='标签保存失败，请重试。';}
+  renderNotes();
+});
+$('noteCategoryBatch').addEventListener('click',async event=>{
+  const button=event.currentTarget;
+  const pending=data.notes.filter(note=>!noteCategories.includes(note.category)&&!noteCategoryPending.has(note.id));
+  const status=$('noteCategoryStatus');
+  if(!pending.length){status.textContent='没有需要补标签的笔记。';return;}
+  if(!confirm(`将 ${pending.length} 条未标记笔记的文字发送给 AI 服务进行分类？`))return;
+  button.disabled=true;
+  let completed=0;
+  try{
+    for(const note of pending){
+      noteCategoryPending.add(note.id);
+      status.textContent=`正在打标签（${completed+1}/${pending.length}）…`;
+      try{await requestNoteCategory(note.id);completed++;}
+      finally{noteCategoryPending.delete(note.id);}
+    }
+    status.textContent=`已为 ${completed} 条笔记添加标签。`;
+  }catch(error){
+    status.textContent=`已添加 ${completed} 条，剩余笔记可稍后重试。`;
+  }finally{
+    button.disabled=false;
+    renderNotes();
+  }
+});
 const noteArticleCache=new Map();
 const noteArticleObserver=new IntersectionObserver(entries=>{
   for(const entry of entries){
@@ -1825,6 +1910,13 @@ async function renderNoteArticlePreview(preview){
     <span><strong>${esc(meta.title)}</strong>${meta.summary?`<span class="note-article-summary">${esc(meta.summary)}</span>`:''}
       <small>微信公众号</small></span>
   </a>`;
+  const body=preview.closest('.note-feed-entry').querySelector('.note-feed-text');
+  for(const link of body.querySelectorAll('a[href]')){
+    const target=new URL(link.href);
+    target.hash='';
+    if(target.href===url&&link.textContent.trim()===link.getAttribute('href'))link.remove();
+  }
+  if(!body.textContent.trim()&&!body.querySelector('img'))body.hidden=true;
 }
 let noteLoadState='loading';
 let noteLoadRequest=0;
@@ -1886,8 +1978,10 @@ function renderNotes(){
   }
   renderNoteCalendar(groups);
   $('noteTimelineStatus').textContent=noteLoadState==='error'?'读取笔记失败，可刷新重试。':'';
-  const items=new Set(workspaceSearch(data.notes,'noteSearch',item=>
-    [item.title,item.topic,noteListText(item.content)],'noteSearchCount'));
+  const category=$('noteCategoryFilter').value;
+  const scoped=category?data.notes.filter(note=>note.category===category):data.notes;
+  const items=new Set(workspaceSearch(scoped,'noteSearch',item=>
+    [item.title,item.topic,item.category,noteListText(item.content)],'noteSearchCount'));
   const visible=[...groups].sort(([a],[b])=>b.localeCompare(a));
   $('noteList').innerHTML=visible.map(([date,notes])=>{
     const matching=notes.filter(note=>items.has(note))
@@ -1895,41 +1989,108 @@ function renderNotes(){
     if(!matching.length)return '';
     return `<section class="note-feed-day"${date?` id="note-day-${date}"`:''}><h3>${esc(date||'日期未记录')}</h3>${matching.map(noteListItemHtml).join('')}</section>`;
   }).join('')||empty(noteLoadState==='loading'?'正在加载笔记…':
-    noteLoadState==='error'?'暂时无法加载笔记。':$('noteSearch').value.trim()?'没有匹配的笔记。':'还没有笔记。');
+    noteLoadState==='error'?'暂时无法加载笔记。':$('noteSearch').value.trim()||category?'没有匹配的笔记。':'还没有笔记。');
   attachNoteArticlePreviews();
+}
+const noteQuickAttachments=[];
+function renderQuickNoteAttachments(){
+  const disabled=$('noteQuickText').readOnly;
+  $('noteQuickAttachments').innerHTML=noteQuickAttachments.map((attachment,index)=>`
+    <div class="note-quick-attachment"><img src="${esc(attachment.preview)}" alt="">
+      <span>${esc(attachment.file.name||'粘贴的图片')}</span>
+      <button type="button" class="btn" aria-label="移除图片 ${index+1}" data-index="${index}" onclick="removeQuickNoteImage(Number(this.dataset.index))"${disabled?' disabled':''}>移除</button>
+    </div>`).join('');
+}
+function addQuickNoteImages(files){
+  if($('noteQuickText').readOnly)return;
+  for(const file of files){
+    if(file.type.startsWith('image/'))noteQuickAttachments.push({file,preview:URL.createObjectURL(file)});
+  }
+  renderQuickNoteAttachments();
+}
+function removeQuickNoteImage(index){
+  if($('noteQuickText').readOnly)return;
+  const [attachment]=noteQuickAttachments.splice(index,1);
+  if(attachment)URL.revokeObjectURL(attachment.preview);
+  renderQuickNoteAttachments();
 }
 async function saveQuickNote(event){
   event.preventDefault();
   const input=$('noteQuickText');
   const text=input.value.trim();
   const button=$('noteQuickForm').querySelector('[type="submit"]');
-  if(!text||button.disabled)return;
+  if((!text&&!noteQuickAttachments.length)||button.disabled)return;
   const status=$('noteQuickStatus');
   input.readOnly=true;
   button.disabled=true;
+  $('noteQuickAddImages').disabled=true;
+  renderQuickNoteAttachments();
   status.textContent='保存中…';
   try{
+    for(const attachment of noteQuickAttachments){
+      if(!attachment.storedName){
+        const uploaded=await uploadPasteImage(attachment.file);
+        if(!uploaded.stored_name)throw Error('图片上传失败');
+        attachment.storedName=uploaded.stored_name;
+      }
+    }
+    const images=noteQuickAttachments.map(({storedName})=>
+      `<div><img src="/api/knowledge/files/${encodeURIComponent(storedName)}" alt="笔记图片"></div>`).join('');
     const note=await api('/api/notes','POST',{
-      title:text.split('\n')[0].trim().slice(0,40),
-      content:'<div>'+esc(text).replace(/\n/g,'<br>')+'</div>'
+      title:text.split('\n')[0].trim().slice(0,40)||'图片笔记',
+      content:(text?'<div>'+esc(text).replace(/\n/g,'<br>')+'</div>':'')+images
     });
     data.notes.unshift(note);
     noteLoadState='ready';
     input.value='';
+    for(const attachment of noteQuickAttachments)URL.revokeObjectURL(attachment.preview);
+    noteQuickAttachments.length=0;
     $('noteSearch').value='';
+    $('noteCategoryFilter').value='';
     noteSelectedDate='';
     noteCalendarMonth='';
     renderNotes();
     status.textContent='已保存';
+    autoCategorizeNote(note.id);
   }catch(error){
     status.textContent='保存失败，请重试';
   }finally{
     input.readOnly=false;
     button.disabled=false;
+    $('noteQuickAddImages').disabled=false;
+    renderQuickNoteAttachments();
     input.focus();
   }
 }
 $('noteQuickForm').addEventListener('submit',saveQuickNote);
+const noteImageViewer=$('noteImageViewer');
+const noteImagePreview=noteImageViewer.querySelector('img');
+$('noteList').addEventListener('click',event=>{
+  const source=event.target.closest('.note-image-trigger')?.querySelector('img')
+    || (event.target.matches('.note-feed-text img')?event.target:null);
+  if(!source)return;
+  event.preventDefault();
+  noteImagePreview.referrerPolicy='no-referrer';
+  noteImagePreview.src=source.currentSrc||source.src;
+  noteImagePreview.alt=source.alt;
+  noteImageViewer.showModal();
+});
+noteImageViewer.querySelector('button').addEventListener('click',()=>noteImageViewer.close());
+noteImageViewer.addEventListener('click',event=>{
+  if(event.target===noteImageViewer)noteImageViewer.close();
+});
+noteImageViewer.addEventListener('close',()=>noteImagePreview.removeAttribute('src'));
+$('noteQuickImages').addEventListener('change',event=>{
+  addQuickNoteImages(event.target.files);
+  event.target.value='';
+});
+$('noteQuickText').addEventListener('paste',event=>{
+  const files=[...(event.clipboardData?.files||[])].filter(file=>file.type.startsWith('image/'));
+  if(files.length){
+    addQuickNoteImages(files);
+    if(!event.clipboardData.getData('text/plain'))event.preventDefault();
+  }
+});
 $('noteQuickText').addEventListener('keydown',event=>{
   if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)&&!event.isComposing){
     event.preventDefault();
@@ -1969,15 +2130,55 @@ function openProduct(existing){let p=existing||{},types=productTypes();modal(`<h
 async function saveProduct(id){let name=$('mName').value.trim();if(!name)return;let body={name,company:$('mCompany').value.trim(),type:$('mType').value.trim()||'未分类',official_url:$('mUrl').value.trim(),keywords:$('mKeywords').value.split(',').map(s=>s.trim()).filter(Boolean),note:$('mNote').value.trim()};if(id){await api('/api/products/'+id,'PUT',body);radarProductId=id}else{let created=await api('/api/products','POST',body);radarProductId=created.id||'all'}closeModal();await load();showView('radar',document.querySelector('[data-view=radar]'))}
 function editProduct(id){let p=data.products.find(x=>x.id===id);if(p)openProduct(p)}
 async function removeProduct(id){if(!confirm('确认删除该竞品？'))return;await api('/api/products/'+id,'DELETE');if(radarProductId===id)radarProductId='all';await load()}
-let writeDraftId=null,writeTimer=null,writeBusy=false,writeDraftTitle='';
+let writeDraftId=null,writeTimer=null,writePending=null,writeClosing=false,writeDraftTitle='';
 function focusQuickNote(){if(!$('home').classList.contains('active'))showView('home',document.querySelector('[data-view=home]'));setTimeout(expandWrite,0)}
 function expandWrite(existing){if(document.body.classList.contains('write-mode'))return;document.body.classList.add('write-mode');let stage=$('writeStage');stage.setAttribute('aria-hidden','false');writeDraftId=existing?existing.id:null;writeDraftTitle=existing?((existing.title||'').trim()):'';$('writePad').innerHTML=existing?(existing.content||''):'';$('writeStatus').textContent=existing?'编辑中，自动保存':'写点什么，也可以粘贴图片';requestAnimationFrame(()=>stage.classList.add('show'));setTimeout(()=>$('writePad').focus(),40)}
-function scheduleWriteSave(){$('writeStatus').textContent='编辑中…';clearTimeout(writeTimer);writeTimer=setTimeout(()=>flushWrite(),700)}
+function scheduleWriteSave(){$('writeStatus').textContent='编辑中…';clearTimeout(writeTimer);writeTimer=setTimeout(()=>{if(!writeClosing)flushWrite()},700)}
 async function uploadPasteImage(file){let name=file.name&&file.name!=='blob'?file.name:('paste.'+(file.type.split('/')[1]||'png'));let fd=new FormData();fd.append('file',file,name);let r=await fetch('/api/upload',{method:'POST',body:fd});if(!r.ok)throw Error(await r.text());return r.json()}
 function insertWriteImage(url){let pad=$('writePad');pad.focus();let html=`<div><img src="${url}"></div><div><br></div>`;if(document.queryCommandSupported&&document.queryCommandSupported('insertHTML'))document.execCommand('insertHTML',false,html);else{let sel=window.getSelection();if(!sel||!sel.rangeCount){pad.innerHTML+=html;return}let range=sel.getRangeAt(0);range.deleteContents();let node=document.createElement('div');node.innerHTML=html;let frag=document.createDocumentFragment();while(node.firstChild)frag.appendChild(node.firstChild);range.insertNode(frag);sel.collapseToEnd()}}
 async function handleWritePaste(e){let cd=e.clipboardData||window.clipboardData;if(!cd)return;let items=[...(cd.items||[])];let imgItem=items.find(it=>it.type&&it.type.indexOf('image')===0);let file=imgItem?imgItem.getAsFile():null;if(!file&&cd.files&&cd.files.length)file=[...cd.files].find(f=>(f.type||'').indexOf('image')===0);if(!file)return;e.preventDefault();$('writeStatus').textContent='上传图片中…';try{let up=await uploadPasteImage(file);insertWriteImage(`/api/knowledge/files/${encodeURIComponent(up.stored_name)}`);$('writeStatus').textContent='图片已插入';scheduleWriteSave()}catch(err){$('writeStatus').textContent='图片上传失败，请重试';console.error(err)}}
-async function flushWrite(){let pad=$('writePad'),html=pad.innerHTML,text=(pad.innerText||'').trim(),hasImg=!!pad.querySelector('img');if((!text&&!hasImg)||writeBusy)return;writeBusy=true;$('writeStatus').textContent='保存中…';try{let title=writeDraftTitle||((text.split('\n').find(l=>l.trim())||(hasImg?'图片笔记':'未命名笔记')).slice(0,40));if(writeDraftId)await api('/api/notes/'+writeDraftId,'PUT',{title,content:html});else{let created=await api('/api/notes','POST',{title,content:html});writeDraftId=created.id}$('writeStatus').textContent='已自动保存'}catch(e){$('writeStatus').textContent='保存失败，稍后重试'}finally{writeBusy=false}}
-async function collapseWrite(){if(!document.body.classList.contains('write-mode'))return;clearTimeout(writeTimer);await flushWrite();document.body.classList.remove('write-mode');$('writeStage').classList.remove('show');$('writeStage').setAttribute('aria-hidden','true');writeDraftId=null;writeDraftTitle='';$('writePad').innerHTML='';await load()}
+async function flushWrite(){
+  if(writePending)await writePending;
+  if(writePending)return false;
+  const pad=$('writePad');
+  const html=pad.innerHTML;
+  const text=(pad.innerText||'').trim();
+  const hasImg=!!pad.querySelector('img');
+  if(!text&&!hasImg)return true;
+  const title=writeDraftTitle||(text.split('\n').find(line=>line.trim())||(hasImg?'图片笔记':'未命名笔记')).slice(0,40);
+  $('writeStatus').textContent='保存中…';
+  const save=async()=>{
+    try{
+      if(writeDraftId)await api('/api/notes/'+encodeURIComponent(writeDraftId),'PUT',{title,content:html});
+      else writeDraftId=(await api('/api/notes','POST',{title,content:html})).id;
+      $('writeStatus').textContent='已自动保存';
+      return true;
+    }catch(error){
+      $('writeStatus').textContent='保存失败，稍后重试';
+      return false;
+    }
+  };
+  writePending=save();
+  try{return await writePending;}
+  finally{writePending=null;}
+}
+async function collapseWrite(){
+  if(!document.body.classList.contains('write-mode')||writeClosing)return;
+  writeClosing=true;
+  clearTimeout(writeTimer);
+  try{
+    if(!await flushWrite())return;
+    const id=writeDraftId;
+    document.body.classList.remove('write-mode');
+    $('writeStage').classList.remove('show');
+    $('writeStage').setAttribute('aria-hidden','true');
+    writeDraftId=null;
+    writeDraftTitle='';
+    $('writePad').innerHTML='';
+    autoCategorizeNote(id);
+    await load();
+  }finally{writeClosing=false;}
+}
 function modal(html,wide=false){$('modalBody').innerHTML=html;$('modalBody').classList.toggle('wide',!!wide);$('modal').classList.add('show')}function closeModal(){$('modal').classList.remove('show');$('modalBody').classList.remove('wide')}
 function openNote(){modal(`<h3>写下想法</h3><div class="field"><label>标题</label><input id="mTitle" placeholder="一句话概括"></div><div class="field"><label>内容</label><textarea id="mContent" rows="5" placeholder="把脑海中的判断记下来…"></textarea></div><div class="field"><label>主题</label><input id="mTopic" placeholder="例如：个人工作台"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="createNote()">保存</button></div>`)}async function createNote(){let title=$('mTitle').value.trim(),content=$('mContent').value.trim();if(!title&&!content)return;await api('/api/notes','POST',{title:title||'未命名想法',content,topic:$('mTopic').value.trim()});closeModal();load()}document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();focusQuickNote()}if(e.key==='Escape'&&document.body.classList.contains('write-mode')){e.preventDefault();collapseWrite()}else if(e.key==='Escape'&&$('todoCompose').classList.contains('open')){e.preventDefault();collapseTodoCompose(true)}});document.addEventListener('mousedown',e=>{let c=$('todoCompose');if(!c.classList.contains('open')||c.contains(e.target))return;collapseTodoCompose(false)});document.addEventListener('mousedown',e=>{let wrap=$('bmQuick');if(!wrap||!wrap.classList.contains('show'))return;let toggleBtn=$('bmAddToggleBtn');if(wrap.contains(e.target)||(toggleBtn&&toggleBtn.contains(e.target)))return;closeBmQuick()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('bmQuick')&&$('bmQuick').classList.contains('show')){e.preventDefault();closeBmQuick()}});$('modal').onclick=e=>{if(e.target===$('modal'))closeModal()};
 renderNotes();updateClock();setInterval(()=>{updateClock();renderHomeGreeting();renderHomeLives()},60000);loadBmWeather();load();
