@@ -598,7 +598,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     width: 100%;
   }
 }
-</style><link rel="stylesheet" href="/static/bookmarks.css"><link rel="stylesheet" href="/static/work-followup.css"><link rel="stylesheet" href="/static/workbench-views.css?v=2"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
+</style><link rel="stylesheet" href="/static/bookmarks.css"><link rel="stylesheet" href="/static/work-followup.css"><link rel="stylesheet" href="/static/workbench-views.css?v=5"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
 <section id="home" class="view">
 <section class="followup" aria-labelledby="followupTitle">
 <header class="followup-heading"><h2 id="followupTitle">工作跟进</h2></header>
@@ -726,7 +726,25 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     </div>
   </form>
   <div class="workspace-find"><input type="search" id="noteSearch" aria-label="搜索笔记" placeholder="搜索笔记" oninput="renderNotes()"><span id="noteSearchCount" role="status"></span></div>
-  <div id="noteList" class="note-feed"></div>
+  <div class="note-archive">
+    <aside class="note-calendar" aria-labelledby="noteCalendarTitle">
+      <div class="note-calendar-head">
+        <button type="button" class="btn" aria-label="上个月" onclick="shiftNoteMonth(-1)">‹</button>
+        <h2 id="noteCalendarTitle" aria-live="polite"></h2>
+        <button type="button" class="btn" aria-label="下个月" onclick="shiftNoteMonth(1)">›</button>
+      </div>
+      <div id="noteCalendarDays" class="note-calendar-days"></div>
+      <div class="note-calendar-legend"><span><i></i>无记录</span><span><i class="has-notes"></i>有记录</span></div>
+      <button type="button" class="btn note-calendar-today" onclick="selectNoteDate(noteDateKey(new Date()))">今天</button>
+    </aside>
+    <div class="note-timeline">
+      <div class="note-timeline-head">
+        <h2 id="noteTimelineTitle">时间线</h2>
+        <span id="noteTimelineStatus" role="status"></span>
+      </div>
+      <div id="noteList" class="note-feed"></div>
+    </div>
+  </div>
 </section>
 <section id="radar" class="view"><header class="workspace-view-head"><h1>鹰眼</h1></header><div class="radar-layout"><aside class="radar-nav" id="radarNav"></aside><div class="radar-main"><div class="vid-feed-head"><span class="hint" id="radarUpdated"></span><button type="button" class="btn ghost" id="radarRefreshBtn" onclick="refreshRadar()">↻ 刷新</button></div><div id="productProfile"></div><div class="filters" id="radarFavFilters"></div><div class="day-cards" id="radarList"></div></div></div></section>
 
@@ -742,7 +760,7 @@ let mediaHotItems=[];
 const $=id=>document.getElementById(id);let data={tasks:[],notes:[],knowledge:[],updates:[],products:[],bookmarks:[],media:[],news:[],creators:[]},radarProductId='all',radarScope='all',knowledgeKind='all',bmAddKind='memo',wereadData=null,wrShelfShown=10,wrShelfStep=30,wrNotesData=null,wrOpenNoteId=null,creatorFilterId=null,platformFilter='',creatorSearch='',creatorVideos=[],creatorVideosUpdatedAt='',creatorVideosLoaded=false;
 const api=async(url,method='GET',body)=>{let r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(await r.text());return r.json()};const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function formatSize(n){if(n==null)return '';if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(1)+' MB'}
-async function load(){await loadCore();renderBookmarks();restoreView();loadUnread().then(renderUnread);loadRest()}async function loadCore(){let [b,g]=await Promise.all([api('/api/bookmarks'),api('/api/bookmark-groups')]);data.bookmarks=b.items||[];data.bmGroups=g.items||[]}async function loadRest(){let [t,n,k,u,p,m,ql,news,cr,km,brief]=await Promise.all(['tasks','notes','knowledge','products_updates','products','media'].map(x=>api('/api/'+x)).concat([api('/api/qlearning-lives'),api('/api/news'),api('/api/creators'),api('/api/km-hot'),api('/api/daily_brief')]));data.tasks=t.items||[];data.notes=n.items||[];data.knowledge=k.items||[];data.updates=u.items||[];data.updatesUpdatedAt=u.updated_at||'';data.products=p.products||[];data.media=m.items||[];data.qlLives=ql.items||[];data.qlLivesUpdated=ql.updated_at||'';data.news=news.items||[];data.newsUpdatedAt=news.updated_at||'';data.creators=cr.items||[];data.kmHot=km.items||[];data.kmHotUpdated=km.updated_at||'';data.brief=brief||{};renderRest();if(document.getElementById('creators').classList.contains('active')||(data.creators.length&&!creatorVideos.length))loadCreatorVideos();}
+async function load(){loadNotes();await loadCore();renderBookmarks();restoreView();loadUnread().then(renderUnread);loadRest()}async function loadCore(){let [b,g]=await Promise.all([api('/api/bookmarks'),api('/api/bookmark-groups')]);data.bookmarks=b.items||[];data.bmGroups=g.items||[]}async function loadRest(){let [t,k,u,p,m,ql,news,cr,km,brief]=await Promise.all(['tasks','knowledge','products_updates','products','media'].map(x=>api('/api/'+x)).concat([api('/api/qlearning-lives'),api('/api/news'),api('/api/creators'),api('/api/km-hot'),api('/api/daily_brief')]));data.tasks=t.items||[];data.knowledge=k.items||[];data.updates=u.items||[];data.updatesUpdatedAt=u.updated_at||'';data.products=p.products||[];data.media=m.items||[];data.qlLives=ql.items||[];data.qlLivesUpdated=ql.updated_at||'';data.news=news.items||[];data.newsUpdatedAt=news.updated_at||'';data.creators=cr.items||[];data.kmHot=km.items||[];data.kmHotUpdated=km.updated_at||'';data.brief=brief||{};renderRest();if(document.getElementById('creators').classList.contains('active')||(data.creators.length&&!creatorVideos.length))loadCreatorVideos();}
 function restoreView(){let id=new URLSearchParams(location.search).get('view');try{id=id||sessionStorage.getItem('bmActiveView')}catch(e){}let section=id&&document.getElementById(id);if(section&&section.classList.contains('view')){showView(id)}else{showView('bookmarks')}}
 restoreView()
 function updateTopNavigation(current){
@@ -782,7 +800,7 @@ async function loadUnread(){try{let j=await fetch('/api/unread').then(r=>r.json(
 function renderUnread(){let u=data._unread||{};document.querySelectorAll('.pill[data-view]').forEach(p=>{let v=p.getAttribute('data-view');let m=unreadViewName(v);if(!m)return;let n=u[m]||0;let dot=p.querySelector('.tab-dot');if(n>0){if(!dot){dot=document.createElement('span');dot.className='tab-dot';dot.setAttribute('aria-label','有未读');p.appendChild(dot)}}else if(dot){dot.remove()}})}
 async function markTabRead(id){let m=unreadViewName(id);if(!m)return;let u=data._unread||{};if(!(u[m]>0))return;try{await api('/api/unread/mark','POST',{module:m});delete u[m];if(m==='creators'){let seen=data._creatorSeen||new Set();creatorVideos.forEach(v=>{if(v.url)seen.add(v.url)});data._creatorSeen=seen;renderCreatorTiles()}renderUnread()}catch(e){}}
 function render(){renderBrief();renderTodoPanel();renderKnowledge();renderBookmarks();renderMedia();renderNotes();renderRadar();renderHomeLives();renderKmHot();renderHomeGreeting();renderAiPulse();renderUnread();renderCreatorTiles()}
-function renderRest(){renderBrief();renderTodoPanel();renderKnowledge();renderMedia();renderNotes();renderRadar();renderHomeLives();renderKmHot();renderHomeGreeting();renderAiPulse();renderProductInsights();renderCreatorTiles()}
+function renderRest(){renderBrief();renderTodoPanel();renderKnowledge();renderMedia();renderRadar();renderHomeLives();renderKmHot();renderHomeGreeting();renderAiPulse();renderProductInsights();renderCreatorTiles()}
 function empty(t){return `<div class="empty">${t}</div>`}
 function shortDate(d){if(!/^\d{4}-\d{2}-\d{2}$/.test(d||''))return '';let [y,m,day]=d.split('-');return `${Number(m)} 月 ${Number(day)} 日`}
 const WEEKDAYS=['周日','周一','周二','周三','周四','周五','周六'];
@@ -1683,35 +1701,202 @@ function noteListText(content){
     .replace(/<br\b[^>]*>|<\/(?:p|div|li|blockquote)>/gi,'\n');
   return preview.content.textContent.replace(/\n{3,}/g,'\n\n').trim();
 }
+function noteRichHtml(content){
+  const source=String(content||'');
+  const template=document.createElement('template');
+  const allowed=new Set('a b blockquote br code del div em h1 h2 h3 h4 hr i img li ol p pre s span strong sub sup u ul'.split(' '));
+  const discarded='script,style,iframe,object,embed,template,svg,math';
+  if(/<[a-z][\s\S]*>/i.test(source))template.innerHTML=source;
+  else template.content.append(source);
+  template.content.querySelectorAll(discarded).forEach(node=>node.remove());
+  const safeUrl=value=>{
+    try{
+      const url=new URL(value,location.href);
+      return ['http:','https:'].includes(url.protocol)?url.href:'';
+    }catch(error){return '';}
+  };
+  for(const element of template.content.querySelectorAll('*')){
+    const tag=element.localName;
+    if(!allowed.has(tag)){element.replaceWith(...element.childNodes);continue;}
+    const href=element.getAttribute('href');
+    const src=element.getAttribute('src');
+    const alt=element.getAttribute('alt');
+    for(const attribute of [...element.attributes])element.removeAttribute(attribute.name);
+    if(tag==='a'){
+      const url=href&&safeUrl(href);
+      if(url){element.href=url;element.target='_blank';element.rel='noopener noreferrer';}
+      else element.replaceWith(...element.childNodes);
+    }
+    if(tag==='img'){
+      const url=src&&safeUrl(src);
+      if(!url){element.remove();continue;}
+      element.src=url;
+      element.alt=alt||'笔记图片';
+      element.loading='lazy';
+      element.referrerPolicy='no-referrer';
+    }
+  }
+  const walker=document.createTreeWalker(template.content,NodeFilter.SHOW_TEXT);
+  const textNodes=[];
+  while(walker.nextNode())textNodes.push(walker.currentNode);
+  for(const node of textNodes){
+    if(node.parentElement?.closest('a,code,pre'))continue;
+    const links=[...node.data.matchAll(/https?:\/\/[^\s<>"'，。；！？）]+/gi)];
+    if(!links.length)continue;
+    const fragment=document.createDocumentFragment();
+    let offset=0;
+    for(const match of links){
+      const text=match[0].replace(/[.,;!?]+$/,'');
+      const url=safeUrl(text);
+      if(!url)continue;
+      fragment.append(node.data.slice(offset,match.index));
+      const link=document.createElement('a');
+      link.href=url;
+      link.target='_blank';
+      link.rel='noopener noreferrer';
+      link.textContent=text;
+      fragment.append(link);
+      offset=match.index+text.length;
+    }
+    fragment.append(node.data.slice(offset));
+    node.replaceWith(fragment);
+  }
+  return template.innerHTML;
+}
 function noteListItemHtml(note){
   const text=noteListText(note.content);
+  const body=noteRichHtml(note.content);
   const title=(note.title||'').trim();
   const id=esc(note.id);
   const showTitle=title&&!text.startsWith(title);
+  const time=String(note.created_at||'').match(/[T ](\d{2}:\d{2})/)?.[1];
   return `<article class="note-feed-item">
-    <button class="note-feed-entry" type="button" data-id="${id}" onclick="openNoteDetail(this.dataset.id)">
+    <span class="note-feed-time">${time?esc(time):'—'}</span>
+    <div class="note-feed-entry">
       ${showTitle?`<strong>${esc(title)}</strong>`:''}
-      ${text||!title?`<span class="note-feed-text">${esc(text||'空笔记')}</span>`:''}
+      ${body.trim()||!title?`<div class="note-feed-text">${body.trim()||'空笔记'}</div>`:''}
       ${note.topic?`<span class="note-feed-topic">#${esc(note.topic)}</span>`:''}
-    </button>
+    </div>
     <div class="note-feed-actions">
+      <button class="btn" type="button" data-id="${id}" onclick="openNoteDetail(this.dataset.id)">编辑</button>
       <button class="btn" type="button" data-id="${id}" onclick="syncToIma('note',this.dataset.id,this)">同步</button>
       <button class="btn" type="button" data-id="${id}" onclick="removeNote(this.dataset.id)">删除</button>
     </div>
   </article>`;
 }
-function renderNotes(){
-  const items=workspaceSearch(data.notes,'noteSearch',item=>
-    [item.title,item.topic,noteListText(item.content)],'noteSearchCount');
-  const groups=new Map();
-  for(const item of items){
-    const date=String(item.date||item.created_at||'').slice(0,10);
-    if(!groups.has(date))groups.set(date,[]);
-    groups.get(date).push(item);
+let noteSelectedDate='';
+const noteArticleCache=new Map();
+const noteArticleObserver=new IntersectionObserver(entries=>{
+  for(const entry of entries){
+    if(!entry.isIntersecting)continue;
+    noteArticleObserver.unobserve(entry.target);
+    renderNoteArticlePreview(entry.target);
   }
-  $('noteList').innerHTML=items.length?[...groups].sort(([a],[b])=>b.localeCompare(a)).map(([date,notes])=>
-    `<section class="note-feed-day"><h2>${esc(shortDate(date)||'日期未记录')}</h2>${notes.map(noteListItemHtml).join('')}</section>`).join(''):empty(
-    $('noteSearch').value.trim()?'没有匹配的笔记。':'还没有笔记。');
+},{rootMargin:'180px'});
+function attachNoteArticlePreviews(){
+  noteArticleObserver.disconnect();
+  for(const body of $('noteList').querySelectorAll('.note-feed-text')){
+    const articleUrls=new Set();
+    for(const link of body.querySelectorAll('a[href]')){
+      const url=new URL(link.href);
+      if(url.protocol!=='https:'||url.hostname!=='mp.weixin.qq.com'||!/^\/s(?:\/[\w-]+)?\/?$/.test(url.pathname))continue;
+      url.hash='';
+      articleUrls.add(url.href);
+    }
+    for(const url of articleUrls){
+      const preview=document.createElement('div');
+      preview.dataset.articleUrl=url;
+      body.after(preview);
+      noteArticleObserver.observe(preview);
+    }
+  }
+}
+async function renderNoteArticlePreview(preview){
+  const url=preview.dataset.articleUrl;
+  if(!noteArticleCache.has(url)){
+    noteArticleCache.set(url,api('/api/bookmarks/fetch-meta?url='+encodeURIComponent(url)).catch(()=>null));
+  }
+  const meta=await noteArticleCache.get(url);
+  if(!preview.isConnected||!meta?.title)return;
+  const cover=knowledgeHttpUrl(meta.image);
+  const image=cover?.protocol==='https:'&&/^(?:mmbiz\.qpic\.cn|mmbiz\.qlogo\.cn)$/.test(cover.hostname)?cover.href:'';
+  preview.innerHTML=`<a class="note-article-card" href="${esc(url)}" target="_blank" rel="noopener noreferrer">
+    ${image?`<img src="${esc(image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}
+    <span><strong>${esc(meta.title)}</strong>${meta.summary?`<span class="note-article-summary">${esc(meta.summary)}</span>`:''}
+      <small>微信公众号</small></span>
+  </a>`;
+}
+let noteLoadState='loading';
+let noteLoadRequest=0;
+async function loadNotes(){
+  const request=++noteLoadRequest;
+  try{
+    const result=await api('/api/notes');
+    if(request!==noteLoadRequest)return;
+    data.notes=result.items||[];
+    noteLoadState='ready';
+  }catch(error){
+    if(request!==noteLoadRequest)return;
+    noteLoadState='error';
+  }
+  renderNotes();
+}
+let noteCalendarMonth='';
+function noteDateKey(date){
+  return [date.getFullYear(),date.getMonth()+1,date.getDate()].map(part=>String(part).padStart(2,'0')).join('-');
+}
+function selectNoteDate(date){
+  noteSelectedDate=date;
+  noteCalendarMonth=date.slice(0,7);
+  renderNotes();
+  const entry=$('note-day-'+date);
+  $('noteTimelineStatus').textContent=entry?
+    '已定位到 '+date:date+($('noteSearch').value.trim()?' 没有匹配的笔记':' 没有笔记');
+  entry?.scrollIntoView({block:'start'});
+}
+function shiftNoteMonth(offset){
+  const [year,month]=(noteCalendarMonth||noteDateKey(new Date())).split('-').map(Number);
+  noteCalendarMonth=noteDateKey(new Date(year,month-1+offset,1)).slice(0,7);
+  renderNotes();
+}
+function renderNoteCalendar(groups){
+  const today=noteDateKey(new Date());
+  const [year,month]=(noteCalendarMonth||today).split('-').map(Number);
+  const firstDay=(new Date(year,month-1,1).getDay()+6)%7;
+  const days=new Date(year,month,0).getDate();
+  const calendar=$('noteCalendarDays');
+  const focused=calendar.contains(document.activeElement)?document.activeElement.dataset.date:'';
+  $('noteCalendarTitle').textContent=`${year} 年 ${month} 月`;
+  calendar.innerHTML=['一','二','三','四','五','六','日'].map(day=>`<span class="note-calendar-weekday">${day}</span>`).join('')
+    +'<span aria-hidden="true"></span>'.repeat(firstDay)
+    +Array.from({length:days},(_,i)=>{
+      const date=noteDateKey(new Date(year,month-1,i+1));
+      const count=groups.get(date)?.length||0;
+      return `<button type="button" class="note-calendar-day${count?' has-notes':''}" data-date="${date}" aria-label="${date}，${count} 条笔记" aria-pressed="${date===noteSelectedDate}"${date===today?' aria-current="date"':''} onclick="selectNoteDate(this.dataset.date)"><span class="note-calendar-dot" aria-hidden="true"></span><span>${i+1}</span></button>`;
+    }).join('');
+  if(focused)calendar.querySelector(`[data-date="${focused}"]`)?.focus();
+}
+function renderNotes(){
+  const groups=new Map();
+  for(const item of data.notes){
+    const date=String(item.date||item.created_at||'').slice(0,10);
+    const key=shortDate(date)?date:'';
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(item);
+  }
+  renderNoteCalendar(groups);
+  $('noteTimelineStatus').textContent=noteLoadState==='error'?'读取笔记失败，可刷新重试。':'';
+  const items=new Set(workspaceSearch(data.notes,'noteSearch',item=>
+    [item.title,item.topic,noteListText(item.content)],'noteSearchCount'));
+  const visible=[...groups].sort(([a],[b])=>b.localeCompare(a));
+  $('noteList').innerHTML=visible.map(([date,notes])=>{
+    const matching=notes.filter(note=>items.has(note))
+      .sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+    if(!matching.length)return '';
+    return `<section class="note-feed-day"${date?` id="note-day-${date}"`:''}><h3>${esc(date||'日期未记录')}</h3>${matching.map(noteListItemHtml).join('')}</section>`;
+  }).join('')||empty(noteLoadState==='loading'?'正在加载笔记…':
+    noteLoadState==='error'?'暂时无法加载笔记。':$('noteSearch').value.trim()?'没有匹配的笔记。':'还没有笔记。');
+  attachNoteArticlePreviews();
 }
 async function saveQuickNote(event){
   event.preventDefault();
@@ -1729,8 +1914,11 @@ async function saveQuickNote(event){
       content:'<div>'+esc(text).replace(/\n/g,'<br>')+'</div>'
     });
     data.notes.unshift(note);
+    noteLoadState='ready';
     input.value='';
     $('noteSearch').value='';
+    noteSelectedDate='';
+    noteCalendarMonth='';
     renderNotes();
     status.textContent='已保存';
   }catch(error){
@@ -1792,7 +1980,7 @@ async function flushWrite(){let pad=$('writePad'),html=pad.innerHTML,text=(pad.i
 async function collapseWrite(){if(!document.body.classList.contains('write-mode'))return;clearTimeout(writeTimer);await flushWrite();document.body.classList.remove('write-mode');$('writeStage').classList.remove('show');$('writeStage').setAttribute('aria-hidden','true');writeDraftId=null;writeDraftTitle='';$('writePad').innerHTML='';await load()}
 function modal(html,wide=false){$('modalBody').innerHTML=html;$('modalBody').classList.toggle('wide',!!wide);$('modal').classList.add('show')}function closeModal(){$('modal').classList.remove('show');$('modalBody').classList.remove('wide')}
 function openNote(){modal(`<h3>写下想法</h3><div class="field"><label>标题</label><input id="mTitle" placeholder="一句话概括"></div><div class="field"><label>内容</label><textarea id="mContent" rows="5" placeholder="把脑海中的判断记下来…"></textarea></div><div class="field"><label>主题</label><input id="mTopic" placeholder="例如：个人工作台"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="createNote()">保存</button></div>`)}async function createNote(){let title=$('mTitle').value.trim(),content=$('mContent').value.trim();if(!title&&!content)return;await api('/api/notes','POST',{title:title||'未命名想法',content,topic:$('mTopic').value.trim()});closeModal();load()}document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();focusQuickNote()}if(e.key==='Escape'&&document.body.classList.contains('write-mode')){e.preventDefault();collapseWrite()}else if(e.key==='Escape'&&$('todoCompose').classList.contains('open')){e.preventDefault();collapseTodoCompose(true)}});document.addEventListener('mousedown',e=>{let c=$('todoCompose');if(!c.classList.contains('open')||c.contains(e.target))return;collapseTodoCompose(false)});document.addEventListener('mousedown',e=>{let wrap=$('bmQuick');if(!wrap||!wrap.classList.contains('show'))return;let toggleBtn=$('bmAddToggleBtn');if(wrap.contains(e.target)||(toggleBtn&&toggleBtn.contains(e.target)))return;closeBmQuick()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('bmQuick')&&$('bmQuick').classList.contains('show')){e.preventDefault();closeBmQuick()}});$('modal').onclick=e=>{if(e.target===$('modal'))closeModal()};
-updateClock();setInterval(()=>{updateClock();renderHomeGreeting();renderHomeLives()},60000);loadBmWeather();load();
+renderNotes();updateClock();setInterval(()=>{updateClock();renderHomeGreeting();renderHomeLives()},60000);loadBmWeather();load();
 
 /* ===== IMate 运营数据 ===== */
 let opsRange='1d',opsData=null,opsSyncing=false;

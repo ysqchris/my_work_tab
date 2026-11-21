@@ -200,7 +200,7 @@
 :is(#notes, #knowledge) .kb-card-foot .kb-card-icon { display: none; }
 :is(#notes, #knowledge) .kb-card-date { color: var(--bm-muted); }
 :is(#notes, #knowledge) .kb-card:focus-within :is(.kb-del, .kb-sync) { opacity: 1; pointer-events: auto; }
-#notes { max-width: 780px; }
+#notes { max-width: 1040px; }
 .note-quick-form { margin-bottom: 16px; }
 .note-quick-form textarea {
   display: block;
@@ -216,14 +216,37 @@
 }
 .note-quick-footer { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 5px; }
 #noteQuickStatus { margin-right: auto; color: var(--worktable-muted); font-size: 12px; }
-.note-feed-day { margin-top: 18px; }
-.note-feed-day h2 { margin: 0; padding-bottom: 5px; color: var(--worktable-muted); font-size: 12px; font-weight: 650; }
+.note-archive { display: grid; grid-template-columns: 226px minmax(0, 1fr); gap: 24px; align-items: start; }
+.note-calendar { position: sticky; top: 76px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.note-calendar-head, .note-timeline-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.note-calendar-head h2, .note-timeline-head h2 { margin: 0; font-size: 14px; }
+.note-calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin-top: 6px; text-align: center; }
+.note-calendar-weekday { padding: 4px 0; color: var(--worktable-muted); font-size: 11px; }
+.note-calendar-day { display: grid; justify-items: center; align-content: center; gap: 3px; min-height: 34px; padding: 2px 0; border: 1px solid transparent; border-radius: 5px; background: transparent; cursor: pointer; font-size: 10px; }
+.note-calendar-day[aria-current="date"] { border-color: var(--bm-accent); }
+.note-calendar-day:is(:hover, [aria-pressed="true"]) { background: var(--bm-accent-soft); color: var(--bm-accent); }
+.note-calendar-day[aria-pressed="true"] { font-weight: 750; }
+.note-calendar-dot, .note-calendar-legend i { width: 9px; height: 9px; border-radius: 50%; background: var(--soft); }
+.note-calendar-day.has-notes .note-calendar-dot, .note-calendar-legend i.has-notes { background: var(--bm-accent); }
+.note-calendar-legend { display: flex; gap: 12px; margin-top: 8px; color: var(--worktable-muted); font-size: 11px; }
+.note-calendar-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.note-calendar-today { margin-top: 7px; }
+#noteTimelineStatus { color: var(--worktable-muted); font-size: 12px; }
+.note-feed-day { position: relative; margin-top: 16px; padding-left: 14px; border-left: 1px solid var(--line); scroll-margin-top: 76px; }
+.note-feed-day:focus-within h3 { color: var(--bm-accent); }
+.note-feed-day h3 { margin: 0; padding-bottom: 5px; color: var(--worktable-muted); font-size: 12px; font-weight: 650; }
+.note-feed-day::before { content: ''; position: absolute; top: 5px; left: -3px; width: 5px; height: 5px; border-radius: 50%; background: var(--bm-accent); }
+@media (max-width: 640px) {
+  .note-archive { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .note-calendar { position: static; }
+}
 .note-feed-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
   align-items: start;
   border-top: 1px solid var(--line);
 }
+.note-feed-time { padding-top: 11px; color: var(--worktable-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .note-feed-entry {
   display: grid;
   gap: 3px;
@@ -231,14 +254,37 @@
   padding: 9px 8px 9px 0;
   border: 0;
   background: transparent;
-  cursor: pointer;
   text-align: left;
   font-size: 14px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 .note-feed-item:is(:hover, :focus-within) { background: var(--bm-hover); }
-.note-feed-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow: hidden; white-space: pre-wrap; }
+.note-feed-text { min-width: 0; white-space: pre-wrap; }
+.note-feed-text a { color: var(--bm-accent); text-decoration: underline; text-underline-offset: 2px; }
+.note-feed-text img { display: block; max-width: 100%; max-height: 420px; height: auto; margin: 6px 0; object-fit: contain; border-radius: 6px; }
+.note-feed-text :is(p, ul, ol, blockquote, pre, h1, h2, h3, h4) { margin: 4px 0; }
+.note-feed-text :is(ul, ol) { padding-left: 1.5em; }
+.note-feed-text blockquote { padding-left: 10px; border-left: 2px solid var(--line); color: var(--worktable-muted); }
+.note-feed-text pre { overflow: auto; white-space: pre-wrap; }
+.note-article-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 500px;
+  padding: 8px;
+  margin-top: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: #fff;
+  text-decoration: none;
+}
+.note-article-card:is(:hover, :focus-visible) { border-color: var(--bm-accent); }
+.note-article-card img { width: 64px; height: 54px; flex: 0 0 auto; object-fit: cover; border-radius: 5px; }
+.note-article-card > span { min-width: 0; }
+.note-article-card strong, .note-article-summary, .note-article-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-article-summary, .note-article-card small { color: var(--worktable-muted); font-size: 11px; }
 .note-feed-topic { color: var(--worktable-muted); font-size: 12px; }
 .note-feed-actions { display: flex; padding-top: 5px; }
 #notes .note-feed-actions .btn { padding: 4px 6px; font-size: 12px; }

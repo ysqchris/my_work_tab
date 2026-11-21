@@ -1544,6 +1544,16 @@ def _extract_summary(raw):
     return best or ""
 
 
+def _extract_open_graph(raw, charset):
+    fields = {}
+    for tag in _META_TAG_RE.findall(raw):
+        attrs = {key.lower(): value for key, value in _ATTR_RE.findall(tag)}
+        name = (attrs.get(b"property") or attrs.get(b"name") or b"").lower()
+        if name in (b"og:title", b"og:image", b"og:image:secure_url") and attrs.get(b"content"):
+            fields.setdefault(name, html.unescape(attrs[b"content"].decode(charset, errors="replace")).strip())
+    return fields
+
+
 # 内网 SSO 登录相关域名/标题关键词：服务端抓取时没有用户浏览器的登录态，
 # 需要登录的内网页面（如 git.woa.com 仓库）会被重定向到这些域名，
 # 抓到的 <title> 只会是登录页标题（如“OA登录”），不能当作真实标题使用。
@@ -1624,6 +1634,7 @@ def fetch_bookmark_meta():
     favicon = ""
     title = ""
     summary = ""
+    image = ""
     final_url = url
     try:
         req = urllib.request.Request(url, headers={
@@ -1647,6 +1658,12 @@ def fetch_bookmark_meta():
             title = html.unescape(m.group(1).decode(charset, errors="ignore"))
             title = re.sub(r"\s+", " ", title).strip()
         summary = _extract_summary(raw)
+        if urllib.parse.urlsplit(final_url).hostname == "mp.weixin.qq.com":
+            metadata = _extract_open_graph(raw, charset)
+            title = metadata.get(b"og:title") or title
+            cover = metadata.get(b"og:image:secure_url") or metadata.get(b"og:image")
+            if cover:
+                image = urllib.parse.urljoin(final_url, cover)
         href = _extract_favicon(raw)
         if href:
             favicon = urllib.parse.urljoin(url, href)
@@ -1655,10 +1672,11 @@ def fetch_bookmark_meta():
     if _looks_like_sso_redirect(final_url, title):
         title = _fallback_title_from_url(url)
         summary = ""
+        image = ""
     override_icon = _domain_icon_override(url) or _woa_site_icon(url)
     if override_icon:
         favicon = override_icon
-    return jsonify({"title": title, "favicon": favicon, "summary": summary})
+    return jsonify({"title": title, "favicon": favicon, "summary": summary, "image": image})
 
 
 @app.route("/api/bookmarks/reorder", methods=["POST"])
