@@ -576,7 +576,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     width: 100%;
   }
 }
-</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=2"><link rel="stylesheet" href="/static/workbench-views.css?v=16"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
+</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=2"><link rel="stylesheet" href="/static/workbench-views.css?v=16"><link rel="stylesheet" href="/static/ai-news.css?v=2"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
 <section id="home" class="view">
 <section class="followup" aria-labelledby="followupTitle">
 <header class="followup-heading"><h2 id="followupTitle">工作跟进</h2></header>
@@ -639,34 +639,35 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 </div>
 </section>
 <section id="news" class="view">
-<div class="pulse-section newspaper" id="pulseSection">
-<header class="np-masthead np-compact-masthead">
-<h1>工作台日报</h1>
-<span class="pulse-meta" id="pulseUpdated" aria-live="polite"></span>
+<div class="ai-news" id="pulseSection">
+<header class="ai-news-head">
+<div><h1>AI 今日简报</h1></div>
+<span id="pulseUpdated" aria-live="polite"></span>
 </header>
-<div class="pulse-head np-toolbar">
+<div class="ai-news-toolbar">
 <div class="pulse-mode" aria-label="阅读版本">
-<button type="button" class="active" aria-pressed="true" data-mode="daily" onclick="setAiPulseMode('daily')">每日大事件</button>
-<button type="button" aria-pressed="false" data-mode="weekly" onclick="setAiPulseMode('weekly')">总结周报</button>
+<button type="button" class="active" aria-pressed="true" data-mode="daily" onclick="setAiPulseMode('daily')">今日简报</button>
+<button type="button" aria-pressed="false" data-mode="weekly" onclick="setAiPulseMode('weekly')">周报</button>
 </div>
-<div class="np-tools">
-<label class="np-search" id="newsSearchWrap"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="newsSearch" type="search" placeholder="搜索标题、摘要或来源" aria-label="搜索资讯" oninput="setNewsReadingQuery(this.value)"></label>
-<button type="button" class="np-type-btn" id="newsFontBtn" onclick="toggleNewsReadingSize()" aria-pressed="false" title="切换舒适字号">Aa <span>舒适阅读</span></button>
-<button type="button" class="btn ghost pulse-refresh-btn" id="pulseRefreshBtn" onclick="refreshPulseNews()" title="手动抓取最新资讯"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>刷新</button>
-<button type="button" class="btn primary pulse-summary-btn" id="weeklySummaryBtn" onclick="generateWeeklyReport()" style="display:none">生成周报</button>
+<div class="ai-news-tools">
+<label class="ai-news-search" id="newsSearchWrap"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="newsSearch" type="search" placeholder="搜索资讯" aria-label="搜索资讯" oninput="setNewsReadingQuery(this.value)"></label>
+<button type="button" class="btn ghost" id="pulseRefreshBtn" onclick="refreshPulseNews()">刷新资讯</button>
 </div>
 </div>
-<nav class="np-sections" id="newsSectionNav" aria-label="资讯栏目"></nav>
-<div class="pulse-groups" id="pulseGroups" aria-live="polite"></div>
-<div class="insight-section" id="insightSection" style="display:none">
-<div class="insight-head">
-<span class="np-desk-index">04</span><span class="insight-badge">产品洞察</span>
-<span class="insight-sub">国内社区 · 用户需求 · 产品体验 · 增长与商业模式</span>
-<span class="pulse-meta" id="insightUpdated"></span>
-<button type="button" class="btn ghost" id="insightRefreshBtn" onclick="refreshInsights()">↻ 重新生成</button>
+<div class="ai-news-controls" id="newsControls">
+<nav id="newsSectionNav" aria-label="资讯类型">
+<button type="button" aria-pressed="true" data-section="all" onclick="setNewsReadingSection(this.dataset.section)">全部动态</button>
+<button type="button" aria-pressed="false" data-section="models" onclick="setNewsReadingSection(this.dataset.section)">模型更新</button>
+<button type="button" aria-pressed="false" data-section="agents" onclick="setNewsReadingSection(this.dataset.section)">Agent 与协作</button>
+<button type="button" aria-pressed="false" data-section="api" onclick="setNewsReadingSection(this.dataset.section)">API 与工具</button>
+</nav>
+<div class="ai-news-selects">
+<select aria-label="地区" onchange="newsRegion=this.value;newsLimit=10;renderNewsFilters();renderNewsReadingEdition()"><option value="">国内外</option><option value="domestic">国内</option><option value="overseas">海外</option></select>
+<select aria-label="平台" id="newsPlatform" onchange="newsPlatform=this.value;newsLimit=10;renderNewsReadingEdition()"><option value="">全部平台</option></select>
 </div>
-<div class="insight-grid" id="insightGrid"></div>
 </div>
+<p id="newsStatus" class="ai-news-status" role="status" hidden></p>
+<div class="ai-news-content" id="pulseGroups" aria-live="polite"></div>
 </div>
 </section>
 <section id="knowledge" class="view"><header class="workspace-view-head"><h1>知识库</h1></header><div class="kb-head"><div class="filters" id="knowledgeFilters"></div><div class="hero-actions"><button class="btn" onclick="openKnowledgeLink()">＋ 添加链接</button><button class="btn" onclick="triggerKnowledgeUpload()">上传文件</button><button class="btn primary" onclick="openKnowledgeDoc()">＋ 写文档</button></div></div><div class="workspace-find"><input type="search" id="knowledgeSearch" aria-label="搜索知识库" placeholder="搜索标题、内容或来源" oninput="renderKnowledgeList()"><span id="knowledgeSearchCount" role="status"></span></div><p class="knowledge-upload-status" id="knowledgeUploadStatus" role="status" hidden></p><div class="knowledge-list" id="knowledgeList"></div><input type="file" id="knowledgeFileInput" multiple hidden onchange="uploadKnowledgeFiles(this)"></section>
@@ -767,7 +768,7 @@ const mediaHotResults=new Map();
 const mediaHotPending=new Set();
 let mediaHotItems=[];
 const $=id=>document.getElementById(id);let data={tasks:[],notes:[],knowledge:[],updates:[],products:[],bookmarks:[],media:[],news:[],creators:[]},radarProductId='all',radarScope='all',knowledgeKind='all',bmAddKind='memo',wereadData=null,wrShelfShown=10,wrShelfStep=30,wrNotesData=null,wrOpenNoteId=null,creatorFilterId=null,platformFilter='',creatorSearch='',creatorVideos=[],creatorVideosUpdatedAt='',creatorVideosLoaded=false;
-const api=async(url,method='GET',body)=>{let r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(await r.text());return r.json()};const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=async(url,method='GET',body)=>{let r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(await r.text());return r.json()};const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function formatSize(n){if(n==null)return '';if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(1)+' MB'}
 async function loadViewResource(resource,apply){
   const result=await api('/api/'+resource);
@@ -787,7 +788,7 @@ const viewLoaders={
     loadViewResource('qlearning-lives',result=>{data.qlLives=result.items||[];data.qlLivesUpdated=result.updated_at||'';renderHomeLives()}),
     loadViewResource('km-hot',result=>{data.kmHot=result.items||[];data.kmHotUpdated=result.updated_at||'';renderKmHot()})
   ],
-  news:()=>[renderAiPulse(),renderProductInsights()],
+  news:()=>[renderAiPulse()],
   notes:()=>[loadNotes()],
   knowledge:()=>[loadViewResource('knowledge',result=>{data.knowledge=result.items||[];renderKnowledge()})],
   media:refresh=>[
@@ -814,7 +815,7 @@ async function loadView(id,refresh=false){
     await current;
     return loadView(id,true);
   }
-  if(!refresh&&Date.now()-(viewLoadedAt.get(id)||0)<60000)return;
+  if(!refresh&&id!=='news'&&Date.now()-(viewLoadedAt.get(id)||0)<60000)return;
   const view=$(id);
   let status=view.querySelector('.view-load-status');
   if(!status){
@@ -1102,96 +1103,249 @@ function openBriefReader(){let dialog=$('briefReader');syncBriefReader();if(!dia
 function closeBriefReader(){$('briefReader').close()}
 $('briefReader').addEventListener('click',e=>{if(e.target!==e.currentTarget)return;let r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeBriefReader()});
 function renderHomeGreeting(){let n=new Date(),h=n.getHours();let greet=h<6?'夜深了':h<12?'早上好':h<14?'中午好':h<18?'下午好':h<22?'晚上好':'夜深了';let hh=String(n.getHours()).padStart(2,'0'),mm=String(n.getMinutes()).padStart(2,'0');let g=$('homeGreeting');if(g)g.textContent=`${greet}，${n.getFullYear()}年${n.getMonth()+1}月${n.getDate()}日 · ${WEEKDAYS[n.getDay()]} ${hh}:${mm}`}
-let aiPulseGroups=[],aiPulseExpanded={},aiPulseMode='daily';
-const GH_LANG_COLORS={JavaScript:'#f1e05a',TypeScript:'#3178c6',Python:'#3572A5',Go:'#00ADD8',Rust:'#dea584',Java:'#b07219','C++':'#f34b7d',C:'#555555','C#':'#178600',Shell:'#89e051',Ruby:'#701516',PHP:'#4F5D95',Swift:'#F05138',Kotlin:'#A97BFF',Vue:'#41b883',HTML:'#e34c26',CSS:'#563d7c',JupyterNotebook:'#DA5B0B',Dart:'#00B4AB',Zig:'#ec915c',Lua:'#000080',Scala:'#c22d40',Haskell:'#5e5086',ObjectiveC:'#438eff'};
-const CAT_LABELS={'ai-products':'产品','ai-models':'模型','industry':'行业','paper':'论文','tip':'技巧','github':'GitHub','case':'案例','cases':'案例','product-case':'产品案例','showcase':'案例','use-case':'案例','tech':'开源'};
-function sourceLabel(s){if(!s)return'';let t=String(s).replace(/[（(].*?[)）]/g,'');let m=t.match(/^([^：:]+)/);let name=m?m[1].trim():t.trim();if(!name)name=t.trim();return name.length>16?name.slice(0,16)+'…':name}
-function catLabel(c){return CAT_LABELS[c]||''}
-function ghLangDot(lang){let c=GH_LANG_COLORS[lang]||'#8b949e';return `<span class="gh-lang-dot" style="background:${c}"></span><span class="gh-lang">${esc(lang)}</span>`}
-function highlightTitle(raw){let t=String(raw||'');const org='豆包工作伙伴|豆包工作|千问办公|阿里办公|通义千问|Manus|OpenClaw|Cursor|Devin|OpenAI|Google|NVIDIA|Microsoft|Meta|Anthropic|DeepMind|Mistral|Amazon|Apple|Tesla|xAI|Cohere|Stability|Midjourney|Runway|Perplexity|ElevenLabs|英伟达|谷歌|腾讯|阿里巴巴|阿里|百度|微软|智谱|月之暗面|字节|豆包|千问|飞书|钉钉|通义|华为|苹果|亚马逊|特斯拉|京东|美团|小米|Kimi';const model='GPT-?\\d*(?:\\.\\d+)*|Gemini\\s*\\d*(?:\\.\\d+)*|Claude\\s*\\d*(?:\\.\\d+)*|Qwen[\\d.]*|混元|GLM-?[\\d.]*|DeepSeek-?[\\dA-Za-z.]*|Llama\\s*\\d*(?:\\.\\d+)*|Grok-?\\d*|Sora|Veo-?\\d*|o\\d(?:-mini)?';const num='\\d+(?:\\.\\d+)?\\s*%|\\d+(?:\\.\\d+)?\\s*亿|\\d+(?:\\.\\d+)?\\s*万|\\d+(?:\\.\\d+)?\\s*[Bb](?![A-Za-z])|\\d+(?:\\.\\d+)?\\s*[Mm](?![A-Za-z])';const re=new RegExp('('+model+')|('+org+')|('+num+')','gi');return t.replace(re,(m,mdl,og,nm)=>{let cls=mdl?'hl-model':(og?'hl-org':'hl-num');return '<span class="'+cls+'">'+esc(m)+'</span>';});}
-function pulseItemHtml(it,g){let key=it.url||it.id||'';let close=`<button type="button" class="pulse-item-close" title="已了解，不再显示" aria-label="关闭" onclick="dismissPulseItem('${esc(key)}')">✕</button>`;let tEn=(it.title_en||'').trim();let tAttr=tEn?` title="原文：${esc(tEn)}"`:'';let tBadge=tEn?`<span class="trans-badge"${tAttr}>译</span>`:'';if(it.kind==='github'){let stars=it.stars_today!=null?`<span class="gh-star">★ ${Number(it.stars_today).toLocaleString()} <i>今日</i></span>`:'';return `<div class="pulse-item">${close}<div class="pulse-item-title gh-title">${it.url?`<a href="${esc(it.url)}" target="_blank" rel="noopener">${highlightTitle(it.title)}</a>`:highlightTitle(it.title)}</div>${it.desc?`<div class="pulse-item-desc"${it.desc_en?` title="原文：${esc(it.desc_en)}"`:''}>${esc(it.desc)}</div>`:''}<div class="pulse-item-meta">${it.agent_related?`<span class="cat-badge cat-agent">Agent 协作</span>`:''}${it.lang?ghLangDot(it.lang):''}${stars}${it.date?`<span class="pulse-item-date">${esc(shortDate(it.date)||it.date)}</span>`:''}</div></div>`}let src=sourceLabel(it.source);let cat=catLabel(it.category);return `<div class="pulse-item">${close}<div class="pulse-item-title"${tAttr}>${it.url?`<a href="${esc(it.url)}" target="_blank" rel="noopener">${highlightTitle(it.title)}</a>`:highlightTitle(it.title)}</div><div class="pulse-item-meta">${src?`<span class="src-badge" title="${esc(it.source)}">${esc(src)}</span>`:''}${cat?`<span class="cat-badge cat-${esc(it.category)}">${esc(cat)}</span>`:''}${tBadge}${it.agent_related?`<span class="cat-badge cat-agent">Agent 协作</span>`:''}${it.date?`<span class="pulse-item-date">${esc(shortDate(it.date)||it.date)}</span>`:''}</div></div>`}
-let newsReadingQuery='',newsReadingSection='all',newsReadingLarge=false;
-const NEWS_DESK_NAMES={news:'INDUSTRY',models:'MODELS',github:'OPEN SOURCE',cases:'PRODUCTS'};
-function newsItemKey(it){return String(it.url||it.id||'')}
-function newsReadingItem(it,options={}){
-  let lead=!!options.lead,compact=!!options.compact;
-  let title=it.title||'未命名资讯',desc=String(it.desc||'').trim(),src=sourceLabel(it.source),cat=catLabel(it.category);
-  let encoded=encodeURIComponent(newsItemKey(it)).replace(/'/g,'%27');
-  let href=/^https?:\/\//i.test(it.url||'')?it.url:'';
-  let minutes=Math.max(1,Math.ceil((title+desc).length/350));
-  let meta=[src?`<span title="${esc(it.source)}">${esc(src)}</span>`:'',it.date?`<time>${esc(it.date)}</time>`:'',cat?`<span>${esc(cat)}</span>`:'',it.lang?ghLangDot(it.lang):'',it.stars_today!=null?`<span class="np-stars">+${Number(it.stars_today).toLocaleString()} stars / 今日</span>`:'',it.agent_related?'<span class="np-agent">Agent 协作</span>':''].filter(Boolean).join('');
-  return `<article class="np-article${lead?' np-lead':''}${compact?' np-compact':''}">
-    ${lead?'<div class="np-kicker">本版头条 <span>从最新资讯中选取</span></div>':''}
-    <h${lead?'2':'3'} class="np-article-title${it.kind==='github'?' np-repo':''}"${it.title_en?` title="原文：${esc(it.title_en)}"`:''}>${href?`<a href="${esc(href)}" target="_blank" rel="noopener">${esc(title)}</a>`:esc(title)}</h${lead?'2':'3'}>
-    <div class="np-article-meta">${meta}</div>
-    ${desc?`<div class="np-article-text"${it.desc_en?` title="原文：${esc(it.desc_en)}"`:''}><p>${esc(desc)}</p></div>`:''}
-    <div class="np-article-foot">${desc?`<span>${minutes} 分钟阅读${it.title_en?' · 译文':''}</span>`:'<span>摘要暂缺 · 可阅读原文</span>'}${href?`<a href="${esc(href)}" target="_blank" rel="noopener">阅读原文 ↗</a>`:''}${encoded?`<button type="button" onclick="dismissPulseItem(decodeURIComponent('${encoded}'))" title="标记为已了解后不再显示">已了解</button>`:''}</div>
+let aiPulseMode = 'daily';
+let newsItems = [], newsEdition = {}, newsReady = false;
+let newsReadingQuery = '', newsReadingSection = 'all', newsRegion = '', newsPlatform = '', newsLimit = 10;
+let newsRequest = 0, newsPollTimer = 0;
+const newsTags = {models:'模型', agents:'Agent', api:'API'};
+const newsCategories = {'ai-products':'产品','ai-models':'模型','industry':'行业','paper':'论文','tip':'教程','opinion':'观点'};
+
+function newsKey(it) { return String(it.key || it.url || it.id || it.title); }
+function newsHref(url) { return /^https?:\/\//i.test(url || '') ? esc(url) : ''; }
+function newsLink(url, label) {
+  const href = newsHref(url);
+  return href ? `<a href="${href}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>` : esc(label);
+}
+function newsRank(a, b) {
+  return Number(!!b.collaboration) - Number(!!a.collaboration)
+    || Number(b.tags.includes('models')) - Number(a.tags.includes('models'))
+    || (b.priority || 0) - (a.priority || 0)
+    || (b.date || '').localeCompare(a.date || '')
+    || (b.score || 0) - (a.score || 0);
+}
+function newsDaysAgo(days) {
+  return new Date(Date.now() + 8 * 3600000 - days * 86400000).toISOString().slice(0, 10);
+}
+function newsRecent(item, days) {
+  return item.date && item.date.length === 10 && item.date >= newsDaysAgo(days);
+}
+function newsCard(it, variant = '') {
+  const title = it.title || '未命名资讯';
+  const desc = it.desc || it.desc_en || '';
+  const labels = [it.platform || it.source, it.region === 'domestic' ? '国内' : it.region === 'overseas' ? '海外' : '',
+    it.collaboration ? '协作' : '', it.reading_type, ...it.tags.map(tag => newsTags[tag]),
+    (it.kind === 'github' || it.tags.length) ? '' : newsCategories[it.category], it.date].filter(Boolean);
+  const sources = (it.sources || []).filter(source => newsHref(source.url));
+  const sourceList = sources.length > 1 ? `<details class="ai-news-sources"><summary>${sources.length} 个来源</summary>
+      <div>${sources.map(source => newsLink(source.url, source.label)).join('')}</div></details>` : '';
+  const encodedKey = encodeURIComponent(newsKey(it)).replace(/'/g, '%27');
+  return `<article class="ai-news-story ${variant}">
+    <div class="ai-news-meta">${[...new Set(labels)].map(label => `<span>${esc(label)}</span>`).join('')}</div>
+    <h3>${newsLink(it.url, title)}</h3>
+    ${desc ? `<p>${esc(desc)}</p>` : ''}
+    ${variant !== 'ai-news-repo' ? `<div class="ai-news-actions">${sourceList}
+      <button type="button" class="ai-news-skip" onclick="dismissPulseItem(decodeURIComponent('${encodedKey}'), this)">略过</button></div>` :
+      `<div class="ai-news-repo-meta">${it.lang ? esc(it.lang) : ''}${it.stars_today != null ? ` <span>+${Number(it.stars_today).toLocaleString()} Star</span>` : ''}</div>`}
   </article>`;
 }
-function pulseCardHtml(g){let items=g.items||[],index=aiPulseGroups.findIndex(x=>x.key===g.key)+1;return `<section class="np-desk${g.key==='github'?' np-desk-github':''}" id="newsDesk-${esc(g.key)}"><header class="np-desk-head"><div><span class="np-desk-index">${String(index).padStart(2,'0')}</span><h2>${esc(g.label)}</h2><span class="np-desk-en">${esc(NEWS_DESK_NAMES[g.key]||'NEWS')}</span></div><span>${items.length} 则</span></header>${g.sub?`<p class="np-desk-deck">${esc(g.sub)}</p>`:''}<div class="np-columns">${items.map(it=>newsReadingItem(it,{compact:g.key==='github'})).join('')}</div></section>`}
-function setNewsReadingQuery(value){newsReadingQuery=String(value||'').trim().toLowerCase();renderNewsReadingEdition()}
-function setNewsReadingSection(key){
-  const restoreFocus=$('newsSectionNav').contains(document.activeElement);
-  newsReadingSection=key;
+function newsSection(title, content, extra = '') {
+  return `<section class="ai-news-panel"><header class="ai-news-panel-head"><h2>${title}</h2>${extra}</header>${content}</section>`;
+}
+function setNewsReadingQuery(value) {
+  newsReadingQuery = value.trim().toLowerCase();
+  newsLimit = 10;
   renderNewsReadingEdition();
-  if(restoreFocus)$('newsSectionNav').querySelector('.active')?.focus();
 }
-function toggleNewsReadingSize(){newsReadingLarge=!newsReadingLarge;$('pulseSection').classList.toggle('np-large',newsReadingLarge);$('newsFontBtn').setAttribute('aria-pressed',String(newsReadingLarge));}
-function updateNewsPanelVisibility(){
-  let observing=aiPulseMode==='daily'&&newsReadingSection==='insights';
-  let showInsights=aiPulseMode==='daily'&&(observing||newsReadingSection==='all');
-  $('insightSection').style.display=showInsights?'flex':'none';
-  $('pulseGroups').style.display=observing?'none':'';
-  $('newsSearchWrap').hidden=aiPulseMode!=='daily';
-  $('pulseRefreshBtn').style.display=aiPulseMode==='daily'&&!observing?'inline-flex':'none';
+function setNewsReadingSection(key) {
+  newsReadingSection = key;
+  newsLimit = 10;
+  renderNewsFilters();
+  renderNewsReadingEdition();
 }
-function insightMatchesQuery(c){return !newsReadingQuery||[c.title,c.question,c.phenomenon,c.why,c.source,c.source_label].join(' ').toLowerCase().includes(newsReadingQuery)}
-function renderInsightGrid(){
-  if(!insightData)return;
-  let observations=[...(insightData.candidates||[])].filter(insightMatchesQuery).sort((a,b)=>insightScore(b)-insightScore(a));
-  $('insightGrid').innerHTML=observations.length?observations.map((c,i)=>insightCardHtml(c,i,insightData)).join(''):'<div class="insight-empty"><div class="insight-empty-text">'+(newsReadingQuery?'没有匹配的产品洞察。':'正在生成产品洞察，请稍后刷新。')+'</div></div>';
+function renderNewsFilters() {
+  const nav = $('newsSectionNav');
+  for (const button of nav.querySelectorAll('button')) {
+    button.setAttribute('aria-pressed', String(button.dataset.section === newsReadingSection));
+  }
+  const platforms = [...new Set(newsItems.filter(it => it.platform && (!newsRegion || it.region === newsRegion))
+    .map(it => it.platform))].sort((a,b) => a.localeCompare(b,'zh'));
+  if (!platforms.includes(newsPlatform)) newsPlatform = '';
+  $('newsPlatform').innerHTML = '<option value="">全部平台</option>' + platforms.map(name =>
+    `<option value="${esc(name)}">${esc(name)}</option>`).join('');
+  $('newsPlatform').value = newsPlatform;
 }
-function renderNewsReadingEdition(){
-  updateNewsPanelVisibility();
-  if(aiPulseMode!=='daily')return;
-  let all=aiPulseGroups.flatMap(g=>g.items||[]);
-  let latest=all.map(it=>it.date||'').filter(Boolean).sort().pop();
-  let nav=$('newsSectionNav');
-  renderInsightGrid();
-  if(nav){let tabs=[{key:'all',label:'全版'},...aiPulseGroups,{key:'insights',label:'产品洞察'}];nav.innerHTML=tabs.map(g=>`<button type="button" class="${newsReadingSection===g.key?'active':''}" aria-pressed="${newsReadingSection===g.key}" data-section="${esc(g.key)}">${esc(g.label)}</button>`).join('');nav.querySelectorAll('button').forEach(b=>b.onclick=()=>setNewsReadingSection(b.dataset.section));}
-  if(newsReadingSection==='insights')return;
-  let filtered=aiPulseGroups.filter(g=>newsReadingSection==='all'||g.key===newsReadingSection).map(g=>({...g,items:(g.items||[]).filter(it=>!newsReadingQuery||[it.title,it.desc,it.source,it.lang].join(' ').toLowerCase().includes(newsReadingQuery))})).filter(g=>g.items.length);
-  let wrap=$('pulseGroups');
-  if(!filtered.length){wrap.innerHTML=`<div class="np-empty"><h2>${all.length?'没有匹配的资讯':'本版资讯正在准备中'}</h2><p>${all.length?'试试其他关键词，或切换到全版阅读。':'刷新后可查看行业动态、模型更新与开源趋势。'}</p><button type="button" class="btn ghost" onclick="newsReadingSection='all';$('newsSearch').value='';setNewsReadingQuery('')">查看全版</button></div>`;return;}
-  let resultLabel=newsReadingQuery?`<div class="np-result">找到 ${filtered.reduce((n,g)=>n+g.items.length,0)} 则匹配资讯 · “${esc(newsReadingQuery)}”</div>`:'';
-  wrap.innerHTML=resultLabel+`<div class="np-body">${filtered.map(pulseCardHtml).join('')}</div>`;
+function domesticProductUpdate(it) {
+  return it.region === 'domestic' && !it.tags.includes('models')
+    && (it.tags.includes('agents') || it.category === 'ai-products');
 }
-function setAiPulseMode(mode){aiPulseMode=mode;aiPulseExpanded={};document.querySelectorAll('.pulse-mode button').forEach(button=>{const selected=button.dataset.mode===mode;button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected))});let btn=$('weeklySummaryBtn');if(btn)btn.style.display=mode==='weekly'?'inline-flex':'none';$('newsSectionNav').hidden=mode!=='daily';updateNewsPanelVisibility();renderAiPulse()}
-function reportHtml(report,days){let secs=(report.sections||[]).map(s=>{let kps=(s.keypoints||[]).map(k=>`<li>${esc(k)}</li>`).join('');return `<div class="report-section"><div class="report-sec-head"><span class="report-sec-emoji">${esc(s.emoji||'✨')}</span><span class="report-sec-title">${esc(s.title)}</span></div><ul class="report-keypoints">${kps}</ul>${s.trend?`<div class="report-trend"><b>趋势</b>${esc(s.trend)}</div>`:''}</div>`}).join('');return `<div class="report-card"><div class="report-head"><div class="report-title">AI 行业周报</div><div class="report-sub">${days&&days.length?'覆盖近 '+days.length+' 天':''}</div></div>${report.overview?`<div class="report-overview">${esc(report.overview)}</div>`:''}${secs}</div>`}
-function weeklyEmptyHtml(){return `<div class="report-empty"><div class="report-empty-emoji">🗓️</div><div class="report-empty-text">近一周的资讯已就绪，点击下方按钮生成结构化周报。</div><button type="button" class="btn primary" onclick="generateWeeklyReport()">生成周报</button></div>`}
-async function generateWeeklyReport(){let wrap=$('pulseGroups'),meta=$('pulseUpdated'),btn=$('weeklySummaryBtn');if(btn){btn.disabled=true;btn.textContent='⏳ 生成中…'}let notified=false;try{let r=await fetch('/api/ai_pulse/weekly/refresh',{method:'POST'});let j=await r.json();if(!j.ok){alert(j.error||'生成失败，请稍后再试。');return}let deadline=Date.now()+120*1000;while(Date.now()<deadline){await new Promise(res=>setTimeout(res,2000));let wj=await fetch('/api/ai_pulse/weekly').then(x=>x.json());if(wj.state==='error'){alert(wj.error||'生成失败，请稍后再试。');notified=true;break}if(wj.report){if(meta)meta.textContent=wj.updated_at?('周报更新于 '+wj.updated_at):'';wrap.innerHTML=reportHtml(wj.report,wj.days);return}if(meta)meta.textContent='⏳ 周报生成中，请稍候…'}if(!notified)alert('生成超时，请稍后刷新查看或重试。')}catch(e){alert('生成请求失败，请检查网络或稍后再试。')}finally{if(btn){btn.disabled=false;btn.textContent='生成周报'}}}
-async function renderAiPulse(){let wrap=$('pulseGroups'),meta=$('pulseUpdated'),mode=aiPulseMode;if(!wrap)return;try{let j=await api(mode==='weekly'?'/api/ai_pulse/weekly':'/api/ai_pulse');if(mode!==aiPulseMode)return;if(mode==='weekly'){if(meta)meta.textContent=j.state==='running'?'周报生成中…':(j.updated_at?('周报更新于 '+j.updated_at):(j.days&&j.days.length?('覆盖近 '+j.days.length+' 天'):''));wrap.innerHTML=j.report?reportHtml(j.report,j.days):j.state==='running'?'<div class="np-empty"><h2>周报正在生成中</h2><p>请稍候，生成后刷新查看。</p></div>':weeklyEmptyHtml()}else{aiPulseGroups=j.groups||[];if(meta)meta.textContent=j.updated_at?('数据更新于 '+String(j.updated_at).replace('T',' ').slice(0,16)):'';renderNewsReadingEdition()}}catch(e){if(mode===aiPulseMode)wrap.innerHTML=empty('加载失败，请刷新重试。')}}
-async function dismissPulseItem(key){if(!key)return;try{await fetch('/api/news/dismiss',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:key})});await renderAiPulse()}catch(e){}}
-let insightData=null;
-async function refreshPulseNews(){let btn=$('pulseRefreshBtn');if(!btn)return;let orig=btn.innerHTML;btn.disabled=true;btn.innerHTML='⏳ 刷新中…';try{let r=await fetch('/api/news/refresh',{method:'POST'});let j=await r.json();if(j.ok){await renderAiPulse()}else{alert(j.error||'刷新失败，请稍后重试。')}}catch(e){alert('刷新失败，请检查网络或稍后再试。')}finally{btn.disabled=false;btn.innerHTML=orig}}
-function insightScore(c){let score=Number(c.score);return Number.isFinite(score)?score:0}
-async function renderProductInsights(){
-  let sec=$('insightSection');if(!sec)return;
-  let updated=$('insightUpdated');
-  try{
-    let j=await fetch('/api/product_insights').then(r=>r.json());insightData=j;
-    let observations=[...(j.candidates||[])].sort((a,b)=>insightScore(b)-insightScore(a));
-    if(updated)updated.textContent=[observations.length+' 条观察 · 评分由高到低',j.updated_at?'更新于 '+String(j.updated_at).replace('T',' ').slice(0,16):''].filter(Boolean).join(' · ');
-    renderInsightGrid();
-  }catch(e){$('insightGrid').innerHTML='<div class="insight-empty"><div class="insight-empty-text">加载失败，请刷新重试。</div></div>';}
+function newsMatches(it) {
+  return (newsReadingSection === 'all' || it.tags.includes(newsReadingSection))
+    && (!newsRegion || it.region === newsRegion)
+    && (!newsPlatform || it.platform === newsPlatform)
+    && (!newsReadingQuery || [it.title,it.title_en,it.desc,it.desc_en,it.source,it.platform,it.lang,
+      ...it.tags.map(tag=>newsTags[tag]), ...(it.sources||[]).map(source=>source.label)].join(' ').toLowerCase().includes(newsReadingQuery));
 }
-function insightNoteHtml(c,j){let notes=((j.notes||{})[c.id])||[];let items=notes.map(n=>'<div class="insight-note-item">'+esc(n.text)+'<small>'+esc(String(n.created_at||'').replace('T',' ').slice(0,16))+'</small></div>').join('');return '<div class="insight-notes">'+items+'<div class="insight-note-form"><textarea class="insight-note-input" id="insightNote_'+c.id+'" placeholder="写下你的想法…（Enter 保存）" rows="2" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();saveInsightNote(\''+c.id+'\')}"></textarea><button type="button" class="insight-note-save" onclick="saveInsightNote(\''+c.id+'\')">保存</button></div></div>'}
-function insightImaBtnHtml(c,j){let synced=(j.ima_synced||{})[c.id];if(synced)return '<button type="button" class="insight-ima-btn synced" disabled>✓ 已同步 ima</button>';return '<button type="button" class="insight-ima-btn" onclick="event.stopPropagation();syncInsightToIma(\''+c.id+'\',this)">📥 同步到 ima</button>'}
-function insightCardHtml(c,i,j){let cnt=((j.notes||{})[c.id]||[]).length;return '<div class="insight-card"><div class="insight-reading-head"><span class="insight-rank">'+String(i+1).padStart(2,'0')+'</span><span class="insight-score" title="值得深入思考的程度，满分10分">评分 <b>'+insightScore(c).toFixed(1)+'</b><small>/ 10</small></span></div>'+(c.phenomenon?'<div class="insight-phenomenon">'+esc(c.phenomenon)+'</div>':'')+'<div class="insight-question">'+esc(c.question||c.title)+'</div>'+(c.why?'<div class="insight-why"><b>为什么值得关注</b><span>'+esc(c.why)+'</span></div>':'')+'<div class="insight-meta">'+(c.source_label?'<span class="insight-src" title="'+esc(c.source)+'">'+esc(c.source_label)+'</span>':'')+'<button type="button" class="insight-note-toggle" onclick="toggleInsightNote(\''+c.id+'\')">💬 我的想法'+(cnt?' ('+cnt+')':'')+'</button>'+insightImaBtnHtml(c,j)+(c.url?'<a class="insight-link" href="'+esc(c.url)+'" target="_blank" rel="noopener">原文 ↗</a>':'')+'</div><div class="insight-note-wrap" id="insightNoteWrap_'+c.id+'" style="display:'+(cnt?'block':'none')+'">'+insightNoteHtml(c,j)+'</div></div>'}
-async function syncInsightToIma(id,btn){if(btn){btn.disabled=true;btn.textContent='⏳ 同步中…'}try{let r=await fetch('/api/product_insights/sync_ima',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})});let j=await r.json();if(j.ok){renderProductInsights();}else{alert(j.error||'同步失败');if(btn){btn.disabled=false;btn.textContent='📥 同步到 ima'}}}catch(e){alert('同步请求失败，请检查网络。');if(btn){btn.disabled=false;btn.textContent='📥 同步到 ima'}}}
-function toggleInsightNote(id){let w=$('insightNoteWrap_'+id);if(w)w.style.display=w.style.display==='none'?'block':'none';}
-async function saveInsightNote(id){let ta=$('insightNote_'+id);if(!ta)return;let text=(ta.value||'').trim();if(!text)return;try{let r=await fetch('/api/product_insights/note',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,text:text})});let j=await r.json();if(j.ok){renderProductInsights();}}catch(e){alert('保存失败，请重试。')}}
-async function refreshInsights(){let btn=$('insightRefreshBtn');if(btn){btn.disabled=true;btn.textContent='⏳ 生成中…'}try{let r=await fetch('/api/product_insights/refresh',{method:'POST'});let j=await r.json();if(!j.ok)alert(j.error||'生成失败')}catch(e){alert('生成请求失败，请检查网络。')}finally{setTimeout(()=>{renderProductInsights();if(btn){btn.disabled=false;btn.textContent='↻ 重新生成'}},4000)}}
+function renderNewsReadingEdition() {
+  if (aiPulseMode !== 'daily' || !newsReady) return;
+  const wrap = $('pulseGroups');
+  const filtered = !!(newsReadingQuery || newsRegion || newsPlatform || newsReadingSection !== 'all');
+  const platform = newsItems.filter(it => it.kind !== 'github');
+  const now = newsDaysAgo(0);
+  const picked = platform.filter(it => (it.priority && newsEdition.date === now)
+    || (newsRecent(it, 1) && !it.deep && (it.collaboration || it.tags.includes('models')))).sort(newsRank);
+  const highlights = picked.slice(0, 4);
+  if (highlights.length && !highlights.some(it => it.tags.includes('models'))) {
+    const model = picked.find(it => it.tags.includes('models'));
+    if (model) highlights[highlights.length - 1] = model;
+  }
+  const assigned = new Set(highlights.map(newsKey));
+  const deep = platform.filter(it => it.deep && !assigned.has(newsKey(it)) &&
+    (newsRecent(it, 7) || it.date === now.slice(0, 7))).sort((a, b) => newsRank(a, b)).slice(0, 3);
+  deep.forEach(it => assigned.add(newsKey(it)));
+  const repos = newsItems.filter(it => it.kind === 'github').sort((a,b) =>
+    Number(!!b.collaboration) - Number(!!a.collaboration) || (b.stars_today || 0) - (a.stars_today || 0))
+    .filter(it => it.collaboration || /\bAI\b|\bllm\b|\bagents?\b|machine learning|transformer|inference|diffusion/i.test(it.title + ' ' + (it.desc || it.desc_en || '')));
+  let list = (filtered ? newsItems.filter(newsMatches) : platform.filter(it => !assigned.has(newsKey(it))))
+    .sort((a,b) => (b.date || '').localeCompare(a.date || '') || newsRank(a,b));
+  if (!filtered) {
+    let domesticUpdates = highlights.filter(domesticProductUpdate).length;
+    list = list.filter(it => (newsRecent(it, 14) || it.date === now.slice(0, 7))
+      && (!domesticProductUpdate(it) || ++domesticUpdates <= 3));
+  }
+  const shown = list.slice(0, newsLimit);
+  const listHeader = filtered ? `<span>${list.length} 条</span>` : '';
+  const platformPanel = newsSection('平台动态', shown.length ? shown.map(it => newsCard(it)).join('') +
+    (list.length > shown.length ? '<button class="btn ghost ai-news-more" onclick="newsLimit+=10;renderNewsReadingEdition()">查看更多</button>' : '') :
+    `<p class="ai-news-empty">${filtered ? '没有匹配的资讯。' : '暂无更多平台动态。'}</p>`, listHeader);
+  const lead = newsSection('今日重点',
+    highlights.length ? highlights.map((it,i) => newsCard(it, i === 0 ? 'ai-news-lead' : '')).join('') :
+      '<p class="ai-news-empty">今日重点待更新，可以先查看平台动态。</p>',
+    newsEdition.date === now && newsEdition.url ? newsLink(newsEdition.url, 'AI HOT 日报 ↗') : '');
+  const aside = newsSection('GitHub 趋势', repos.length ?
+    repos.slice(0,4).map(it=>newsCard(it,'ai-news-repo')).join('') :
+    '<p class="ai-news-empty">暂未发现相关开源项目。</p>', newsLink('https://github.com/trending','完整榜单 ↗'));
+  const reading = newsSection('深度阅读', deep.length ?
+    deep.map(it=>newsCard(it,'ai-news-deep')).join('') :
+    '<p class="ai-news-empty">近期暂无入选的官方文章。</p>');
+  wrap.innerHTML = (filtered ? '' : `<div class="ai-news-overview">${lead}<aside>${aside}</aside></div>`) +
+    (filtered ? platformPanel : `<div class="ai-news-lower">${platformPanel}<aside>${reading}</aside></div>`);
+}
+function setAiPulseMode(mode) {
+  aiPulseMode = mode;
+  showNewsStatus('');
+  $('pulseUpdated').textContent = '';
+  const isDaily = mode === 'daily';
+  for (const button of $('pulseSection').querySelectorAll('[data-mode]')) {
+    button.classList.toggle('active', button.dataset.mode === mode);
+    button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
+  }
+  for (const id of ['newsControls','newsSearchWrap','pulseRefreshBtn']) $(id).hidden = !isDaily;
+  $('pulseGroups').innerHTML = '<p class="ai-news-empty">正在加载…</p>';
+  renderAiPulse();
+}
+function reportHtml(report) {
+  const period = [report.periodStart, report.periodEnd].filter(Boolean).join(' 至 ');
+  const sections = (report.sections || []).map(section => `<section class="ai-news-panel ai-news-weekly-section">
+    <header class="ai-news-panel-head"><h2>${esc(section.label || '')}</h2></header>
+    ${section.summary ? `<p class="ai-news-weekly-summary">${esc(section.summary)}</p>` : ''}
+    ${(section.items || []).map(item => `<article class="ai-news-story">
+      <div class="ai-news-meta">${esc(item.source || '')}</div>
+      <h3>${newsLink(item.url, item.title)}</h3>
+      ${item.desc ? `<p>${esc(item.desc)}</p>` : ''}
+    </article>`).join('')}
+  </section>`).join('');
+  return `<div class="ai-news-weekly">
+    <section class="ai-news-panel ai-news-weekly-lead">
+      <header class="ai-news-panel-head"><h2>AI HOT 周报</h2>${newsLink(report.links?.aihot, '原版周报 ↗')}</header>
+      <p class="ai-news-meta">${esc([report.week, period].filter(Boolean).join(' · '))}</p>
+      ${report.headline ? `<h3>${esc(report.headline)}</h3>` : ''}
+      ${report.overview ? `<p class="ai-news-weekly-summary">${esc(report.overview)}</p>` : ''}
+    </section>
+    ${sections}
+  </div>`;
+}
+async function renderAiPulse({check = true, pollUntil = 0} = {}) {
+  clearTimeout(newsPollTimer);
+  const mode = aiPulseMode;
+  const requestId = ++newsRequest;
+  const wrap = $('pulseGroups');
+  const base = mode === 'weekly' ? '/api/ai_pulse/weekly' : '/api/ai_pulse';
+  try {
+    let response = await api(base + (pollUntil ? '?status=1' : check ? '?check=1' : ''));
+    if (pollUntil && response.state !== 'running' && requestId === newsRequest) response = await api(base);
+    if (requestId !== newsRequest || mode !== aiPulseMode) return;
+    const busy = response.state === 'running';
+    const wasPolling = !!pollUntil;
+    const active = $('news').classList.contains('active');
+    if (busy && active) {
+      const deadline = pollUntil || Date.now() + 300000;
+      if (Date.now() < deadline) {
+        newsPollTimer = setTimeout(() => {
+          if ($('news').classList.contains('active')) renderAiPulse({check: false, pollUntil: deadline});
+        }, 2500);
+      }
+    }
+    if (busy && wasPolling) {
+      if (Date.now() >= pollUntil) {
+        $('pulseUpdated').textContent = '仍在后台同步，可稍后刷新查看。';
+        $('pulseRefreshBtn').disabled = false;
+        $('pulseRefreshBtn').textContent = '刷新资讯';
+      }
+      return;
+    }
+    const updated = response.updated_at ?
+      (mode === 'weekly' ? '周报同步于 ' : '资讯同步于 ') + String(response.updated_at).replace('T', ' ').slice(0,16) : '';
+    const progress = busy ? '正在检查更新…' : response.state === 'error' ? '暂时无法同步' : '';
+    $('pulseUpdated').textContent = [updated, progress].filter(Boolean).join(' · ');
+    const button = $('pulseRefreshBtn');
+    button.disabled = busy;
+    button.textContent = busy ? '同步中…' : '刷新资讯';
+    if (mode === 'weekly') {
+      wrap.innerHTML = response.report ? reportHtml(response.report) :
+        `<p class="ai-news-empty">${busy ? '正在读取 AI HOT 周报…' : '暂未取得 AI HOT 周报。'}</p>`;
+      return;
+    }
+    newsEdition = response.edition || {};
+    newsItems = (response.groups || []).flatMap(group => (group.items || []).map(item => ({
+      ...item, tags: Array.isArray(item.tags) ? item.tags : group.key === 'models' ? ['models'] : item.agent_related ? ['agents'] : []
+    })));
+    newsReady = true;
+    renderNewsFilters();
+    if (busy && !newsItems.length) {
+      wrap.innerHTML = '<p class="ai-news-empty">正在同步首批资讯…</p>';
+    } else {
+      renderNewsReadingEdition();
+    }
+  } catch (error) {
+    if (requestId !== newsRequest) return;
+    showNewsStatus('暂时无法加载资讯，请稍后重试。');
+    $('pulseRefreshBtn').disabled = false;
+    $('pulseRefreshBtn').textContent = '刷新资讯';
+    if (!wrap.querySelector('.ai-news-panel')) wrap.innerHTML = '';
+  }
+}
+function showNewsStatus(message) {
+  $('newsStatus').hidden = !message;
+  $('newsStatus').textContent = message;
+}
+async function dismissPulseItem(key, button) {
+  button.disabled = true;
+  try {
+    await api('/api/news/dismiss', 'POST', {key});
+    newsItems = newsItems.filter(item => newsKey(item) !== key);
+    renderNewsFilters();
+    renderNewsReadingEdition();
+    showNewsStatus('已略过这条资讯。');
+  } catch (error) {
+    showNewsStatus('操作失败，请稍后重试。');
+    button.disabled = false;
+  }
+}
+async function refreshPulseNews() {
+  showNewsStatus('');
+  $('pulseRefreshBtn').disabled = true;
+  await renderAiPulse();
+}
 function todoRowHtml(x,status){let thumbMatch=x.content&&x.content.match(/<img[^>]*src="([^"]+)"/);let thumb=x.image?`/api/knowledge/files/${encodeURIComponent(x.image)}`:(thumbMatch?thumbMatch[1]:'');let textPreview=x.content?x.content.replace(/<img[^>]*>/g,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim():'';let meta=[status?`<span class="followup-due ${status==='已逾期'?'overdue':''}">${status}</span>`:'',x.priority?`<span class="tag">${esc(x.priority)}</span>`:'',x.date?shortDate(x.date):''].filter(Boolean).join(' · ');let editId=encodeURIComponent(String(x.id)).replace(/'/g,'%27');return `<div class="task ${x.done?'done':''}"><span class="tick ${x.done?'done':''}" onclick="toggleTask('${x.id}')">${x.done?'✓':''}</span>${thumb?`<img class="task-thumb" src="${esc(thumb)}" alt="" onerror="this.remove()">`:''}<div class="task-name">${esc(x.title)}${textPreview?`<div class="task-note">${esc(textPreview.slice(0,60))}</div>`:''}${meta?`<div class="task-note">${meta}</div>`:''}</div><button type="button" class="task-edit" onclick="editTask(decodeURIComponent('${editId}'))" title="编辑待办" aria-label="编辑待办"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5M4 20l4-1L21 6a2.1 2.1 0 0 0-3-3L5 16l-1 4Z"/></svg></button><span class="task-del" onclick="removeTask('${x.id}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span></div>`}
 const followupSuggestions=[
   {id:'release',title:'跟进灰度发布时间',source:'发布方案已评审，灰度时间等研发确认。'},

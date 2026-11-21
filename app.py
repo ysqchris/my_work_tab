@@ -286,9 +286,7 @@ def make_crud(resource):
 # 通用内容对象：情报、行动、知识库与思考均可独立存储。
 make_crud("products_updates")
 # 新闻动态：数据源由外部 Agent 负责抓取，经 /api/news/sync 整批覆盖写入。
-# 工作台后端不再启动本地抓取线程（news_fetcher.py 已停用，仅保留文件）。
-#   - POST /api/news        单条累加（insert(0, item)），会持续膨胀，不推荐
-#   - POST /api/news/sync   整批覆盖（推荐），把"当前应展示的全部新闻"整体传过来
+# 兼容已有的单条资讯与整批导入接口。自动同步由后端资讯任务负责。
 make_crud("news")
 
 @app.route("/api/news/sync", methods=["POST"])
@@ -331,37 +329,54 @@ def sync_news():
 
 
 def _load_news_fetcher():
-    """延迟导入本地抓取模块（与 app.py 同目录）。"""
-    spec = importlib.util.spec_from_file_location(
-        "news_fetcher", os.path.join(BASE, "news_fetcher.py")
-    )
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    """Delay import until the application has loaded its environment."""
+    import news_fetcher
+    return news_fetcher
 
 
 @app.route("/api/news/refresh", methods=["POST"])
 def refresh_news():
-    """[已弃用] 触发后端本地抓取并整批覆盖 news.json。
-    数据源已由外部 Agent 接管（走 /api/news/sync），本接口保留但不再建议使用。
-    """
+    return jsonify({"ok": True, "state": _news_sync_state("daily", check=True)})
+
+
+_NEWS_REFRESH_HOURS = (8, 13, 20)
+_NEWS_SYNC_LOCK = threading.Lock()
+_NEWS_SYNC = {mode: {"state": "idle", "next_check": 0} for mode in ("daily", "weekly")}
+
+
+def _news_sync_state(mode, check=False):
+    with _NEWS_SYNC_LOCK:
+        entry = _NEWS_SYNC[mode]
+        if check and entry["state"] != "running" and time.monotonic() >= entry["next_check"]:
+            entry["state"] = "running"
+            threading.Thread(target=_run_news_sync, args=(mode,), daemon=True,
+                             name=f"news-{mode}-sync").start()
+        return entry["state"]
+
+
+def _run_news_sync(mode):
+    success = False
+    interval = 60 if mode == "daily" else 3600
     try:
-        mod = _load_news_fetcher()
-        items = mod.fetch_all()
-    except Exception as e:
-        return jsonify({"error": f"抓取失败: {e}"}), 500
-    if not items:
-        return jsonify({"ok": True, "count": 0, "note": "抓取为空，未覆盖现有数据"})
-    with _lock_for("news"):
-        write_json("news", {"items": items, "updated_at": _now()})
-    _accumulate_news_history(items)
-    touch_meta()
-    return jsonify({"ok": True, "count": len(items), "updated_at": _now()})
-
-
-# 后台定时抓取线程：每天早/中/晚各刷新一次新闻动态
-_NEWS_REFRESH_HOURS = (8, 13, 20)  # 东八区：早 8:00 / 中 13:00 / 晚 20:00
-_NEWS_FETCHER_LOCK = threading.Lock()
+        fetcher = _load_news_fetcher()
+        if mode == "weekly":
+            cached = read_json("aihot_weekly", {})
+            result = fetcher.fetch_weekly(cached)
+            if result != {key: cached.get(key) for key in result}:
+                write_json("aihot_weekly", {**result, "updated_at": _now()})
+            success = True
+        else:
+            success = _fetch_ai_pulse_news(fetcher)
+    except Exception as exc:
+        print(f"[news] {mode} sync failed: {exc}", flush=True)
+        if mode == "weekly":
+            interval = 300
+            if getattr(exc, "code", None) in {429, 503}:
+                interval = fetcher._retry_seconds(exc.headers.get("Retry-After"))
+    finally:
+        with _NEWS_SYNC_LOCK:
+            _NEWS_SYNC[mode].update(state="done" if success else "error",
+                                    next_check=time.monotonic() + interval)
 
 
 def _next_refresh_delay_seconds():
@@ -387,37 +402,12 @@ def _news_scheduler_loop():
     while True:
         delay = _next_refresh_delay_seconds()
         time.sleep(delay)
-        with _NEWS_FETCHER_LOCK:
-            try:
-                mod = _load_news_fetcher()
-                items = mod.fetch_all()
-                if items:
-                    with _lock_for("news"):
-                        write_json("news", {"items": items, "updated_at": _now()})
-                    _accumulate_news_history(items)
-                    touch_meta()
-                    print(f"[news_scheduler] 自动刷新完成，{len(items)} 条", flush=True)
-            except Exception as e:
-                print(f"[news_scheduler] 自动刷新失败: {e}", flush=True)
+        _news_sync_state("daily", check=True)
 
 
 def _start_news_scheduler():
-    """启动后台守护线程：启动时立即抓取一次，之后按早/中/晚定时刷新。"""
-    def _boot():
-        with _NEWS_FETCHER_LOCK:
-            try:
-                mod = _load_news_fetcher()
-                items = mod.fetch_all()
-                if items:
-                    with _lock_for("news"):
-                        write_json("news", {"items": items, "updated_at": _now()})
-                    _accumulate_news_history(items)
-                    touch_meta()
-                    print(f"[news_scheduler] 启动抓取完成，{len(items)} 条", flush=True)
-            except Exception as e:
-                print(f"[news_scheduler] 启动抓取失败: {e}", flush=True)
-    t0 = threading.Thread(target=_boot, daemon=True, name="news-boot-fetch")
-    t0.start()
+    """Warm the cache at startup and maintain the existing scheduled checks."""
+    _news_sync_state("daily", check=True)
     t1 = threading.Thread(target=_news_scheduler_loop, daemon=True, name="news-scheduler")
     t1.start()
     print("[news_scheduler] 已启动：AI 资讯 + GitHub Trending 定时抓取", flush=True)
@@ -3283,36 +3273,19 @@ for _b in _AI_BOARDS:
 _BOARD_META = {b["key"]: b for b in _AI_BOARDS}
 
 
-def _fetch_ai_pulse_news():
-    """即时抓取 AI 行业动态（AIhot + GitHub Trending），写入 news.json 并累积历史。"""
-    mod = _load_news_fetcher()
-    items = mod.fetch_all()
-    if not items:
-        return []
-    with _lock_for("news"):
-        write_json("news", {"items": items, "updated_at": _now()})
-    _accumulate_news_history(items)
-    touch_meta()
-    return items
-
-
-def _accumulate_news_history(items, date=None):
-    """把当次抓取结果按日期累积到 news_history，供「总结周报」使用。"""
-    date = date or _now()[:10]
-    hist = read_json("news_history", {"days": {}})
-    days = hist.get("days", {})
-    day = days.get(date) or {"items": [], "updated_at": _now()}
-    existing = {it.get("url") or it.get("id") for it in day["items"]}
-    for it in items:
-        key = it.get("url") or it.get("id")
-        if key and key not in existing:
-            day["items"].append(it)
-            existing.add(key)
-    day["updated_at"] = _now()
-    days[date] = day
-    kept = sorted(days.keys(), reverse=True)[:14]
-    hist["days"] = {k: days[k] for k in kept}
-    write_json("news_history", hist)
+def _fetch_ai_pulse_news(fetcher):
+    previous = read_json("news", {})
+    edition = fetcher.fetch_edition(previous)
+    # On a failed check keep the content and its timestamp, persisting only source backoff.
+    fresh = "items" in edition and "updated_at" not in edition
+    if fresh:
+        edition["updated_at"] = _now()
+    if edition != previous:
+        with _lock_for("news"):
+            write_json("news", edition)
+    if fresh:
+        touch_meta()
+    return fresh
 
 
 def _news_item_brief(n):
@@ -3336,6 +3309,15 @@ def _news_item_brief(n):
         "published_at": n.get("published_at") or "",
         "created_at": n.get("created_at") or "",
         "agent_related": bool(n.get("agent_related")),
+        "key": (n.get("id") if n.get("feed_kind") in {"updates", "ark"} else n.get("url")) or n.get("id") or "",
+        "tags": n.get("tags"),
+        "platform": n.get("platform") or "",
+        "region": n.get("region") or "",
+        "deep": bool(n.get("deep")),
+        "reading_type": n.get("reading_type") or "",
+        "priority": n.get("priority") or 0,
+        "collaboration": bool(n.get("collaboration") or n.get("agent_related")),
+        "sources": n.get("sources") or [],
     }
 
 
@@ -3352,14 +3334,15 @@ def _ai_pulse_groups_raw(news_items=None, hidden=None):
                            "emoji": meta["emoji"], "items": []}
         return groups[key]
 
+    fetcher = _load_news_fetcher()
     for n in news:
         brief = _news_item_brief(n)
         if not brief["title"]:
             continue
-        item_key = brief["url"] or brief["id"]
-        if hidden and item_key and item_key in hidden:
+        keys = {brief["key"], brief["id"], *n.get("aliases", [])}
+        if hidden.intersection(keys):
             continue
-        board_key = _load_news_fetcher().classify_news_item(n)
+        board_key = fetcher.classify_news_item(n)
         _bucket(board_key)["items"].append(brief)
 
     # 第一版模型更新、第二版行业动态、第三版GitHub；产品洞察独立展示。
@@ -3387,17 +3370,17 @@ def _load_news_read():
 
 @app.route("/api/ai_pulse", methods=["GET"])
 def get_ai_pulse():
-    """每日大事件：按四板块（AI 行业动态 / 模型更新 / GitHub 趋势 / 产品案例）返回当天资讯（仅标题与元信息，不做 AI 总结）。"""
-    news = read_json("news", {}).get("items", []) or []
-    if not news:
-        try:
-            _fetch_ai_pulse_news()
-            news = read_json("news", {}).get("items", []) or []
-        except Exception as e:
-            print(f"[ai_pulse] 即时抓取失败: {e}", flush=True)
+    """Serve the cached edition and keep the existing grouped response compatible."""
+    state = _news_sync_state("daily", check=request.args.get("check") == "1")
+    if request.args.get("status") == "1":
+        return jsonify({"state": state})
+    cached = read_json("news", {})
+    news = cached.get("items", []) or []
     groups = _ai_pulse_groups_raw(news, hidden=_load_news_read())
-    updated_at = read_json("news", {}).get("updated_at", "")
-    return jsonify({"mode": "daily", "groups": groups, "updated_at": updated_at})
+    return jsonify({
+        "mode": "daily", "state": state, "groups": groups,
+        "updated_at": cached.get("updated_at", ""), "edition": cached.get("edition", {}),
+    })
 
 
 @app.route("/api/news/dismiss", methods=["POST"])
@@ -3407,27 +3390,12 @@ def dismiss_news():
     key = (body.get("key") or body.get("url") or body.get("id") or "").strip()
     if not key:
         return jsonify({"error": "missing key"}), 400
-    data = read_json("news_read", {"items": []})
-    keys = data.get("items") or []
-    if key not in keys:
-        keys.append(key)
-        data["items"] = keys
-        data["updated_at"] = _now()
-        with _lock_for("news_read"):
-            write_json("news_read", data)
+    with _lock_for("news_read"):
+        data = read_json("news_read", {"items": []})
+        keys = data.get("items") or []
+        if key not in keys:
+            write_json("news_read", {**data, "items": [*keys, key], "updated_at": _now()})
     return jsonify({"ok": True})
-
-
-def _weekly_news_items():
-    """读取近 7 天累积的历史资讯。"""
-    hist = read_json("news_history", {"days": {}})
-    days = hist.get("days", {})
-    today = _now()[:10]
-    recent = [d for d in sorted(days.keys(), reverse=True) if d <= today][:7]
-    items = []
-    for d in recent:
-        items += days[d].get("items", [])
-    return items, recent
 
 
 def _parse_json_response(content):
@@ -3446,100 +3414,19 @@ def _parse_json_response(content):
     return None
 
 
-def _generate_weekly_report(items):
-    """用 DeepSeek 生成结构化周报（overview + 四板块 keypoints/trend）。"""
-    groups = _ai_pulse_groups_raw(items)
-    if not groups:
-        return None
-    lines = []
-    for g in groups:
-        bullets = []
-        for it in g["items"][:15]:
-            t = (it.get("title") or "").strip()
-            if not t:
-                continue
-            if it.get("kind") == "github":
-                extra = ""
-                if it.get("lang"):
-                    extra += f"（{it['lang']}"
-                if it.get("stars_today") is not None:
-                    extra += f"，今日 +{it['stars_today']} star"
-                if extra:
-                    extra += "）"
-                bullets.append(f"- {t}{extra}")
-            else:
-                bullets.append(f"- {t}")
-        lines.append(f"【{g['label']}】\n" + "\n".join(bullets))
-    insights = read_json("product_insights", {}).get("candidates", [])
-    insight_lines = [f"- {c.get('title', '')}：{c.get('question', '')}；{c.get('why', '')}" for c in insights]
-    lines.append("【产品洞察】\n" + ("\n".join(insight_lines) or "暂无素材，不得编造"))
-    user = "\n\n".join(lines)
-
-    system = (
-        "你是资讯周报编辑。根据下面四大主题的真实素材，生成结构化中文周报。产品洞察是当前国内社区议题，不能宣称覆盖整周。"
-        "严格输出 JSON 对象（不要输出代码块、不要额外文字），格式为：\n"
-        '{"overview":"一段60~100字整体概述","sections":[{"title":"模型更新","keypoints":["要点"],"trend":"趋势"},'
-        '{"title":"AI 行业动态","keypoints":["要点"],"trend":"趋势"},'
-        '{"title":"GitHub 趋势","keypoints":["要点"],"trend":"趋势"},'
-        '{"title":"产品洞察","keypoints":["要点"],"trend":"趋势"}]}\n'
-        "sections必须恰好四个，按模型更新、AI 行业动态、GitHub 趋势、产品洞察顺序。缺乏素材时要点为空，说明暂无数据，禁止补造。"
-        "模型更新包含新模型发布及评测；AI行业动态包含重要行业信息、新产品发布、案例和人物分享；"
-        "GitHub趋势包含Trending开源项目；产品洞察提炼国内社区的用户需求、体验、增长与商业问题。"
-        "严格区分「Agent 协作」概念：它特指多个 Agent 之间组队协作、多智能体编排、"
-        "Agent 间任务交接/通信协议（如 CrewAI、AutoGen、LangGraph、A2A、MCP、subagent 编排）。"
-        "单个 AI 助手、RAG、代码补全 Copilot、普通 AI 智能体产品都【不是】Agent 协作，"
-        "严禁把「与 Agent 沾边」的内容都说成 Agent 协作；只有确实涉及多 Agent 协作的才这么表述。"
-        "每个 keypoints 给 3~5 条，每条一句话，凝练、有信息增量、点名具体产品/模型/项目；"
-        "trend 给一句趋势判断；不要输出 HTML 标签。"
-    )
-    content = _call_hunyuan([
-        {"role": "system", "content": system},
-        {"role": "user", "content": user},
-    ], max_tokens=2200, temperature=0.5)
-
-    parsed = _parse_json_response(content)
-    if not isinstance(parsed, dict):
-        raise RuntimeError("周报解析失败：" + str(content)[:200])
-
-    sections = parsed.get("sections") or []
-    board_map = {g["label"]: g for g in groups}
-    clean_sections = []
-    for sec in sections:
-        if not isinstance(sec, dict):
-            continue
-        title = str(sec.get("title") or "").strip()
-        if not title:
-            continue
-        meta = board_map.get(title)
-        if meta:
-            sec["emoji"] = meta.get("emoji", "✨")
-        sec["keypoints"] = [str(k).strip() for k in (sec.get("keypoints") or []) if str(k).strip()]
-        sec["trend"] = str(sec.get("trend") or "").strip()
-        clean_sections.append(sec)
-
-    return {
-        "overview": str(parsed.get("overview") or "").strip(),
-        "sections": clean_sections,
-    }
-
-
-_WEEKLY_GEN_LOCK = threading.Lock()
-_WEEKLY_GEN_STATUS = {"state": "idle", "error": "", "updated_at": ""}
-
 @app.route("/api/ai_pulse/weekly", methods=["GET"])
 def get_ai_pulse_weekly():
-    """总结周报：返回已缓存的结构化周报（未生成时 report 为空），并附带生成状态。"""
-    cached = read_json("ai_pulse_weekly", {})
-    with _WEEKLY_GEN_LOCK:
-        status = dict(_WEEKLY_GEN_STATUS)
-    return jsonify({
-        "mode": "weekly",
-        "report": cached.get("report"),
-        "days": cached.get("days", []),
-        "updated_at": cached.get("updated_at", ""),
-        "state": status.get("state", "idle"),
-        "error": status.get("error", ""),
-    })
+    state = _news_sync_state("weekly", check=request.args.get("check") == "1")
+    if request.args.get("status") == "1":
+        return jsonify({"state": state})
+    cached = read_json("aihot_weekly", {})
+    return jsonify({"mode": "weekly", "state": state, "report": cached.get("report"),
+                    "updated_at": cached.get("updated_at", "")})
+
+
+@app.route("/api/ai_pulse/weekly/refresh", methods=["POST"])
+def refresh_ai_pulse_weekly():
+    return jsonify({"ok": True, "state": _news_sync_state("weekly", check=True)})
 
 
 def _summarize_groups(groups, scope):
@@ -3621,95 +3508,6 @@ def refresh_ai_pulse():
     payload = {"groups": groups, "updated_at": _now()[:16]}
     write_json("ai_pulse", payload)
     return jsonify({"ok": True, "groups": groups, "updated_at": payload["updated_at"]})
-
-
-def _weekly_report_bg(scheduled_for=None):
-    """后台生成周报；定时任务持久化周五日期，用于重启和多进程去重。"""
-    global _WEEKLY_GEN_STATUS
-    try:
-        items, days = _weekly_news_items()
-        if not items:
-            with _WEEKLY_GEN_LOCK:
-                _WEEKLY_GEN_STATUS.update({"state": "error", "error": "暂无足够的历史数据，先看看每日大事件吧。", "updated_at": ""})
-            return
-        report = _generate_weekly_report(items)
-        if not report:
-            with _WEEKLY_GEN_LOCK:
-                _WEEKLY_GEN_STATUS.update({"state": "error", "error": "周报生成失败，请稍后再试。", "updated_at": ""})
-            return
-        payload = {"report": report, "days": days, "updated_at": _now()[:16]}
-        if scheduled_for:
-            payload["scheduled_for"] = scheduled_for
-        else:
-            previous = read_json("ai_pulse_weekly", {})
-            if previous.get("scheduled_for"):
-                payload["scheduled_for"] = previous["scheduled_for"]
-        write_json("ai_pulse_weekly", payload)
-        with _WEEKLY_GEN_LOCK:
-            _WEEKLY_GEN_STATUS.update({"state": "done", "error": "", "updated_at": payload["updated_at"]})
-    except Exception as e:
-        with _WEEKLY_GEN_LOCK:
-            _WEEKLY_GEN_STATUS.update({"state": "error", "error": "生成失败：" + str(e), "updated_at": ""})
-
-@app.route("/api/ai_pulse/weekly/refresh", methods=["POST"])
-def refresh_ai_pulse_weekly():
-    """为「总结周报」异步生成结构化周报，立即返回，前端轮询 /api/ai_pulse/weekly 获取结果。
-
-    生成走 DeepSeek，耗时可能超过网关代理超时；同步等待会让发布环境出现「网络错误」，
-    因此改为后台线程 + 轮询，避免长连接被网关中断。
-    """
-    with _WEEKLY_GEN_LOCK:
-        state = _WEEKLY_GEN_STATUS.get("state")
-        if state == "running":
-            return jsonify({"ok": True, "state": "running"})
-        _WEEKLY_GEN_STATUS.update({"state": "running", "error": "", "updated_at": ""})
-    threading.Thread(target=_weekly_report_bg, daemon=True, name="weekly-report-gen").start()
-    return jsonify({"ok": True, "state": "running"})
-
-_WEEKLY_TZ = datetime.timezone(datetime.timedelta(hours=8))
-
-
-def _weekly_schedule_slot(now=None):
-    """返回当前自然周的周五17:45；尚未到点时不补上周旧报。"""
-    now = now or datetime.datetime.now(_WEEKLY_TZ)
-    friday = now.date() + datetime.timedelta(days=4 - now.weekday())
-    return datetime.datetime.combine(friday, datetime.time(17, 45), tzinfo=_WEEKLY_TZ)
-
-
-def _weekly_scheduler_tick(now=None):
-    now = now or datetime.datetime.now(_WEEKLY_TZ)
-    slot = _weekly_schedule_slot(now)
-    if now < slot:
-        return
-    day = slot.date().isoformat()
-    cached = read_json("ai_pulse_weekly", {})
-    if cached.get("scheduled_for") == day:
-        return
-    with _WEEKLY_GEN_LOCK:
-        if _WEEKLY_GEN_STATUS.get("state") == "running":
-            return
-        # 租约到期可重试失败任务；成功后由持久化批次永久去重。
-        if not db.try_acquire_daily_lock("ai_pulse_weekly", day, ttl_seconds=1800):
-            return
-        # 抢锁后再次读取，避免前一个worker刚完成时重复执行。
-        if read_json("ai_pulse_weekly", {}).get("scheduled_for") == day:
-            return
-        _WEEKLY_GEN_STATUS.update({"state": "running", "error": "", "updated_at": ""})
-    print(f"[weekly] 自动生成周报，批次 {day}（北京时间周五17:45）", flush=True)
-    _weekly_report_bg(scheduled_for=day)
-
-
-def _weekly_scheduler_loop():
-    while True:
-        try:
-            _weekly_scheduler_tick()
-        except Exception as e:
-            print(f"[weekly] 定时生成失败: {e}", flush=True)
-        time.sleep(15)
-
-
-threading.Thread(target=_weekly_scheduler_loop, daemon=True, name="weekly-report-scheduler").start()
-print("[weekly] 已启动：北京时间每周五17:45自动总结周报", flush=True)
 
 
 @app.route("/api/meta", methods=["GET"])
