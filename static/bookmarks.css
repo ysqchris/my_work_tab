@@ -213,6 +213,9 @@ body:has(#bookmarks.active) #topDate {
   font-size: 13px;
   font-weight: 650;
 }
+#bookmarks .bm-letter-badge[hidden] { display: none; }
+#bookmarks :is(.bm-tile-icon, .bm-card-icon) > :is(img, .bm-letter-badge) { grid-area: 1 / 1; }
+#bookmarks :is(.bm-tile-icon, .bm-card-icon) img:not(.is-ready) { visibility: hidden; }
 
 #bookmarks .bm-tile-title {
   max-width: 100%;

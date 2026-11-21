@@ -598,7 +598,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     width: 100%;
   }
 }
-</style><link rel="stylesheet" href="/static/bookmarks.css"><link rel="stylesheet" href="/static/work-followup.css"><link rel="stylesheet" href="/static/workbench-views.css?v=8"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
+</style><link rel="stylesheet" href="/static/bookmarks.css?v=2"><link rel="stylesheet" href="/static/work-followup.css"><link rel="stylesheet" href="/static/workbench-views.css?v=11"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
 <section id="home" class="view">
 <section class="followup" aria-labelledby="followupTitle">
 <header class="followup-heading"><h2 id="followupTitle">工作跟进</h2></header>
@@ -714,7 +714,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 </div>
 </div>
 </section>
-<section id="creators" class="view"><header class="workspace-view-head"><h1>视频订阅</h1></header><form class="vid-add-row workspace-follow-form" onsubmit="event.preventDefault();quickAddCreator()"><input id="creatorQuickUrl" type="url" aria-label="博主主页或频道链接" placeholder="粘贴 B 站博主主页或 YouTube 频道链接" required><button type="submit" class="btn primary">关注</button><div id="creatorQuickStatus" class="vid-add-status" role="status"></div></form><div class="vid-layout"><div class="vid-main"><div class="vid-feed-head"><span class="hint" id="creatorFeedUpdated"></span><button type="button" class="btn ghost" onclick="loadCreatorVideos(true)">↻ 刷新</button></div><div class="vid-grid" id="creatorVideoList"></div></div><aside class="vid-sidebar"><div class="vid-sidebar-head" id="creatorSideHead">关注的博主 <span id="creatorSideCount" class="sub"></span></div><div class="vid-sidebar-filters" id="creatorSideFilters"><button type="button" class="vid-filter-btn active" aria-pressed="true" data-pf="" onclick="setPlatformFilter('')">全部</button><button type="button" class="vid-filter-btn" aria-pressed="false" data-pf="bilibili" onclick="setPlatformFilter('bilibili')">B站</button><button type="button" class="vid-filter-btn" aria-pressed="false" data-pf="youtube" onclick="setPlatformFilter('youtube')">YouTube</button></div><div class="vid-sidebar-search"><input id="creatorSearch" type="search" aria-label="搜索博主" placeholder="搜索博主…" oninput="onCreatorSearch(this.value)"></div><div class="vid-sidebar-list" id="creatorTiles"></div></aside></div></section>
+<section id="creators" class="view"><header class="workspace-view-head"><h1>视频订阅</h1><button type="button" class="btn ghost" id="biliFollowSyncBtn" onclick="syncBiliFollowings()">同步 B 站关注</button></header><div id="biliFollowSyncStatus" class="view-load-status" role="status"></div><form class="vid-add-row workspace-follow-form" onsubmit="event.preventDefault();quickAddCreator()"><input id="creatorQuickUrl" type="url" aria-label="博主主页或频道链接" placeholder="粘贴 B 站博主主页或 YouTube 频道链接" required><button type="submit" class="btn primary">关注</button><div id="creatorQuickStatus" class="vid-add-status" role="status"></div></form><div class="vid-layout"><div class="vid-main"><div class="vid-feed-head"><span class="hint" id="creatorFeedUpdated"></span><button type="button" class="btn ghost" onclick="loadCreatorVideos(true)">↻ 刷新</button></div><div class="vid-grid" id="creatorVideoList"></div></div><aside class="vid-sidebar"><div class="vid-sidebar-head" id="creatorSideHead">关注的博主 <span id="creatorSideCount" class="sub"></span></div><div class="vid-sidebar-filters" id="creatorSideFilters"><button type="button" class="vid-filter-btn active" aria-pressed="true" data-pf="" onclick="setPlatformFilter('')">全部</button><button type="button" class="vid-filter-btn" aria-pressed="false" data-pf="bilibili" onclick="setPlatformFilter('bilibili')">B站</button><button type="button" class="vid-filter-btn" aria-pressed="false" data-pf="youtube" onclick="setPlatformFilter('youtube')">YouTube</button></div><div class="vid-sidebar-search"><input id="creatorSearch" type="search" aria-label="搜索博主" placeholder="搜索博主…" oninput="onCreatorSearch(this.value)"></div><div class="vid-sidebar-list" id="creatorTiles"></div></aside></div></section>
 <section id="notes" class="view">
   <header class="workspace-view-head"><h1>笔记</h1></header>
   <form class="note-quick-form" id="noteQuickForm">
@@ -728,14 +728,18 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
       <button type="submit" class="btn primary">记一条</button>
     </div>
   </form>
-  <div class="workspace-find"><input type="search" id="noteSearch" aria-label="搜索笔记" placeholder="搜索笔记" oninput="renderNotes()"><span id="noteSearchCount" role="status"></span></div>
-  <div class="note-category-tools">
-    <label><input id="noteAutoCategory" type="checkbox"> AI 自动打标签</label>
-    <span class="note-category-hint">开启后将笔记文字发送给后台配置的 AI 服务。</span>
-    <select id="noteCategoryFilter" aria-label="按标签筛选"><option value="">全部标签</option><option>日记</option><option>思考</option><option>分享</option><option>待整理</option></select>
-    <button type="button" class="btn" id="noteCategoryBatch">给未标记笔记补标签</button>
-    <span id="noteCategoryStatus" role="status"></span>
+  <div class="note-archive-toolbar">
+    <div class="workspace-find"><input type="search" id="noteSearch" aria-label="搜索笔记" placeholder="搜索笔记"><span id="noteSearchCount" role="status"></span></div>
+    <details class="note-category-settings" id="noteCategorySettings">
+      <summary>标签设置</summary>
+      <div class="note-category-panel">
+        <label><input id="noteAutoCategory" type="checkbox"> AI 自动打标签</label>
+        <p>开启后将笔记文字发送给后台配置的 AI 服务。</p>
+        <button type="button" class="btn" id="noteCategoryBatch">给未标记笔记补标签</button>
+      </div>
+    </details>
   </div>
+  <p id="noteCategoryStatus" role="status"></p>
   <div class="note-archive">
     <aside class="note-calendar" aria-labelledby="noteCalendarTitle">
       <div class="note-calendar-head">
@@ -752,6 +756,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
         <h2 id="noteTimelineTitle">时间线</h2>
         <span id="noteTimelineStatus" role="status"></span>
       </div>
+      <div id="noteCategoryFilters" class="note-category-filters" role="group" aria-label="按标签筛选"></div>
       <div id="noteList" class="note-feed"></div>
     </div>
   </div>
@@ -774,9 +779,75 @@ let mediaHotItems=[];
 const $=id=>document.getElementById(id);let data={tasks:[],notes:[],knowledge:[],updates:[],products:[],bookmarks:[],media:[],news:[],creators:[]},radarProductId='all',radarScope='all',knowledgeKind='all',bmAddKind='memo',wereadData=null,wrShelfShown=10,wrShelfStep=30,wrNotesData=null,wrOpenNoteId=null,creatorFilterId=null,platformFilter='',creatorSearch='',creatorVideos=[],creatorVideosUpdatedAt='',creatorVideosLoaded=false;
 const api=async(url,method='GET',body)=>{let r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});if(!r.ok)throw Error(await r.text());return r.json()};const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function formatSize(n){if(n==null)return '';if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(1)+' MB'}
-async function load(){loadNotes();await loadCore();renderBookmarks();restoreView();loadUnread().then(renderUnread);loadRest()}async function loadCore(){let [b,g]=await Promise.all([api('/api/bookmarks'),api('/api/bookmark-groups')]);data.bookmarks=b.items||[];data.bmGroups=g.items||[]}async function loadRest(){let [t,k,u,p,m,ql,news,cr,km,brief]=await Promise.all(['tasks','knowledge','products_updates','products','media'].map(x=>api('/api/'+x)).concat([api('/api/qlearning-lives'),api('/api/news'),api('/api/creators'),api('/api/km-hot'),api('/api/daily_brief')]));data.tasks=t.items||[];data.knowledge=k.items||[];data.updates=u.items||[];data.updatesUpdatedAt=u.updated_at||'';data.products=p.products||[];data.media=m.items||[];data.qlLives=ql.items||[];data.qlLivesUpdated=ql.updated_at||'';data.news=news.items||[];data.newsUpdatedAt=news.updated_at||'';data.creators=cr.items||[];data.kmHot=km.items||[];data.kmHotUpdated=km.updated_at||'';data.brief=brief||{};renderRest();if(document.getElementById('creators').classList.contains('active')||(data.creators.length&&!creatorVideos.length))loadCreatorVideos();}
+async function loadViewResource(resource,apply){
+  const result=await api('/api/'+resource);
+  apply(result);
+}
+const viewLoaders={
+  bookmarks:()=>[
+    Promise.allSettled(['bookmarks','bookmark-groups'].map(resource=>loadViewResource(resource,result=>{
+      data[resource==='bookmarks'?'bookmarks':'bmGroups']=result.items||[];
+      renderBookmarks();
+    }))).then(results=>results.every(result=>result.status==='fulfilled')),
+    loadBmWeather()
+  ],
+  home:()=>[
+    loadViewResource('tasks',result=>{data.tasks=result.items||[];renderTodoPanel()}),
+    loadViewResource('daily_brief',result=>{data.brief=result;renderBrief()}),
+    loadViewResource('qlearning-lives',result=>{data.qlLives=result.items||[];data.qlLivesUpdated=result.updated_at||'';renderHomeLives()}),
+    loadViewResource('km-hot',result=>{data.kmHot=result.items||[];data.kmHotUpdated=result.updated_at||'';renderKmHot()})
+  ],
+  news:()=>[renderAiPulse(),renderProductInsights()],
+  notes:()=>[loadNotes()],
+  knowledge:()=>[loadViewResource('knowledge',result=>{data.knowledge=result.items||[];renderKnowledge()})],
+  media:refresh=>[
+    loadViewResource('media',result=>{data.media=result.items||[];renderMedia()}),
+    ...(!refresh?[loadMediaHot(),loadWeread()]:[])
+  ],
+  radar:()=>[
+    loadViewResource('products',result=>{data.products=result.products||[];renderRadar()}),
+    loadViewResource('products_updates',result=>{data.updates=result.items||[];data.updatesUpdatedAt=result.updated_at||'';renderRadar()})
+  ],
+  creators:refresh=>[loadViewResource('creators',result=>{
+    data.creators=result.items||[];
+    renderCreatorTiles();
+    if(!refresh||!creatorVideosLoaded)loadCreatorVideos();
+  })]
+};
+const viewLoads=new Map();
+const viewLoadedAt=new Map();
+async function loadView(id,refresh=false){
+  if(!viewLoaders[id])return;
+  const current=viewLoads.get(id);
+  if(current){
+    if(!refresh)return current;
+    await current;
+    return loadView(id,true);
+  }
+  if(!refresh&&Date.now()-(viewLoadedAt.get(id)||0)<60000)return;
+  const view=$(id);
+  let status=view.querySelector('.view-load-status');
+  if(!status){
+    status=document.createElement('p');
+    status.className='view-load-status';
+    status.setAttribute('role','status');
+    view.prepend(status);
+  }
+  if(!viewLoadedAt.has(id))status.textContent='正在加载…';
+  const pending=Promise.resolve().then(()=>Promise.allSettled(viewLoaders[id](refresh))).then(results=>{
+    const failed=results.some(result=>result.status==='rejected'||result.value===false);
+    status.textContent=failed?'部分内容加载失败，重新打开本页可重试。':'';
+    if(failed)viewLoadedAt.delete(id);
+    else viewLoadedAt.set(id,Date.now());
+    return !failed;
+  }).finally(()=>viewLoads.delete(id));
+  viewLoads.set(id,pending);
+  return pending;
+}
+function load(id){
+  return loadView(id||document.querySelector('.view.active')?.id,true);
+}
 function restoreView(){let id=new URLSearchParams(location.search).get('view');try{id=id||sessionStorage.getItem('bmActiveView')}catch(e){}let section=id&&document.getElementById(id);if(section&&section.classList.contains('view')){showView(id)}else{showView('bookmarks')}}
-restoreView()
 function updateTopNavigation(current){
  const nav=document.querySelector('.pillnav');
  nav.querySelectorAll('.pill').forEach(button=>{
@@ -804,17 +875,13 @@ function showView(id,node){
      window.scrollTo(0,0);
    }
  } catch {}
- if(id==='media'){loadMediaHot();loadWeread()}
- if(id==='creators'&&!creatorVideosLoaded)loadCreatorVideos();
- if(id==='news')renderProductInsights();
+ loadView(id);
  markTabRead(id);
 }
 function unreadViewName(id){return{knowledge:'knowledge',radar:'radar',media:'media',creators:'creators'}[id]||null}
 async function loadUnread(){try{let j=await fetch('/api/unread').then(r=>r.json());data._unread=j||{};data._creatorSeen=new Set(j.creator_seen||[])}catch(e){data._unread={};data._creatorSeen=new Set()}}
 function renderUnread(){let u=data._unread||{};document.querySelectorAll('.pill[data-view]').forEach(p=>{let v=p.getAttribute('data-view');let m=unreadViewName(v);if(!m)return;let n=u[m]||0;let dot=p.querySelector('.tab-dot');if(n>0){if(!dot){dot=document.createElement('span');dot.className='tab-dot';dot.setAttribute('aria-label','有未读');p.appendChild(dot)}}else if(dot){dot.remove()}})}
 async function markTabRead(id){let m=unreadViewName(id);if(!m)return;let u=data._unread||{};if(!(u[m]>0))return;try{await api('/api/unread/mark','POST',{module:m});delete u[m];if(m==='creators'){let seen=data._creatorSeen||new Set();creatorVideos.forEach(v=>{if(v.url)seen.add(v.url)});data._creatorSeen=seen;renderCreatorTiles()}renderUnread()}catch(e){}}
-function render(){renderBrief();renderTodoPanel();renderKnowledge();renderBookmarks();renderMedia();renderNotes();renderRadar();renderHomeLives();renderKmHot();renderHomeGreeting();renderAiPulse();renderUnread();renderCreatorTiles()}
-function renderRest(){renderBrief();renderTodoPanel();renderKnowledge();renderMedia();renderRadar();renderHomeLives();renderKmHot();renderHomeGreeting();renderAiPulse();renderProductInsights();renderCreatorTiles()}
 function empty(t){return `<div class="empty">${t}</div>`}
 function shortDate(d){if(!/^\d{4}-\d{2}-\d{2}$/.test(d||''))return '';let [y,m,day]=d.split('-');return `${Number(m)} 月 ${Number(day)} 日`}
 const WEEKDAYS=['周日','周一','周二','周三','周四','周五','周六'];
@@ -1225,8 +1292,8 @@ function editFollowupSuggestion(id){
 }
 
 renderFollowupSuggestions();
-async function toggleTask(id){let x=data.tasks.find(x=>x.id===id);await api('/api/tasks/'+id,'PUT',{done:!x.done});await load()}
-async function removeTask(id){await api('/api/tasks/'+id,'DELETE');await load()}
+async function toggleTask(id){let x=data.tasks.find(x=>x.id===id);await api('/api/tasks/'+id,'PUT',{done:!x.done});await load('home')}
+async function removeTask(id){await api('/api/tasks/'+id,'DELETE');await load('home')}
 function editTask(id){
   let task=data.tasks.find(x=>String(x.id)===String(id));if(!task)return;
   modal(`<h3>编辑待办</h3><div class="field"><label for="editTaskTitle">标题</label><input id="editTaskTitle" value="${esc(task.title||'')}" placeholder="待办标题"></div><div class="field"><label>补充说明（可粘贴图片）</label><div id="editTaskContent" class="richbox" contenteditable="true" data-placeholder="补充细节…" onpaste="handleTodoPaste(event)"></div></div><div class="field-row"><div class="field"><label for="editTaskPriority">优先级</label><select id="editTaskPriority"><option>高</option><option>中</option><option>低</option></select></div><div class="field"><label for="editTaskDate">日期</label><input id="editTaskDate" type="date"></div></div><div id="editTaskError" role="alert" style="color:var(--red);font-size:12px"></div><div class="modal-actions"><button type="button" class="btn" onclick="closeModal()">取消</button><button type="button" class="btn primary" id="editTaskSave">保存修改</button></div>`);
@@ -1243,14 +1310,14 @@ async function saveTaskEdit(id){
   try{
     let response=await fetch('/api/tasks/'+encodeURIComponent(id),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,content:$('editTaskContent').innerHTML.trim(),priority:$('editTaskPriority').value,date:$('editTaskDate').value})});
     if(!response.ok)throw new Error(response.status===404?'待办已不存在，请刷新页面。':'保存失败，请稍后重试。');
-    closeModal();await load();
+    closeModal();await load('home');
   }catch(e){error.textContent=e.message||'保存失败，请检查网络。'}finally{btn.disabled=false;btn.textContent='保存修改'}
 }
 function expandTodoCompose(){$('todoCompose').classList.add('open');$('todoQuick').focus()}
 function collapseTodoCompose(force=false){let title=$('todoQuick').value.trim(),box=$('todoContent'),plain=(box.innerText||'').trim(),hasImg=!!box.querySelector('img');if(!force&&(title||plain||hasImg))return;$('todoCompose').classList.remove('open');$('todoQuick').value='';box.innerHTML='';$('todoPriority').value='中';$('todoDate').value='';$('todoQuick').blur()}
 function todoQuickKey(e){if(e.key==='Enter'&&!e.isComposing){e.preventDefault();submitTodoCompose()}if(e.key==='Escape'){e.preventDefault();collapseTodoCompose(true)}}
 async function handleTodoPaste(e){let cd=e.clipboardData||window.clipboardData;if(!cd)return;let items=[...(cd.items||[])];let imgItem=items.find(it=>it.type&&it.type.indexOf('image')===0);let file=imgItem?imgItem.getAsFile():null;if(!file)return;e.preventDefault();let box=e.currentTarget,selection=window.getSelection(),range=selection.rangeCount?selection.getRangeAt(0).cloneRange():null;if(box.id==='todoContent')expandTodoCompose();try{let up=await uploadPasteImage(file);if(!box.isConnected)return;let img=document.createElement('img');img.src='/api/knowledge/files/'+encodeURIComponent(up.stored_name);if(range&&box.contains(range.commonAncestorContainer)){range.deleteContents();range.insertNode(img);range.setStartAfter(img);range.collapse(true);box.focus();selection.removeAllRanges();selection.addRange(range)}else box.appendChild(img)}catch(err){console.error(err)}}
-async function submitTodoCompose(){let title=$('todoQuick').value.trim(),box=$('todoContent'),content=box.innerHTML.trim(),plain=(box.innerText||'').trim(),hasImg=!!box.querySelector('img');if(!title&&!plain&&!hasImg)return;let body={title:title||plain.slice(0,40)||'未命名待办',priority:$('todoPriority').value,today:true};if(content&&(plain||hasImg))body.content=content;let d=$('todoDate').value;if(d)body.date=d;await api('/api/tasks','POST',body);collapseTodoCompose(true);await load()}
+async function submitTodoCompose(){let title=$('todoQuick').value.trim(),box=$('todoContent'),content=box.innerHTML.trim(),plain=(box.innerText||'').trim(),hasImg=!!box.querySelector('img');if(!title&&!plain&&!hasImg)return;let body={title:title||plain.slice(0,40)||'未命名待办',priority:$('todoPriority').value,today:true};if(content&&(plain||hasImg))body.content=content;let d=$('todoDate').value;if(d)body.date=d;await api('/api/tasks','POST',body);collapseTodoCompose(true);await load('home')}
 function knowledgeIcon(k){return k==='file'?'📄':k==='document'?'✎':'↗'}
 function knowledgeKindLabel(k){return k==='file'?'文件':k==='document'?'文档':'链接'}
 function isKnowledgeImage(x){if((x.kind||'')!=='file'||!x.stored_name)return false;if((x.mime||'').startsWith('image/'))return true;return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(x.filename||x.stored_name||'')}
@@ -1396,9 +1463,9 @@ async function saveKnowledgeLink(event){
   }finally{button.disabled=false;}
 }
 function openKnowledgeDoc(existing){let x=existing||{};modal(`<h3>${existing?'编辑文档':'写文档'}</h3><div class="field"><label>标题</label><input id="mTitle" value="${esc(x.title||'')}"></div><div class="field"><label>主题</label><input id="mTopic" value="${esc(x.topic||'')}" placeholder="例如：竞品分析"></div><div class="field"><label>正文</label><textarea id="mContent" rows="12" placeholder="写下可复用的判断、纪要或分析…">${esc(x.content||'')}</textarea></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveKnowledgeDoc(${existing?`'${x.id}'`:'null'})">保存</button></div>`,true)}
-async function saveKnowledgeDoc(id){let title=$('mTitle').value.trim(),content=$('mContent').value.trim();if(!title&&!content)return;let body={kind:'document',title:title||'未命名文档',content,topic:$('mTopic').value.trim(),source:'知识库'};if(id)await api('/api/knowledge/'+id,'PUT',body);else await api('/api/knowledge','POST',body);closeModal();await load();showView('knowledge',document.querySelector('[data-view=knowledge]'))}
+async function saveKnowledgeDoc(id){let title=$('mTitle').value.trim(),content=$('mContent').value.trim();if(!title&&!content)return;let body={kind:'document',title:title||'未命名文档',content,topic:$('mTopic').value.trim(),source:'知识库'};if(id)await api('/api/knowledge/'+id,'PUT',body);else await api('/api/knowledge','POST',body);closeModal();await load('knowledge');showView('knowledge',document.querySelector('[data-view=knowledge]'))}
 function openKnowledgeItem(id){let x=data.knowledge.find(i=>i.id===id);if(!x)return;if((x.kind||'link')==='document'){modal(`<h3>${esc(x.title||'未命名文档')}</h3><div class="kb-meta">${esc(x.topic||'未分类')} · ${esc(x.date||x.created_at||'')}</div><pre class="kb-doc">${esc(x.content||'（空文档）')}</pre><div class="modal-actions"><button class="btn" onclick="closeModal()">关闭</button><button class="btn" onclick="openKnowledgeDoc(data.knowledge.find(i=>i.id==='${id}'))">编辑</button><button class="btn" onclick="removeKnowledge('${id}')">删除</button></div>`,true);return}if((x.kind||'link')==='file'&&x.stored_name)window.open('/api/knowledge/files/'+x.stored_name,'_blank');else if(x.url)window.open(x.url,'_blank')}
-async function removeKnowledge(id){if(!confirm('确认从知识库删除？'))return;await api('/api/knowledge/'+id,'DELETE');closeModal();await load()}
+async function removeKnowledge(id){if(!confirm('确认从知识库删除？'))return;await api('/api/knowledge/'+id,'DELETE');closeModal();await load('knowledge')}
 function bmKindOf(x){return x.kind==='frequent'?'frequent':'memo'}
 let bmMode='google';function setBmMode(m){bmMode=m;document.querySelectorAll('.bm-mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));var input=$('bmGoogleInput'),btn=$('bmGoogleBtn');if(m==='google'){input.placeholder='搜索 Google…';btn.textContent='搜索'}else if(m==='chatgpt'){input.placeholder='和 ChatGPT 对话…';btn.textContent='对话'}else if(m==='gemini'){input.placeholder='和 Gemini 对话（内容自动复制到剪贴板）…';btn.textContent='对话'}input.focus()}function submitBmGoogleSearch(e){e.preventDefault();let q=($('bmGoogleInput').value||'').trim();if(bmMode==='google'){if(q){window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank')}else{window.open('https://www.google.com','_blank')}}else if(bmMode==='chatgpt'){if(q){window.open('https://chatgpt.com/?q='+encodeURIComponent(q),'_blank')}else{window.open('https://chatgpt.com','_blank')}}else if(bmMode==='gemini'){if(q){navigator.clipboard&&navigator.clipboard.writeText(q).catch(function(){})}window.open('https://gemini.google.com/app','_blank')}return false}
 function bmHost(url){try{return new URL(url).hostname.replace(/^www\./,'')}catch(e){return url||''}}
@@ -1413,9 +1480,36 @@ function bmLetterBadge(label){
  const [letter='?']=Array.from(label.trim().toUpperCase());
  return `<span class="bm-letter-badge" aria-hidden="true">${esc(letter)}</span>`;
 }
-function bmFaviconFallback(img){
- img.insertAdjacentHTML('beforebegin',bmLetterBadge(img.dataset.iconLabel||''));
- img.remove();
+const bmIconQueue=[];
+let bmIconRequests=0;
+const bmIconObserver=new IntersectionObserver(entries=>{
+  for(const entry of entries){
+    if(!entry.isIntersecting)continue;
+    bmIconObserver.unobserve(entry.target);
+    bmIconQueue.push(entry.target);
+  }
+  loadQueuedBookmarkIcons();
+},{rootMargin:'120px'});
+function loadQueuedBookmarkIcons(){
+  while(bmIconRequests<2&&bmIconQueue.length){
+    const img=bmIconQueue.shift();
+    if(!img.isConnected)continue;
+    bmIconRequests++;
+    const done=()=>{
+      img.removeEventListener('load',done);
+      img.removeEventListener('error',done);
+      bmIconRequests--;
+      loadQueuedBookmarkIcons();
+    };
+    img.addEventListener('load',done);
+    img.addEventListener('error',done);
+    img.src=img.dataset.iconSrc;
+  }
+}
+function showBookmarkIcon(img){
+  if(img.naturalWidth===1&&img.naturalHeight===1)return;
+  img.classList.add('is-ready');
+  img.previousElementSibling.hidden=true;
 }
 function bmIconHtml(bookmark){
  const host=bmHost(bookmark.url||'').toLowerCase();
@@ -1429,7 +1523,8 @@ function bmIconHtml(bookmark){
    }
    src='/api/bookmarks/favicon-proxy?url='+encodeURIComponent(src);
  }
- return `<img src="${esc(src)}" alt="" loading="lazy" data-icon-label="${esc(label)}" onload="if(this.naturalWidth===1&&this.naturalHeight===1)bmFaviconFallback(this)" onerror="bmFaviconFallback(this)">`;
+ const deferred=src.startsWith('/api/bookmarks/favicon-proxy?');
+ return `${bmLetterBadge(label)}<img ${deferred?'data-icon-src':'src'}="${esc(src)}" alt="" decoding="async" ${deferred?'':'loading="lazy"'} onload="showBookmarkIcon(this)">`;
 }
 function setBmAddKind(kind){bmAddKind=kind==='frequent'?'frequent':'memo';document.querySelectorAll('#bmKindToggle button').forEach(b=>b.classList.toggle('active',b.dataset.kind===bmAddKind))}
 function bmGroupName(id){let g=(data.bmGroups||[]).find(x=>x.id===id);return g?g.name:''}
@@ -1444,6 +1539,7 @@ function bmFrequentGroupSectionHtml(group,items,renderItem){
  let editBtns=isSystem?'':`<button type="button" class="bm-grp-act" title="重命名" onclick="renameGroup('${esc(group.id)}')"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button><button type="button" class="bm-grp-act del" title="删除分组" onclick="deleteGroup('${esc(group.id)}')"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>`;
  return `<div class="bm-group-block" data-group="${esc(group.id)}"><div class="bm-group-head">${emoji}<b>${esc(group.name)}</b><span class="bm-grp-count">${items.length}</span>${editBtns}</div><div class="bm-grid bm-drop-zone" id="${listId}" data-group="${esc(group.id)}">${items.map(renderItem).join('')}</div></div>`}
 function renderBookmarks(){
+ bmIconObserver.disconnect();
  let freq=data.bookmarks.filter(x=>bmKindOf(x)==='frequent');
  let memo=data.bookmarks.filter(x=>bmKindOf(x)==='memo');
  let groups=data.bmGroups||[];
@@ -1470,6 +1566,7 @@ function renderBookmarks(){
  if($('bmMemoGroups'))$('bmMemoGroups').innerHTML=memoHtml;
  /* --- 初始化拖拽 --- */
  document.querySelectorAll('#bmFrequentGroups .bm-drop-zone, #bmMemoGroups .bm-drop-zone').forEach(initBmDrag);
+ document.querySelectorAll('#bookmarks img[data-icon-src]').forEach(img=>bmIconObserver.observe(img));
 }
 function openNewGroupModal(section){
  modal(`<h3>新建分组</h3><div class="field"><label>分组名称</label><input id="mNewGroupName" placeholder="输入分组名…" maxlength="20"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveNewGroup('${section}')">创建</button></div>`);
@@ -1477,7 +1574,7 @@ function openNewGroupModal(section){
 }
 async function saveNewGroup(section){
  let name=$('mNewGroupName').value.trim();if(!name)return;
- try{await api('/api/bookmark-groups','POST',{name,section:section||''});closeModal();await load()}catch(e){showToast('创建失败')}
+ try{await api('/api/bookmark-groups','POST',{name,section:section||''});closeModal();await load('bookmarks')}catch(e){showToast('创建失败')}
 }
 async function renameGroup(gid){
  let g=(data.bmGroups||[]).find(x=>x.id===gid);if(!g)return;
@@ -1486,11 +1583,11 @@ async function renameGroup(gid){
 }
 async function doRenameGroup(gid){
  let name=$('mRenameGroup').value.trim();if(!name)return;
- try{await api('/api/bookmark-groups/'+gid,'PUT',{name});closeModal();await load()}catch(e){showToast('重命名失败')}
+ try{await api('/api/bookmark-groups/'+gid,'PUT',{name});closeModal();await load('bookmarks')}catch(e){showToast('重命名失败')}
 }
 async function deleteGroup(gid){
  if(!confirm('删除此分组？书签会回到「未分组」。'))return;
- try{await api('/api/bookmark-groups/'+gid,'DELETE');await load()}catch(e){showToast('删除失败')}
+ try{await api('/api/bookmark-groups/'+gid,'DELETE');await load('bookmarks')}catch(e){showToast('删除失败')}
 }
 function showToast(msg){let t=document.createElement('div');t.className='bm-toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.classList.add('show'),10);setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300)},2500)}
 const NEWS_CATS=[{key:'ai',label:'AI'},{key:'tech',label:'科技'},{key:'finance',label:'财经'},{key:'politics',label:'政治军事'}];let newsCat='ai';try{newsCat=localStorage.getItem('bmNewsCat')||'ai'}catch(e){}
@@ -1517,13 +1614,13 @@ function initBmDrag(container){if(!container||container._dragInit)return;contain
 async function saveBmOrder(ids){try{await api('/api/bookmarks/reorder','POST',{ids})}catch(e){}}
 function toggleBmQuick(force){let panel=$('bmQuick'),show=force!==undefined?force:!panel.classList.contains('show');panel.classList.toggle('show',show);if(show)setTimeout(()=>$('bmQuickUrl').focus(),30)}
 function closeBmQuick(){toggleBmQuick(false)}
-async function quickAddBookmark(){let input=$('bmQuickUrl'),status=$('bmQuickStatus'),url=input.value.trim();if(!url)return;if(!/^https?:\/\//i.test(url))url='https://'+url;let group='external';input.value='';input.disabled=true;status.textContent='正在抓取标题和图标…';let title=url,favicon='',summary='';try{let meta=await(await fetch('/api/bookmarks/fetch-meta?url='+encodeURIComponent(url))).json();if(meta.title)title=meta.title;if(meta.favicon)favicon=meta.favicon;if(meta.summary)summary=meta.summary}catch(e){}try{await api('/api/bookmarks','POST',{url,title,favicon,summary,kind:bmAddKind,group});status.textContent='';await load();showView('bookmarks',null);closeBmQuick()}catch(e){status.textContent='收藏失败，请重试';input.value=url}input.disabled=false;input.focus()}
+async function quickAddBookmark(){let input=$('bmQuickUrl'),status=$('bmQuickStatus'),url=input.value.trim();if(!url)return;if(!/^https?:\/\//i.test(url))url='https://'+url;let group='external';input.value='';input.disabled=true;status.textContent='正在抓取标题和图标…';let title=url,favicon='',summary='';try{let meta=await(await fetch('/api/bookmarks/fetch-meta?url='+encodeURIComponent(url))).json();if(meta.title)title=meta.title;if(meta.favicon)favicon=meta.favicon;if(meta.summary)summary=meta.summary}catch(e){}try{await api('/api/bookmarks','POST',{url,title,favicon,summary,kind:bmAddKind,group});status.textContent='';await load('bookmarks');showView('bookmarks',null);closeBmQuick()}catch(e){status.textContent='收藏失败，请重试';input.value=url}input.disabled=false;input.focus()}
 function openBmAssignGroup(id){let bm=data.bookmarks.find(x=>String(x.id)===String(id));if(!bm)return;modal(`<h3>设置分组</h3><div class="field"><label>属于分组</label><select id="mBmGroup">${bmGroupOptionsHtml(bm.group||'')}</select></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveBmAssignGroup('${id}')">保存</button></div>`)}
 function openBmEditTitle(id){let bm=data.bookmarks.find(x=>String(x.id)===String(id));if(!bm)return;let cur=(bm.title&&bm.title!==bm.url)?bm.title:'';modal(`<h3>编辑标题</h3><div class="field"><label>标题</label><input id="mBmTitle" value="${esc(cur)}" placeholder="给这个链接起个好记的标题…"></div><div class="field"><label>链接</label><input value="${esc(bm.url)}" disabled style="color:var(--worktable-muted)"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveBmEditTitle('${id}')">保存</button></div>`);setTimeout(()=>$('mBmTitle')?.focus(),50)}
-async function saveBmEditTitle(id){let v=$('mBmTitle').value.trim();let bm=data.bookmarks.find(x=>String(x.id)===String(id));await api('/api/bookmarks/'+id,'PUT',{title:v||(bm?bm.url:'')});closeModal();await load()}
-async function saveBmAssignGroup(id){let v=$('mBmGroup').value;await api('/api/bookmarks/'+id,'PUT',{group:v||null});closeModal();await load()}
-async function moveBookmark(id,kind){await api('/api/bookmarks/'+id,'PUT',{kind});await load()}
-async function removeBookmark(id){await api('/api/bookmarks/'+id,'DELETE');await load()}
+async function saveBmEditTitle(id){let v=$('mBmTitle').value.trim();let bm=data.bookmarks.find(x=>String(x.id)===String(id));await api('/api/bookmarks/'+id,'PUT',{title:v||(bm?bm.url:'')});closeModal();await load('bookmarks')}
+async function saveBmAssignGroup(id){let v=$('mBmGroup').value;await api('/api/bookmarks/'+id,'PUT',{group:v||null});closeModal();await load('bookmarks')}
+async function moveBookmark(id,kind){await api('/api/bookmarks/'+id,'PUT',{kind});await load('bookmarks')}
+async function removeBookmark(id){await api('/api/bookmarks/'+id,'DELETE');await load('bookmarks')}
 function mediaSubtypeLabel(s){return({book:'书籍',movie:'电影',tv:'电视',show:'综艺',music:'音乐'}[s]||s)}
 function fmtUpdated(iso){try{let d=new Date(iso);let now=new Date();let diff=(now-d)/1000;if(diff<3600)return Math.max(1,Math.round(diff/60))+' 分钟前';if(diff<86400)return Math.round(diff/3600)+' 小时前';let p=n=>n;let mo=d.getMonth()+1,da=d.getDate(),hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0');let sameYear=d.getFullYear()===now.getFullYear();return (sameYear?mo+'月'+da+'日 ':'')+hh+':'+mm}catch(e){return ''}}
 function findMediaOwned(item){return data.media.find(x=>(item.douban_id&&x.douban_id===item.douban_id)||(item.url&&x.url===item.url)||(item.id&&x.id===item.id))}
@@ -1557,7 +1654,7 @@ let releaseLabel=x.subtype==='book'?'出版':isMusic?'发行':'上线';
 let releaseLine=releaseDate?`<div class="media-sub">${releaseLabel} <time datetime="${esc(releaseDate)}">${esc(releaseDate)}</time></div>`:'';
 let subHtml=sub?`<div class="media-sub">${esc(sub)}</div>`:'';
 let hotIndex=mode==='hot'?mediaHotItems.indexOf(x):-1,comment=(owned&&owned.comment)||x.comment||'',statusBadge='',icons='';if(mode==='library'){statusBadge=`<button type="button" class="media-status ${status==='done'?'done':''}" title="点击切换想看/看过" onclick="event.preventDefault();event.stopPropagation();updateMediaStatus('${owned.id}','${status==='done'?'wish':'done'}')">${status==='done'?'看过':'想看'}</button>`;icons=`<button type="button" class="media-icon-btn grow ${comment?'on':''}" title="${comment?'查看/编辑评论':'写评论'}" onclick="openMediaComment('${owned.id}')">${comment?'有评论':'写评论'}</button><button type="button" class="media-icon-btn danger" title="删除" onclick="removeMedia('${owned.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>`}else{icons=`<button type="button" class="media-icon-btn grow ${status==='wish'?'on':''}" title="${status==='wish'?'已加入想看':'加入想看'}" onclick="upsertMediaFromHot(${hotIndex},'wish')">${status==='wish'?'✓ 想看':'＋ 想看'}</button><button type="button" class="media-icon-btn ${status==='done'?'on':''}" title="标记看过" aria-pressed="${status==='done'}" onclick="upsertMediaFromHot(${hotIndex},'done')">看过</button>`}return `<article class="media-card"><div class="media-cover-wrap"><a class="media-cover" href="${esc(x.url||'#')}" target="_blank" rel="noopener">${mediaCoverHtml(x)}${rating}</a>${statusBadge||liveBadge}</div><div class="media-body"><div class="media-title">${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title||'未命名')}</a>`:esc(x.title||'未命名')}</div><div class="media-card-meta">${subHtml}${releaseLine}</div><div class="media-icon-row">${icons}</div></div></article>`}
-async function updateMediaStatus(id,status){await api('/api/media/'+id,'PUT',{status});await load()}
+async function updateMediaStatus(id,status){await api('/api/media/'+id,'PUT',{status});await load('media')}
 function mediaGroupsHtml(items,mode){
   const groups=new Map(mediaHotTypes.map(type=>[type,[]]));
   for(const item of items){
@@ -1597,7 +1694,7 @@ function renderMediaHotList(){
 }
 
 function loadMediaHot(){
-  mediaHotTypes.forEach(loadMediaHotType);
+  return Promise.all(mediaHotTypes.map(loadMediaHotType));
 }
 
 async function loadMediaHotType(type){
@@ -1660,7 +1757,7 @@ async function quickAddCreator(){
     await api('/api/creators','POST',metadata);
     input.value='';
     feedback.textContent='已关注，正在更新视频。';
-    await load();
+    await load('creators');
     loadCreatorVideos(true);
   } catch(error) {
     feedback.textContent=input.value?'关注失败，请重试。':'已关注，暂时无法刷新列表。';
@@ -1669,7 +1766,39 @@ async function quickAddCreator(){
     input.focus();
   }
 }
-async function removeCreator(id){await api('/api/creators/'+id,'DELETE');if(creatorFilterId===id)creatorFilterId=null;await load();loadCreatorVideos(false)}
+async function syncBiliFollowings(){
+  const button=$('biliFollowSyncBtn');
+  const status=$('biliFollowSyncStatus');
+  let synced=false;
+  button.disabled=true;
+  status.textContent='正在读取 B 站关注名单…';
+  try {
+    const response=await fetch('/api/creators/sync-bilibili',{method:'POST'});
+    if(response.status===404){
+      status.textContent='当前服务版本还不支持同步 B 站关注。';
+      return;
+    }
+    const result=await response.json();
+    if(!response.ok){
+      status.textContent=result.error||'同步失败，请稍后重试。';
+      return;
+    }
+    synced=true;
+    const summary=`已同步 ${result.total} 个 B 站关注，新增 ${result.added} 个，停止抓取 ${result.removed} 个。`;
+    await load('creators');
+    if(creatorFilterId&&!data.creators.some(creator=>creator.id===creatorFilterId)){
+      creatorFilterId=null;
+      renderCreatorTiles();
+    }
+    status.textContent=summary;
+    await loadCreatorVideos(false);
+  } catch(error) {
+    status.textContent=synced?'关注已同步，列表刷新失败，请重新打开视频页。':'同步失败，请稍后重试。';
+  } finally {
+    button.disabled=false;
+  }
+}
+async function removeCreator(id){await api('/api/creators/'+id,'DELETE');if(creatorFilterId===id)creatorFilterId=null;await load('creators');loadCreatorVideos(false)}
 function toggleCreatorHidden(id){let c=data.creators.find(x=>x.id===id);if(!c)return;c.hidden=!c.hidden;api('/api/creators/'+id,'PATCH',{hidden:c.hidden}).catch(()=>{});renderCreatorTiles();renderCreatorVideos()}
 async function togglePin(id){let c=data.creators.find(x=>x.id===id);if(!c)return;c.pinned=!c.pinned;await api('/api/creators/'+id,'PATCH',{pinned:c.pinned});renderCreatorTiles();renderCreatorVideos()}
 async function loadCreatorVideos(refresh){let box=$('creatorVideoList');if(!box)return;if(!data.creators.length){box.innerHTML=empty('关注一个博主，开始接收视频更新吧。');$('creatorFeedUpdated').textContent='';return}creatorVideosLoaded=true;let btn=document.querySelector('#creatorFeedUpdated+.btn, .vid-feed-head .btn');if(refresh){if(btn){btn.disabled=true;btn.textContent='⏳ 刷新中…'}else{box.innerHTML=empty('刷新中…')}}else{box.innerHTML=empty('加载中…')}
@@ -1698,10 +1827,10 @@ async function loadWereadNotes(){try{wrNotesData=await (await fetch('/api/weread
 function wrNotesListHtml(items){return items.map(it=>{let isOpen=wrOpenNoteId===it.bookId;return `<div class="wr-note-item" onclick="toggleWrNote('${esc(it.bookId)}')"><div class="wr-note-title">${esc(it.title||'无名书籍')}</div><div class="wr-note-meta">${it.totalNoteCount} 条 · 想法${it.reviewCount} 划线${it.noteCount}${it.readingProgress!=null?' · 进度'+it.readingProgress+'%':''}</div>${isOpen?`<div class="wr-note-detail" id="wrNoteDetail_${esc(it.bookId)}">加载中…</div>`:''}</div>`}).join('')}
 function renderWrNotes(){let el=$('wrNotes');if(!el)return;if(!wrNotesData){if($('wrNoteSub'))$('wrNoteSub').textContent='加载中…';return}let items=wrNotesData.items||[];if(wrNotesData.error&&!items.length){if($('wrNoteSub'))$('wrNoteSub').textContent='书评笔记拉取失败';el.innerHTML=wrErrorBox(wrNotesData.error,wrNotesData.keyHint);return}if($('wrNoteSub'))$('wrNoteSub').textContent=(wrNotesData.error?'（缓存）':'')+'共 '+wrNotesData.totalNoteCount+' 条笔记，'+items.length+' 本有记录';el.innerHTML=items.length?wrNotesListHtml(items):empty('还没有书评笔记。')}
 async function toggleWrNote(bookId){if(wrOpenNoteId===bookId){wrOpenNoteId=null;renderWrNotes();return}wrOpenNoteId=bookId;renderWrNotes();let box=$('wrNoteDetail_'+bookId);if(!box)return;try{let j=await (await fetch('/api/weread/notes/'+encodeURIComponent(bookId))).json();let html='';let chapters={};(j.bookmarks&&j.bookmarks.chapters||[]).forEach(c=>chapters[c.chapterUid]=c.title);let marks=j.bookmarks&&j.bookmarks.updated||[];if(marks.length){html+='<div class="lbl">划线 '+(marks.length)+' 条</div>';marks.slice(0,20).forEach(m=>{html+=`<div class="hl">${esc(m.markText||'')}</div>`})}let revs=j.reviews&&j.reviews.reviews||[];if(revs.length){html+='<div class="lbl">想法/点评 '+(revs.length)+' 条</div>';revs.slice(0,20).forEach(r=>{let c=(r.review&&r.review.content)||'';if(c)html+=`<div class="th">${esc(c)}</div>`})}box.innerHTML=html||'暂无笔记内容'}catch(e){box.innerHTML=esc('拉取失败：'+e)}}
-async function upsertMediaFromHot(index,status){let item=mediaHotItems[index];if(!item)return;let owned=findMediaOwned(item),release_date=mediaReleaseDate(item);if(owned){if(owned.status!==status||(release_date&&owned.release_date!==release_date))await api('/api/media/'+owned.id,'PUT',{status,...(release_date?{release_date}:{})});await load();return}let subtype=item.subtype;let created=await api('/api/media','POST',{title:item.title,cover:item.cover||'',rating:item.rating,url:item.url||'',douban_id:item.douban_id||'',year:item.year||'',release_date,card_subtitle:item.card_subtitle||'',subtype,domain:item.domain||(subtype==='book'?'book':'av'),status,source:item.source||'douban',comment:''});await load();if(created&&created.id)openMediaComment(created.id)}
-async function removeMedia(id){if(!confirm('从书影音库删除？'))return;await api('/api/media/'+id,'DELETE');await load()}
+async function upsertMediaFromHot(index,status){let item=mediaHotItems[index];if(!item)return;let owned=findMediaOwned(item),release_date=mediaReleaseDate(item);if(owned){if(owned.status!==status||(release_date&&owned.release_date!==release_date))await api('/api/media/'+owned.id,'PUT',{status,...(release_date?{release_date}:{})});await load('media');return}let subtype=item.subtype;let created=await api('/api/media','POST',{title:item.title,cover:item.cover||'',rating:item.rating,url:item.url||'',douban_id:item.douban_id||'',year:item.year||'',release_date,card_subtitle:item.card_subtitle||'',subtype,domain:item.domain||(subtype==='book'?'book':'av'),status,source:item.source||'douban',comment:''});await load('media');if(created&&created.id)openMediaComment(created.id)}
+async function removeMedia(id){if(!confirm('从书影音库删除？'))return;await api('/api/media/'+id,'DELETE');await load('media')}
 function openMediaComment(id){let x=data.media.find(i=>i.id===id);if(!x)return;modal(`<h3>${esc(x.title||'')} · 评论</h3><div class="field"><label>评论 / 观后感（支持长文）</label><textarea id="mMediaComment" rows="14" style="min-height:280px;resize:vertical" placeholder="随便写，短评或长评都可以…">${esc(x.comment||'')}</textarea></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveMediaComment('${id}')">保存</button></div>`,true);setTimeout(()=>{let el=$('mMediaComment');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}},0)}
-async function saveMediaComment(id){let comment=$('mMediaComment').value.trim();await api('/api/media/'+id,'PUT',{comment});closeModal();await load()}
+async function saveMediaComment(id){let comment=$('mMediaComment').value.trim();await api('/api/media/'+id,'PUT',{comment});closeModal();await load('media')}
 function notePlain(html){return String(html||'').replace(/<img[^>]*>/g,' [图片] ').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim()}
 function noteThumb(html){let m=String(html||'').match(/<img[^>]*src="([^"]+)"/);return m?m[1]:''}
 function noteBodyHtml(content){let c=content||'';return /<[a-z][\s\S]*>/i.test(c)?`<div class="note-detail">${c}</div>`:`<pre class="kb-doc">${esc(c||'（空笔记）')}</pre>`}
@@ -1786,28 +1915,43 @@ function noteRichHtml(content){
   }
   return template.innerHTML;
 }
+const noteContentCache=new WeakMap();
+function noteDisplayContent(note){
+  let preview=noteContentCache.get(note);
+  if(!preview||preview.source!==note.content){
+    preview={source:note.content,text:noteListText(note.content)};
+    noteContentCache.set(note,preview);
+  }
+  return preview;
+}
 function noteListItemHtml(note){
-  const text=noteListText(note.content);
-  const body=noteRichHtml(note.content);
+  const preview=noteDisplayContent(note);
+  const text=preview.text;
+  const body=preview.html??(preview.html=noteRichHtml(note.content));
   const title=(note.title||'').trim();
   const id=esc(note.id);
   const showTitle=title&&!text.startsWith(title);
   const time=String(note.created_at||'').match(/[T ](\d{2}:\d{2})/)?.[1];
+  const category=noteCategories.includes(note.category)?note.category:'';
   return `<article class="note-feed-item">
-    <span class="note-feed-time">${time?esc(time):'—'}</span>
+    <div class="note-feed-header">
+      <div class="note-feed-meta">
+        ${time?`<time class="note-feed-time" datetime="${esc(time)}">${esc(time)}</time>`:''}
+        <select class="note-category-select" data-category="${category}" data-note-id="${id}" aria-label="更改笔记标签">
+          <option value="" disabled${category?'':' selected'}>＋ 标签</option>
+          ${noteCategories.map(label=>`<option${label===category?' selected':''}>${label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="note-feed-actions">
+        <button class="btn" type="button" data-id="${id}" onclick="openNoteDetail(this.dataset.id)">编辑</button>
+        <button class="btn" type="button" data-id="${id}" onclick="syncToIma('note',this.dataset.id,this)">同步</button>
+        <button class="btn" type="button" data-id="${id}" onclick="removeNote(this.dataset.id)">删除</button>
+      </div>
+    </div>
     <div class="note-feed-entry">
       ${showTitle?`<strong>${esc(title)}</strong>`:''}
       ${body.trim()||!title?`<div class="note-feed-text">${body.trim()||'空笔记'}</div>`:''}
       ${note.topic?`<span class="note-feed-topic">#${esc(note.topic)}</span>`:''}
-      <select class="note-category-select" data-note-id="${id}" aria-label="更改笔记标签">
-        <option value="" disabled${noteCategories.includes(note.category)?'':' selected'}>添加标签</option>
-        ${noteCategories.map(category=>`<option${category===note.category?' selected':''}>${category}</option>`).join('')}
-      </select>
-    </div>
-    <div class="note-feed-actions">
-      <button class="btn" type="button" data-id="${id}" onclick="openNoteDetail(this.dataset.id)">编辑</button>
-      <button class="btn" type="button" data-id="${id}" onclick="syncToIma('note',this.dataset.id,this)">同步</button>
-      <button class="btn" type="button" data-id="${id}" onclick="removeNote(this.dataset.id)">删除</button>
     </div>
   </article>`;
 }
@@ -1815,11 +1959,35 @@ let noteSelectedDate='';
 const noteCategories=['日记','思考','分享','待整理'];
 const noteCategoryPending=new Set();
 const noteAutoCategory=$('noteAutoCategory');
+const noteCategorySettings=$('noteCategorySettings');
+document.addEventListener('click',event=>{
+  if(noteCategorySettings.open&&!noteCategorySettings.contains(event.target))noteCategorySettings.open=false;
+});
+noteCategorySettings.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&noteCategorySettings.open){
+    noteCategorySettings.open=false;
+    noteCategorySettings.querySelector('summary').focus();
+  }
+});
 try{noteAutoCategory.checked=localStorage.getItem('noteAutoCategory')==='1';}catch(error){}
 noteAutoCategory.addEventListener('change',()=>{
   try{localStorage.setItem('noteAutoCategory',noteAutoCategory.checked?'1':'0');}catch(error){}
 });
-$('noteCategoryFilter').addEventListener('change',renderNotes);
+let noteCategoryFilter='';
+const noteCategoryFilters=$('noteCategoryFilters');
+noteCategoryFilters.innerHTML=['',...noteCategories].map(category=>
+  `<button type="button" data-category="${category}" aria-pressed="${!category}">${category||'全部'}</button>`).join('');
+function setNoteCategoryFilter(category,redraw=renderNoteTimeline){
+  noteCategoryFilter=category;
+  for(const button of noteCategoryFilters.querySelectorAll('button')){
+    button.setAttribute('aria-pressed',String(button.dataset.category===category));
+  }
+  redraw();
+}
+noteCategoryFilters.addEventListener('click',event=>{
+  const button=event.target.closest('button');
+  if(button)setNoteCategoryFilter(button.dataset.category);
+});
 async function requestNoteCategory(id,category){
   const result=await api('/api/notes/'+encodeURIComponent(id)+'/category',category?'PUT':'POST',
     category?{category}:undefined);
@@ -1932,6 +2100,7 @@ async function loadNotes(){
     noteLoadState='error';
   }
   renderNotes();
+  return noteLoadState==='ready';
 }
 let noteCalendarMonth='';
 function noteDateKey(date){
@@ -1940,18 +2109,19 @@ function noteDateKey(date){
 function selectNoteDate(date){
   noteSelectedDate=date;
   noteCalendarMonth=date.slice(0,7);
-  renderNotes();
+  renderNoteCalendar();
   const entry=$('note-day-'+date);
   $('noteTimelineStatus').textContent=entry?
-    '已定位到 '+date:date+($('noteSearch').value.trim()?' 没有匹配的笔记':' 没有笔记');
+    '已定位到 '+date:date+($('noteSearch').value.trim()||noteCategoryFilter?' 没有匹配的笔记':' 没有笔记');
   entry?.scrollIntoView({block:'start'});
 }
 function shiftNoteMonth(offset){
   const [year,month]=(noteCalendarMonth||noteDateKey(new Date())).split('-').map(Number);
   noteCalendarMonth=noteDateKey(new Date(year,month-1+offset,1)).slice(0,7);
-  renderNotes();
+  renderNoteCalendar();
 }
-function renderNoteCalendar(groups){
+let noteDateGroups=new Map();
+function renderNoteCalendar(){
   const today=noteDateKey(new Date());
   const [year,month]=(noteCalendarMonth||today).split('-').map(Number);
   const firstDay=(new Date(year,month-1,1).getDay()+6)%7;
@@ -1963,7 +2133,7 @@ function renderNoteCalendar(groups){
     +'<span aria-hidden="true"></span>'.repeat(firstDay)
     +Array.from({length:days},(_,i)=>{
       const date=noteDateKey(new Date(year,month-1,i+1));
-      const count=groups.get(date)?.length||0;
+      const count=noteDateGroups.get(date)?.length||0;
       return `<button type="button" class="note-calendar-day${count?' has-notes':''}" data-date="${date}" aria-label="${date}，${count} 条笔记" aria-pressed="${date===noteSelectedDate}"${date===today?' aria-current="date"':''} onclick="selectNoteDate(this.dataset.date)"><span class="note-calendar-dot" aria-hidden="true"></span><span>${i+1}</span></button>`;
     }).join('');
   if(focused)calendar.querySelector(`[data-date="${focused}"]`)?.focus();
@@ -1976,22 +2146,36 @@ function renderNotes(){
     if(!groups.has(key))groups.set(key,[]);
     groups.get(key).push(item);
   }
-  renderNoteCalendar(groups);
+  noteDateGroups=groups;
+  renderNoteCalendar();
+  renderNoteTimeline();
+}
+function renderNoteTimeline(){
   $('noteTimelineStatus').textContent=noteLoadState==='error'?'读取笔记失败，可刷新重试。':'';
-  const category=$('noteCategoryFilter').value;
+  const category=noteCategoryFilter;
   const scoped=category?data.notes.filter(note=>note.category===category):data.notes;
   const items=new Set(workspaceSearch(scoped,'noteSearch',item=>
-    [item.title,item.topic,item.category,noteListText(item.content)],'noteSearchCount'));
-  const visible=[...groups].sort(([a],[b])=>b.localeCompare(a));
+    [item.title,item.topic,item.category,noteDisplayContent(item).text],'noteSearchCount'));
+  const visible=[...noteDateGroups].sort(([a],[b])=>b.localeCompare(a));
   $('noteList').innerHTML=visible.map(([date,notes])=>{
     const matching=notes.filter(note=>items.has(note))
       .sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
     if(!matching.length)return '';
-    return `<section class="note-feed-day"${date?` id="note-day-${date}"`:''}><h3>${esc(date||'日期未记录')}</h3>${matching.map(noteListItemHtml).join('')}</section>`;
+    const label=date&&date.slice(0,4)===noteDateKey(new Date()).slice(0,4)?shortDate(date):date;
+    return `<section class="note-feed-day"${date?` id="note-day-${date}"`:''}><h3>${date?`<time datetime="${date}">${esc(label)}</time>`:'日期未记录'}</h3>${matching.map(noteListItemHtml).join('')}</section>`;
   }).join('')||empty(noteLoadState==='loading'?'正在加载笔记…':
     noteLoadState==='error'?'暂时无法加载笔记。':$('noteSearch').value.trim()||category?'没有匹配的笔记。':'还没有笔记。');
   attachNoteArticlePreviews();
 }
+let noteSearchTimer;
+$('noteSearch').addEventListener('input',event=>{
+  clearTimeout(noteSearchTimer);
+  if(!event.isComposing)noteSearchTimer=setTimeout(renderNoteTimeline,120);
+});
+$('noteSearch').addEventListener('compositionend',()=>{
+  clearTimeout(noteSearchTimer);
+  renderNoteTimeline();
+});
 const noteQuickAttachments=[];
 function renderQuickNoteAttachments(){
   const disabled=$('noteQuickText').readOnly;
@@ -2046,10 +2230,9 @@ async function saveQuickNote(event){
     for(const attachment of noteQuickAttachments)URL.revokeObjectURL(attachment.preview);
     noteQuickAttachments.length=0;
     $('noteSearch').value='';
-    $('noteCategoryFilter').value='';
     noteSelectedDate='';
     noteCalendarMonth='';
-    renderNotes();
+    setNoteCategoryFilter('',renderNotes);
     status.textContent='已保存';
     autoCategorizeNote(note.id);
   }catch(error){
@@ -2098,7 +2281,7 @@ $('noteQuickText').addEventListener('keydown',event=>{
   }
 });
 function openNoteDetail(id){let x=data.notes.find(n=>n.id===id);if(!x)return;expandWrite(x)}
-async function removeNote(id){if(!confirm('确认删除这条笔记？'))return;await api('/api/notes/'+id,'DELETE');closeModal();await load()}
+async function removeNote(id){if(!confirm('确认删除这条笔记？'))return;await api('/api/notes/'+id,'DELETE');closeModal();await load('notes')}
 async function syncToIma(kind,id,btn){if(!id)return;let label=kind==='note'?'这条笔记':'这个链接';if(!confirm(`确认把${label}同步到 IMA？`))return;if(btn){btn.textContent='同步中…';btn.disabled=true}try{let r=await api('/api/ima/sync','POST',{kind,id});if(r&&r.ok){if(btn){btn.textContent='已同步';btn.classList.add('synced')}else{alert('已同步到 IMA ✓')}}else{if(btn){btn.textContent='同步';btn.disabled=false}alert('同步失败：'+(r&&r.error||'未知错误'))}}catch(e){if(btn){btn.textContent='同步';btn.disabled=false}alert('同步失败：'+e)}}
 function productTypes(){let seen=[];data.products.forEach(p=>{if(p.type&&!seen.includes(p.type))seen.push(p.type)});return seen}
 function updatesFor(name){return data.updates.filter(u=>u.product===name).sort((a,b)=>(b.date||'').localeCompare(a.date||''))}
@@ -2113,12 +2296,12 @@ function setRadarScope(v){radarScope=v;renderRadar()}
 function isUpdateUnread(u){return !u.read}
 function unreadUpdates(list){return list.filter(isUpdateUnread)}
 function unreadBadge(n){return n?`<span class="count unread">${n}</span>`:''}
-async function toggleFav(resource,id){let list=data.updates;let item=list.find(x=>x.id===id);if(!item)return;await api('/api/'+resource+'/'+id,'PUT',{favorited:!item.favorited});await load()}
+async function toggleFav(resource,id){let list=data.updates;let item=list.find(x=>x.id===id);if(!item)return;await api('/api/'+resource+'/'+id,'PUT',{favorited:!item.favorited});await load('radar')}
 async function markUpdateRead(id){let item=data.updates.find(x=>x.id===id);if(!item||item.read)return;item.read=true;renderRadar();try{await api('/api/products_updates/'+id,'PUT',{read:true})}catch(e){item.read=false;renderRadar()}}
 function renderRadarNav(){let groups={};data.products.forEach(p=>{let t=p.type||'未分类';(groups[t]=groups[t]||[]).push(p)});let favCount=data.updates.filter(u=>u.favorited).length,unreadAll=unreadUpdates(data.updates).length;let html=`<div class="radar-nav-head"><span>竞品</span><span>${data.products.length}</span></div><button type="button" class="radar-nav-item ${radarProductId==='all'?'active':''}" aria-pressed="${radarProductId==='all'}" onclick="selectRadarProduct('all')"><span>全部动态</span>${unreadBadge(unreadAll)}</button>`;productTypes().forEach(t=>{html+=`<div class="radar-nav-group">${esc(t)}</div>`;(groups[t]||[]).sort((a,b)=>{if(!!a.paused!==!!b.paused)return a.paused?1:-1;return (a.name||'').localeCompare(b.name||'')}).forEach(p=>{let n=unreadUpdates(updatesFor(p.name)).length;html+=`<button type="button" class="radar-nav-item ${radarProductId===p.id?'active':''} ${p.paused?'is-paused':''}" aria-pressed="${radarProductId===p.id}" onclick="selectRadarProduct('${p.id}')">${prodAvatar(p,20)}<span>${esc(p.name)}${p.paused?' <span class="pause-tag">暂停</span>':''}</span>${unreadBadge(n)}</button>`})});$('radarNav').innerHTML=html;$('radarFavFilters').innerHTML=`<button class="filter ${radarScope==='all'?'active':''}" onclick="setRadarScope('all')">全部</button><button class="filter ${radarScope==='unread'?'active':''}" onclick="setRadarScope('unread')">只看未读 <span style="opacity:.65">${unreadAll}</span></button><button class="filter ${radarScope==='fav'?'active':''}" onclick="setRadarScope('fav')">只看收藏 <span style="opacity:.65">${favCount}</span></button>`}
 function renderRadarProfile(){if(radarProductId==='all'){$('productProfile').innerHTML='';return}let p=data.products.find(x=>x.id===radarProductId);if(!p){$('productProfile').innerHTML='';radarProductId='all';return}let links=[];if(p.official_url)links.push(`<a class="link" href="${esc(p.official_url)}" target="_blank">官网</a>`);if(p.km_knowledge_url)links.push(`<a class="link" href="${esc(p.km_knowledge_url)}" target="_blank">KM</a>`);$('productProfile').innerHTML=`<div class="product-profile">${p.paused?`<div class="paused-banner">⏸ 已暂停抓取，不会再自动抓取该竞品信息</div>`:''}<div class="pp-head">${prodAvatar(p,44)}<h2>${esc(p.name)} <span class="tag">${esc(p.type||'未分类')}</span></h2></div><div class="meta">${esc(p.company||'')}${p.keywords&&p.keywords.length?' · '+p.keywords.map(esc).join(' / '):''}${links.length?' · '+links.join(' · '):''}</div>${p.note?`<div class="row-meta">${esc(p.note)}</div>`:''}<div class="actions"><button class="btn ${p.paused?'':'primary'}" onclick="toggleProductPaused('${p.id}')">${p.paused?'▶ 恢复抓取':'⏸ 暂停抓取'}</button><button class="btn" onclick="editProduct('${p.id}')">编辑竞品</button><button class="btn" onclick="removeProduct('${p.id}')">删除</button></div></div>`}
-async function toggleProductPaused(id){let p=data.products.find(x=>x.id===id);if(!p)return;await api('/api/products/'+id,'PUT',{paused:!p.paused});await load()}
-async function refreshRadar(){let btn=$('radarRefreshBtn'),st=$('radarUpdated');if(!btn)return;if(btn.disabled)return;btn.disabled=true;btn.textContent='⏳ 加载中…';if(st)st.textContent='正在拉取最新数据…';try{await load();if(st)st.textContent='更新于 '+fmtUpdated(data.updatesUpdatedAt);}catch(e){if(st)st.textContent='刷新失败：'+e.message;}finally{btn.disabled=false;btn.textContent='↻ 刷新';}}
+async function toggleProductPaused(id){let p=data.products.find(x=>x.id===id);if(!p)return;await api('/api/products/'+id,'PUT',{paused:!p.paused});await load('radar')}
+async function refreshRadar(){let btn=$('radarRefreshBtn'),st=$('radarUpdated');if(!btn)return;if(btn.disabled)return;btn.disabled=true;btn.textContent='⏳ 加载中…';if(st)st.textContent='正在拉取最新数据…';try{if(!await load('radar'))throw Error('刷新失败');if(st)st.textContent='更新于 '+fmtUpdated(data.updatesUpdatedAt);}catch(e){if(st)st.textContent='刷新失败：'+e.message;}finally{btn.disabled=false;btn.textContent='↻ 刷新';}}
 function updateHtml(u){let unread=isUpdateUnread(u);return `<div class="article radar-item ${unread?'is-unread':'is-read'}" onclick="markUpdateRead('${u.id}')"><div class="article-score">${unread?'●':'○'}</div><div class="row-main"><div class="row-title">${u.url?`<a href="${esc(u.url)}" target="_blank" onclick="markUpdateRead('${u.id}')">${esc(u.title)}</a>`:esc(u.title)}</div><div class="row-meta"><span class="tag">${esc(u.product||'未知产品')}</span> · ${esc(u.type||'产品动态')}${unread?' · 未读':''}</div>${u.view?`<div class="row-meta">${esc(u.view)}</div>`:''}</div><div class="actions"><button class="btn fav ${u.favorited?'on':''}" onclick="event.stopPropagation();toggleFav('products_updates','${u.id}')">${u.favorited?'★ 已藏':'☆ 收藏'}</button></div></div>`}
 function renderRadarGroups(list){let byDate={},dateOrder=[];list.forEach(u=>{let d=u.date||'未知日期';if(!byDate[d]){byDate[d]=[];dateOrder.push(d)}byDate[d].push(u)});return dateOrder.map(d=>{let items=byDate[d],unread=unreadUpdates(items).length;return `<section class="day-card"><div class="day-card-head"><b>${esc(dateLabel(d))}</b><span>${items.length} 条${unread?` · ${unread} 未读`:''}</span></div>${items.map(updateHtml).join('')}</section>`}).join('')}
 function renderRadar(){if($('radarUpdated'))$('radarUpdated').textContent=data.updatesUpdatedAt?('更新于 '+fmtUpdated(data.updatesUpdatedAt)):'尚未抓取';if(radarProductId!=='all'&&!data.products.some(p=>p.id===radarProductId))radarProductId='all';renderRadarNav();renderRadarProfile();let list;if(radarProductId==='all')list=[...data.updates].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(a.product||'').localeCompare(b.product||''));else{let p=data.products.find(x=>x.id===radarProductId);list=p?updatesFor(p.name):[]}
@@ -2127,9 +2310,9 @@ $('radarList').innerHTML=list.length?renderRadarGroups(list):empty(radarScope===
 function dateLabel(d){if(!/^\d{4}-\d{2}-\d{2}$/.test(d||''))return d||'未知日期';let [y,m,day]=d.split('-');return `${y} 年 ${Number(m)} 月 ${Number(day)} 日`}
 function metricHtml(v,label){return `<div class="metric"><b>${v!=null?esc(v):'—'}</b><small>${label}</small></div>`}
 function openProduct(existing){let p=existing||{},types=productTypes();modal(`<h3>${existing?'编辑竞品':'新增竞品'}</h3><div class="field"><label>名称</label><input id="mName" value="${esc(p.name||'')}"></div><div class="field"><label>公司</label><input id="mCompany" value="${esc(p.company||'')}"></div><div class="field"><label>类型</label><input id="mType" list="typeList" value="${esc(p.type||'')}" placeholder="例如：协同办公"><datalist id="typeList">${types.map(t=>`<option value="${esc(t)}">`).join('')}</datalist></div><div class="field"><label>官网</label><input id="mUrl" value="${esc(p.official_url||'')}" placeholder="https://"></div><div class="field"><label>关键词（逗号分隔）</label><input id="mKeywords" value="${esc((p.keywords||[]).join(', '))}"></div><div class="field"><label>备注</label><textarea id="mNote" rows="3">${esc(p.note||'')}</textarea></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveProduct(${existing?`'${p.id}'`:'null'})">${existing?'保存':'创建'}</button></div>`)}
-async function saveProduct(id){let name=$('mName').value.trim();if(!name)return;let body={name,company:$('mCompany').value.trim(),type:$('mType').value.trim()||'未分类',official_url:$('mUrl').value.trim(),keywords:$('mKeywords').value.split(',').map(s=>s.trim()).filter(Boolean),note:$('mNote').value.trim()};if(id){await api('/api/products/'+id,'PUT',body);radarProductId=id}else{let created=await api('/api/products','POST',body);radarProductId=created.id||'all'}closeModal();await load();showView('radar',document.querySelector('[data-view=radar]'))}
+async function saveProduct(id){let name=$('mName').value.trim();if(!name)return;let body={name,company:$('mCompany').value.trim(),type:$('mType').value.trim()||'未分类',official_url:$('mUrl').value.trim(),keywords:$('mKeywords').value.split(',').map(s=>s.trim()).filter(Boolean),note:$('mNote').value.trim()};if(id){await api('/api/products/'+id,'PUT',body);radarProductId=id}else{let created=await api('/api/products','POST',body);radarProductId=created.id||'all'}closeModal();await load('radar');showView('radar',document.querySelector('[data-view=radar]'))}
 function editProduct(id){let p=data.products.find(x=>x.id===id);if(p)openProduct(p)}
-async function removeProduct(id){if(!confirm('确认删除该竞品？'))return;await api('/api/products/'+id,'DELETE');if(radarProductId===id)radarProductId='all';await load()}
+async function removeProduct(id){if(!confirm('确认删除该竞品？'))return;await api('/api/products/'+id,'DELETE');if(radarProductId===id)radarProductId='all';await load('radar')}
 let writeDraftId=null,writeTimer=null,writePending=null,writeClosing=false,writeDraftTitle='';
 function focusQuickNote(){if(!$('home').classList.contains('active'))showView('home',document.querySelector('[data-view=home]'));setTimeout(expandWrite,0)}
 function expandWrite(existing){if(document.body.classList.contains('write-mode'))return;document.body.classList.add('write-mode');let stage=$('writeStage');stage.setAttribute('aria-hidden','false');writeDraftId=existing?existing.id:null;writeDraftTitle=existing?((existing.title||'').trim()):'';$('writePad').innerHTML=existing?(existing.content||''):'';$('writeStatus').textContent=existing?'编辑中，自动保存':'写点什么，也可以粘贴图片';requestAnimationFrame(()=>stage.classList.add('show'));setTimeout(()=>$('writePad').focus(),40)}
@@ -2176,12 +2359,24 @@ async function collapseWrite(){
     writeDraftTitle='';
     $('writePad').innerHTML='';
     autoCategorizeNote(id);
-    await load();
+    await load('notes');
   }finally{writeClosing=false;}
 }
 function modal(html,wide=false){$('modalBody').innerHTML=html;$('modalBody').classList.toggle('wide',!!wide);$('modal').classList.add('show')}function closeModal(){$('modal').classList.remove('show');$('modalBody').classList.remove('wide')}
-function openNote(){modal(`<h3>写下想法</h3><div class="field"><label>标题</label><input id="mTitle" placeholder="一句话概括"></div><div class="field"><label>内容</label><textarea id="mContent" rows="5" placeholder="把脑海中的判断记下来…"></textarea></div><div class="field"><label>主题</label><input id="mTopic" placeholder="例如：个人工作台"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="createNote()">保存</button></div>`)}async function createNote(){let title=$('mTitle').value.trim(),content=$('mContent').value.trim();if(!title&&!content)return;await api('/api/notes','POST',{title:title||'未命名想法',content,topic:$('mTopic').value.trim()});closeModal();load()}document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();focusQuickNote()}if(e.key==='Escape'&&document.body.classList.contains('write-mode')){e.preventDefault();collapseWrite()}else if(e.key==='Escape'&&$('todoCompose').classList.contains('open')){e.preventDefault();collapseTodoCompose(true)}});document.addEventListener('mousedown',e=>{let c=$('todoCompose');if(!c.classList.contains('open')||c.contains(e.target))return;collapseTodoCompose(false)});document.addEventListener('mousedown',e=>{let wrap=$('bmQuick');if(!wrap||!wrap.classList.contains('show'))return;let toggleBtn=$('bmAddToggleBtn');if(wrap.contains(e.target)||(toggleBtn&&toggleBtn.contains(e.target)))return;closeBmQuick()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('bmQuick')&&$('bmQuick').classList.contains('show')){e.preventDefault();closeBmQuick()}});$('modal').onclick=e=>{if(e.target===$('modal'))closeModal()};
-renderNotes();updateClock();setInterval(()=>{updateClock();renderHomeGreeting();renderHomeLives()},60000);loadBmWeather();load();
+function openNote(){modal(`<h3>写下想法</h3><div class="field"><label>标题</label><input id="mTitle" placeholder="一句话概括"></div><div class="field"><label>内容</label><textarea id="mContent" rows="5" placeholder="把脑海中的判断记下来…"></textarea></div><div class="field"><label>主题</label><input id="mTopic" placeholder="例如：个人工作台"></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="createNote()">保存</button></div>`)}async function createNote(){let title=$('mTitle').value.trim(),content=$('mContent').value.trim();if(!title&&!content)return;await api('/api/notes','POST',{title:title||'未命名想法',content,topic:$('mTopic').value.trim()});closeModal();load('notes')}document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();focusQuickNote()}if(e.key==='Escape'&&document.body.classList.contains('write-mode')){e.preventDefault();collapseWrite()}else if(e.key==='Escape'&&$('todoCompose').classList.contains('open')){e.preventDefault();collapseTodoCompose(true)}});document.addEventListener('mousedown',e=>{let c=$('todoCompose');if(!c.classList.contains('open')||c.contains(e.target))return;collapseTodoCompose(false)});document.addEventListener('mousedown',e=>{let wrap=$('bmQuick');if(!wrap||!wrap.classList.contains('show'))return;let toggleBtn=$('bmAddToggleBtn');if(wrap.contains(e.target)||(toggleBtn&&toggleBtn.contains(e.target)))return;closeBmQuick()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('bmQuick')&&$('bmQuick').classList.contains('show')){e.preventDefault();closeBmQuick()}});$('modal').onclick=e=>{if(e.target===$('modal'))closeModal()};
+renderNotes();
+updateClock();
+renderHomeGreeting();
+setInterval(()=>{
+  updateClock();
+  if($('home').classList.contains('active')){renderHomeGreeting();renderHomeLives();}
+},60000);
+restoreView();
+loadUnread().then(()=>{
+  renderUnread();
+  const active=document.querySelector('.view.active');
+  if(active)markTabRead(active.id);
+});
 
 /* ===== IMate 运营数据 ===== */
 let opsRange='1d',opsData=null,opsSyncing=false;

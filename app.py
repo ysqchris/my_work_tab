@@ -7,10 +7,12 @@
 数据存储在 data/*.json，所有写入走原子写 + 文件锁，避免 cron 与网页并发冲突。
 """
 import json
+from collections import OrderedDict
 import os
 import re
 import html
 import hashlib
+import http.client
 import threading
 import time
 import concurrent.futures
@@ -107,6 +109,9 @@ def _add_cache_headers(resp):
         resp.headers["Cache-Control"] = "public, max-age=604800"  # 7 天
     elif path == "/":
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    elif path in ("/api/bookmarks/favicon-proxy", "/api/media/img-proxy") and "Cache-Control" in resp.headers:
+        resp.cache_control.public = None
+        resp.cache_control.private = True
     elif path.startswith("/api/"):
         resp.headers["Cache-Control"] = "no-cache"
     return resp
@@ -561,6 +566,101 @@ def _bili_user_info(mid):
     d = payload.get("data") or {}
     avatar = (d.get("face") or "").replace("http://", "https://")
     return {"name": d.get("name") or f"UP{mid}", "avatar": avatar}
+
+
+def _bili_followings():
+    nav = _bili_get_json("https://api.bilibili.com/x/web-interface/nav")
+    account = nav.get("data") or {}
+    if nav.get("code") != 0 or account.get("isLogin") is not True or not account.get("mid"):
+        raise ValueError("B 站登录已失效，请更新服务端的 BILI_COOKIE。")
+
+    mid = str(account["mid"])
+    page = 1
+    total = None
+    following = {}
+    deadline = time.monotonic() + 45
+    while total is None or len(following) < total:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError("拉取 B 站关注名单超时，请重试。")
+        query = urllib.parse.urlencode({"vmid": mid, "pn": page, "ps": 50})
+        result = _bili_get_json(
+            "https://api.bilibili.com/x/relation/followings?" + query,
+            referer=f"https://space.bilibili.com/{mid}/relation/follow",
+            timeout=min(8, remaining),
+        )
+        if result.get("code") != 0:
+            raise RuntimeError(f"B 站拒绝了关注名单请求（{result.get('code')}），请检查登录状态后重试。")
+        data = result.get("data") or {}
+        count, entries = data.get("total"), data.get("list")
+        if type(count) is not int or count < 0 or not isinstance(entries, list):
+            raise RuntimeError("B 站返回的关注名单格式异常，请重试。")
+        if total is None:
+            total = count
+        if count != total or (not entries and len(following) < total):
+            raise RuntimeError("B 站关注名单未拉完整，请重试。")
+        for entry in entries:
+            external_id = str(entry.get("mid") or "")
+            if not re.fullmatch(r"[1-9]\d*", external_id) or external_id in following:
+                raise RuntimeError("B 站关注名单分页异常，请重试。")
+            following[external_id] = {
+                "name": entry.get("uname") or f"UP{external_id}",
+                "avatar": (entry.get("face") or "").replace("http://", "https://"),
+            }
+        if len(following) > total:
+            raise RuntimeError("B 站关注名单数量不一致，请重试。")
+        page += 1
+    return mid, following
+
+
+_bili_follow_sync_lock = threading.Lock()
+
+
+@app.route("/api/creators/sync-bilibili", methods=["POST"])
+def sync_bilibili_creators():
+    if not _BILI_COOKIE:
+        return jsonify({"error": "请先在服务端配置 BILI_COOKIE。"}), 400
+    if not _bili_follow_sync_lock.acquire(blocking=False):
+        return jsonify({"error": "正在同步 B 站关注，请稍后再试。"}), 409
+    try:
+        try:
+            account, following = _bili_followings()
+        except (RuntimeError, ValueError) as error:
+            return jsonify({"error": str(error)}), 502
+        except (OSError, TypeError, AttributeError):
+            return jsonify({"error": "无法完整读取 B 站关注名单，请稍后重试。"}), 502
+        with _lock_for("creators"):
+            doc = db.db_read_json("creators", {"items": []})
+            creators = doc.get("items", [])
+            retained = [
+                creator for creator in creators
+                if creator.get("bili_follow_account") != account
+                or str(creator.get("external_id")) in following
+            ]
+            known = {
+                str(creator.get("external_id")) for creator in retained
+                if creator.get("platform") == "bilibili"
+            }
+            now = _now()
+            added = [
+                {
+                    **profile,
+                    "id": f"bili-sync-{external_id}",
+                    "platform": "bilibili",
+                    "external_id": external_id,
+                    "url": f"https://space.bilibili.com/{external_id}",
+                    "created_at": now,
+                    "date": now[:10],
+                    "bili_follow_account": account,
+                }
+                for external_id, profile in following.items() if external_id not in known
+            ]
+            removed = len(creators) - len(retained)
+            if added or removed:
+                write_json("creators", {**doc, "items": added + retained, "updated_at": now})
+        return jsonify({"total": len(following), "added": len(added), "removed": removed})
+    finally:
+        _bili_follow_sync_lock.release()
 
 
 def _bili_user_videos(mid, limit=12, max_items=None):
@@ -1392,60 +1492,89 @@ def media_img_proxy():
     })
 
 
-@app.route("/api/bookmarks/favicon-proxy", methods=["GET"])
-def bookmark_favicon_proxy():
-    """书签 favicon 代理：接受任意 http/https 图标源，统一带浏览器 UA 抓取，
-    并复用 _IMG_PROXY_RULES 中特定站点（B 站/豆瓣/YouTube）的 Referer 规则。
-    源站 404/超时/网络异常时返回 1x1 透明占位图，避免前端直接加载外链 favicon
-    产生 Resource loading error（如已失效的 openai.com/favicon.svg）。"""
-    src = (request.args.get("url") or "").strip()
-    if not src:
-        return "missing url", 400
-    try:
-        parsed = urllib.parse.urlparse(src)
-    except Exception:
-        return "bad url", 400
-    host = parsed.hostname or ""
-    if parsed.scheme not in ("http", "https") or not host:
-        return "host not allowed", 400
+_favicon_cache = OrderedDict()
+_favicon_inflight = set()
+_favicon_lock = threading.Lock()
+_FAVICON_MAX_ENTRIES = 96
+_FAVICON_MAX_INFLIGHT = 2
+_FAVICON_MAX_BYTES = 256 * 1024
+
+
+def _fetch_bookmark_icon(src, host):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        "Accept": "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
+        "Accept": "image/*",
         "Accept-Encoding": "identity",
     }
-    for match, hdr in _IMG_PROXY_RULES:
+    for match, overrides in _IMG_PROXY_RULES:
         if match(host):
-            headers.update(hdr)
+            headers.update(overrides)
             break
     req = urllib.request.Request(src, headers=headers)
-    data = None
-    content_type = "image/png"
-    for _attempt in range(2):
+    with urllib.request.urlopen(req, timeout=2.5) as resp:
+        content_type = resp.headers.get_content_type()
+        if not content_type.startswith("image/") and content_type != "application/octet-stream":
+            return None
+        data = resp.read(_FAVICON_MAX_BYTES + 1)
+        encoding = resp.headers.get("Content-Encoding", "").lower()
+        if len(data) <= _FAVICON_MAX_BYTES and encoding in ("gzip", "x-gzip"):
+            import gzip
+            import io
+            with gzip.GzipFile(fileobj=io.BytesIO(data)) as decoded:
+                data = decoded.read(_FAVICON_MAX_BYTES + 1)
+        elif len(data) <= _FAVICON_MAX_BYTES and encoding == "deflate":
+            import zlib
+            try:
+                data = zlib.decompressobj().decompress(data, _FAVICON_MAX_BYTES + 1)
+            except zlib.error:
+                return None
+        elif encoding not in ("", "identity"):
+            return None
+        if not data or len(data) > _FAVICON_MAX_BYTES:
+            return None
+        return data, content_type
+
+
+@app.route("/api/bookmarks/favicon-proxy", methods=["GET"])
+def bookmark_favicon_proxy():
+    src = (request.args.get("url") or "").strip()
+    try:
+        parsed = urllib.parse.urlparse(src)
+        host = parsed.hostname
+    except ValueError:
+        return "bad url", 400
+    if len(src) > 2048 or parsed.scheme not in ("http", "https") or not host:
+        return "bad url", 400
+
+    with _favicon_lock:
+        cached = _favicon_cache.get(src)
+        if cached and cached[0] > time.monotonic():
+            _favicon_cache.move_to_end(src)
+            result = cached[1]
+        else:
+            cached = None
+            if src in _favicon_inflight or len(_favicon_inflight) >= _FAVICON_MAX_INFLIGHT:
+                return Response(status=503, headers={"Cache-Control": "no-store"})
+            _favicon_inflight.add(src)
+
+    if cached is None:
+        result = None
         try:
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                data = resp.read(512 * 1024)
-                content_type = resp.headers.get("Content-Type", "image/png")
-                # 部分 CDN（如 qwenwork.cn）忽略 Accept-Encoding 仍返回 gzip 压缩内容，
-                # 若不解压直接原样回传，浏览器会因收到压缩字节而报 Resource loading error。
-                enc = (resp.headers.get("Content-Encoding") or "").lower()
-                if enc in ("gzip", "x-gzip"):
-                    import gzip as _gzip
-                    try:
-                        data = _gzip.decompress(data)
-                    except Exception:
-                        pass
-                elif enc == "deflate":
-                    import zlib as _zlib
-                    try:
-                        data = _zlib.decompress(data)
-                    except Exception:
-                        pass
-            break
-        except Exception:
-            continue
-    if data is None:
+            result = _fetch_bookmark_icon(src, host)
+        except (OSError, ValueError, http.client.HTTPException):
+            pass
+        finally:
+            ttl = 86400 if result else 300
+            with _favicon_lock:
+                _favicon_inflight.discard(src)
+                _favicon_cache[src] = (time.monotonic() + ttl, result)
+                _favicon_cache.move_to_end(src)
+                while len(_favicon_cache) > _FAVICON_MAX_ENTRIES:
+                    _favicon_cache.popitem(last=False)
+
+    if result is None:
         return _img_proxy_placeholder()
+    data, content_type = result
     return Response(data, mimetype=content_type, headers={
         "Cache-Control": "public, max-age=86400",
     })

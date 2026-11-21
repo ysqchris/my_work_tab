@@ -1,5 +1,7 @@
 .brand-mini .mark { background: transparent; }
 .brand-mini .mark img { transform: scale(1.19); }
+.view-load-status { margin: 0 0 8px; color: var(--worktable-muted); font-size: 12px; }
+.view-load-status:empty { display: none; }
 
 :is(#news, #radar, #media, #creators, #notes, #knowledge) {
   max-width: 1180px;
@@ -215,20 +217,38 @@
   line-height: 1.5;
 }
 .note-quick-footer { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 5px; }
-.note-category-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 14px; font-size: 12px; }
-.note-category-tools label { display: inline-flex; align-items: center; gap: 4px; }
-.note-category-hint, #noteCategoryStatus { color: var(--worktable-muted); }
-.note-category-tools select, .note-category-select { border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--text); padding: 3px 5px; font-size: 12px; }
-.note-category-select { justify-self: start; color: var(--bm-accent); }
+.note-archive-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+#notes .note-archive-toolbar .workspace-find { flex: 0 1 328px; margin: 0; }
+.note-category-settings summary { min-height: 34px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--text); font-size: 12px; cursor: pointer; }
+.note-category-settings { position: relative; margin-left: auto; }
+.note-category-settings summary { display: flex; align-items: center; gap: 7px; list-style: none; }
+.note-category-settings summary::-webkit-details-marker { display: none; }
+.note-category-settings summary::after { content: '⌄'; color: var(--worktable-muted); }
+.note-category-panel { position: absolute; top: calc(100% + 6px); right: 0; z-index: 5; width: min(264px, 86vw); padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; box-shadow: 0 8px 20px #1a1d2110; font-size: 12px; }
+.note-category-panel label { display: flex; align-items: center; gap: 6px; font-weight: 650; }
+.note-category-panel p, #noteCategoryStatus { color: var(--worktable-muted); font-size: 12px; }
+#noteCategoryStatus { margin: 0 0 10px; }
+#noteCategoryStatus:empty { display: none; }
+.note-category-filters { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; padding-bottom: 11px; border-bottom: 1px solid var(--line); }
+.note-category-filters button { padding: 4px 11px; border: 1px solid transparent; border-radius: 99px; background: transparent; color: var(--worktable-muted); font-size: 12px; cursor: pointer; }
+.note-category-filters button:hover { background: var(--bm-hover); }
+.note-category-filters button[aria-pressed="true"] { border-color: var(--bm-accent); background: var(--bm-accent); color: #fff; }
+.note-category-select { min-width: 0; appearance: none; padding: 2px 8px; border: 0; border-radius: 99px; background: var(--soft); color: var(--worktable-muted); font-size: 11px; text-align: center; cursor: pointer; }
+.note-category-select[data-category="日记"] { background: #e8f1e8; color: #376146; }
+.note-category-select[data-category="思考"] { background: #eee9f7; color: #5c487f; }
+.note-category-select[data-category="分享"] { background: #e7eff8; color: #315b85; }
+.note-category-select[data-category=""] { background: transparent; color: var(--worktable-muted); }
+.note-category-select:is(:hover, :focus-visible) { outline: 1px solid var(--bm-accent); }
 .note-quick-attachments { display: flex; flex-wrap: wrap; gap: 6px; }
 .note-quick-attachment { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 4px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
 .note-quick-attachment img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; }
 .note-quick-attachment span { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #noteQuickStatus { margin-right: auto; color: var(--worktable-muted); font-size: 12px; }
-.note-archive { display: grid; grid-template-columns: 226px minmax(0, 1fr); gap: 24px; align-items: start; }
+.note-archive { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 26px; align-items: start; }
 .note-calendar { position: sticky; top: 76px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
 .note-calendar-head, .note-timeline-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .note-calendar-head h2, .note-timeline-head h2 { margin: 0; font-size: 14px; }
+.note-timeline-head h2 { font-size: 17px; }
 .note-calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin-top: 6px; text-align: center; }
 .note-calendar-weekday { padding: 4px 0; color: var(--worktable-muted); font-size: 11px; }
 .note-calendar-day { display: grid; justify-items: center; align-content: center; gap: 3px; min-height: 34px; padding: 2px 0; border: 1px solid transparent; border-radius: 5px; background: transparent; cursor: pointer; font-size: 10px; }
@@ -241,26 +261,24 @@
 .note-calendar-legend span { display: inline-flex; align-items: center; gap: 4px; }
 .note-calendar-today { margin-top: 7px; }
 #noteTimelineStatus { color: var(--worktable-muted); font-size: 12px; }
-.note-feed-day { position: relative; margin-top: 16px; padding-left: 14px; border-left: 1px solid var(--line); scroll-margin-top: 76px; }
+.note-feed-day { position: relative; margin-top: 18px; padding-left: 15px; border-left: 1px solid var(--line); scroll-margin-top: 76px; }
 .note-feed-day:focus-within h3 { color: var(--bm-accent); }
-.note-feed-day h3 { margin: 0; padding-bottom: 5px; color: var(--worktable-muted); font-size: 12px; font-weight: 650; }
-.note-feed-day::before { content: ''; position: absolute; top: 5px; left: -3px; width: 5px; height: 5px; border-radius: 50%; background: var(--bm-accent); }
+.note-feed-day h3 { margin: 0 0 4px; color: var(--text); font-size: 13px; font-weight: 700; }
+.note-feed-day::before { content: ''; position: absolute; top: 6px; left: -4px; width: 7px; height: 7px; border-radius: 50%; background: var(--bm-accent); }
 @media (max-width: 640px) {
   .note-archive { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .note-calendar { position: static; }
 }
-.note-feed-item {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
-  align-items: start;
-  border-top: 1px solid var(--line);
-}
-.note-feed-time { padding-top: 11px; color: var(--worktable-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.note-feed-item { padding: 8px 0 11px; }
+.note-feed-item + .note-feed-item { border-top: 1px solid var(--line); }
+.note-feed-header, .note-feed-meta { display: flex; align-items: center; gap: 7px; }
+.note-feed-header { justify-content: space-between; min-height: 20px; }
+.note-feed-time { color: var(--worktable-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .note-feed-entry {
   display: grid;
   gap: 3px;
   min-width: 0;
-  padding: 9px 8px 9px 0;
+  padding: 3px 0 0;
   border: 0;
   background: transparent;
   text-align: left;
@@ -268,10 +286,9 @@
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
-.note-feed-item:is(:hover, :focus-within) { background: var(--bm-hover); }
 .note-feed-text { min-width: 0; white-space: pre-wrap; }
 .note-feed-text a { color: var(--bm-accent); text-decoration: underline; text-underline-offset: 2px; }
-.note-feed-text img { display: block; max-width: 100%; max-height: 420px; height: auto; margin: 6px 0; object-fit: contain; border-radius: 6px; }
+.note-feed-text img { display: block; max-width: 100%; max-height: 220px; height: auto; margin: 6px 0; object-fit: contain; border-radius: 6px; }
 .note-image-trigger { display: block; max-width: 100%; padding: 0; border: 0; border-radius: 6px; background: transparent; cursor: zoom-in; }
 .note-feed-text a img { cursor: zoom-in; }
 .note-image-viewer { max-width: 94vw; max-height: 94vh; padding: 0; overflow: visible; border: 0; background: transparent; }
@@ -314,8 +331,8 @@
 .note-article-card strong, .note-article-summary, .note-article-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .note-article-summary, .note-article-card small { color: var(--worktable-muted); font-size: 11px; }
 .note-feed-topic { color: var(--worktable-muted); font-size: 12px; }
-.note-feed-actions { display: flex; padding-top: 5px; }
-#notes .note-feed-actions .btn { padding: 4px 6px; font-size: 12px; }
+.note-feed-actions { display: flex; }
+#notes .note-feed-actions .btn { padding: 2px 5px; font-size: 11px; }
 #knowledge .kb-head { flex-wrap: wrap; }
 .knowledge-list-row {
   display: grid;
