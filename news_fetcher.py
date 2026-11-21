@@ -148,10 +148,12 @@ def _today():
 
 def _get(url, timeout=15, ua=None):
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": ua or _UA})
+        req = urllib.request.Request(url, headers={"User-Agent": ua or _UA, "Accept-Encoding": "gzip"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read()
-        enc = resp.headers.get_content_charset() or "utf-8"
+            if resp.headers.get("Content-Encoding", "").lower() == "gzip":
+                raw = gzip.decompress(raw)
+            enc = resp.headers.get_content_charset() or "utf-8"
         try:
             return raw.decode(enc, errors="replace")
         except LookupError:
