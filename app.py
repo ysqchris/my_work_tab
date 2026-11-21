@@ -3288,7 +3288,7 @@ def _fetch_ai_pulse_news(fetcher):
     return fresh
 
 
-def _news_item_brief(n):
+def _news_item_brief(n, collaboration):
     """把 news 条目规整为前端统一结构，并标识板块归属（github / aihot）。"""
     source = (n.get("source") or "").strip()
     is_gh = source == "GitHub Trending"
@@ -3316,7 +3316,8 @@ def _news_item_brief(n):
         "deep": bool(n.get("deep")),
         "reading_type": n.get("reading_type") or "",
         "priority": n.get("priority") or 0,
-        "collaboration": bool(n.get("collaboration") or n.get("agent_related")),
+        "collaboration": bool(collaboration),
+        "collaboration_kind": collaboration,
         "sources": n.get("sources") or [],
     }
 
@@ -3336,7 +3337,7 @@ def _ai_pulse_groups_raw(news_items=None, hidden=None):
 
     fetcher = _load_news_fetcher()
     for n in news:
-        brief = _news_item_brief(n)
+        brief = _news_item_brief(n, fetcher.collaboration_kind(n))
         if not brief["title"]:
             continue
         keys = {brief["key"], brief["id"], *n.get("aliases", [])}

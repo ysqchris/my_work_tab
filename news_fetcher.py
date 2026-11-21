@@ -901,12 +901,56 @@ _PLATFORMS = (
     ("MiniMax", "domestic", r"minimax|海螺AI"),
     ("腾讯", "domestic", r"腾讯|workbuddy|codebuddy|混元|hunyuan"),
 )
-_COLLAB_RE = re.compile(
-    r"多人|协同|协作|接管|任务交接|人工审批|人机协同|任务编排|权限隔离|"
-    r"human.in.the.loop|handoff|shared (?:state|context|memory|workspace)|"
-    r"agent (?:memory|teams?|evaluation|observability)|long.running (?:agent|task)|"
-    r"tool (?:calling|use)|长程任务|工具调用|运行追踪", re.I
+_COLLABORATION_SIGNALS = (
+    ("多 Agent 协作", re.compile(
+        r"(?:多(?:个|个子)?\s*(?:agent|智能体|子代理)|智能体之间|agent\s*与\s*agent)"
+        r"[^。！？；\n]{0,32}(?:协作|协同|编排|分工|交接|通信|交换消息|共享(?:任务|状态|记忆|上下文))"
+        r"|(?:multi[- ]agent|agent[- ]to[- ]agent)\s+(?:collaboration|coordination|orchestration|handoffs?|messaging)"
+        r"|\bagent teams\b|\binter[- ]agent (?:communication|messaging|handoffs?)\b"
+        r"|\bteam of parallel (?:agents|subagents|claudes)\b"
+        r"|\bagents? (?:can )?hand(?:s)? off [^.\n]{0,30} to (?:another|other) agents?\b"
+        r"|(?:multiple agents|subagents)\s+(?:can\s+)?(?:collaborate|coordinate|handoff|share (?:state|context|tasks))",
+        re.I,
+    )),
+    ("多人共用 Agent", re.compile(
+        r"(?:共享|共用)(?:同一个|同一)?(?:团队)?(?:智能体|agent|AI 助手)"
+        r"|(?:多个用户|多人|同事|团队成员)[^。！？；\n]{0,25}(?:共用|共享|共同使用|共同编辑|接手)"
+        r"[^。！？；\n]{0,18}(?:智能体|agent|AI 会话|AI 任务)"
+        r"|(?:teammates|team members|multiple users)\s+(?:can\s+)?(?:co-edit|share|take over|collaborate on)"
+        r"\s+(?:the same |an? |their )?(?:AI task|agent (?:task|session|workspace)|AI assistant)",
+        re.I,
+    )),
+    ("人机交接与审批", re.compile(
+        r"(?:人工审批|人工审核|人工接管|人机交接|人工确认|交给人工|转交给人工)"
+        r"|(?:human[- ]in[- ]the[- ]loop|human approval|human review|human takeover|handoff to (?:a )?human)",
+        re.I,
+    )),
 )
+_NOT_AVAILABLE_RE = re.compile(
+    r"不支持|尚未支持|暂不支持|计划支持|未来将支持"
+    r"|\b(?:does not|doesn't|cannot|can't|no longer) (?:support|allow)|\bnot yet (?:supported|available)",
+    re.I,
+)
+
+
+def collaboration_kind(item):
+    """Require a specific collaboration mechanism in the published text."""
+    excerpts = [item.get(field) or "" for field in ("title", "title_en", "original_title", "desc", "desc_en")]
+    if item.get("desc_en") and item.get("desc_en") != item.get("desc"):
+        excerpts[3] = item["desc_en"]
+    if item.get("title_en") and item.get("title_en") != item.get("title"):
+        excerpts[0] = item["title_en"]
+    agent_context = any(_AGENT_RE.search(excerpt) for excerpt in excerpts)
+    for label, pattern in _COLLABORATION_SIGNALS:
+        if label == "人机交接与审批" and not agent_context:
+            continue
+        for excerpt in excerpts:
+            for clause in re.split(r"[。！？；!?;\n]", excerpt):
+                if pattern.search(clause) and not _NOT_AVAILABLE_RE.search(clause):
+                    return label
+    return ""
+
+
 _AGENT_RE = re.compile(r"(?<![a-z])agents?(?![a-z])|agentic|智能体|\bMCP\b|\bA2A\b|\bcodex\b|Claude Code|WorkBuddy|CodeBuddy|QwenWork", re.I)
 _API_RE = re.compile(r"\bAPI\b|\bSDK\b|接口|定价|下线|迁移|配额|pricing|deprecat", re.I)
 _DEEP_RE = re.compile(
@@ -953,7 +997,6 @@ def _editorial_tags(item, kind):
             ("api", kind in {"deepseek", "updates", "ark"} or _API_RE.search(text)),
         ) if matched
     ]
-    item["collaboration"] = bool(_COLLAB_RE.search(text) or _AGENT_TOPIC_RE.search(text))
     guessed = next(((name, region) for field in (item.get("source", ""), title)
                     for name, region, pattern in _PLATFORMS if re.search(pattern, field, re.I)), ("", ""))
     item["platform"] = item.get("platform") or guessed[0]
@@ -1224,7 +1267,6 @@ def _merge_edition_items(items):
             item["desc"] = summaries[0]["desc"]
         item["priority"] = max(it.get("priority", 0) for it in copies)
         item["tags"] = list(dict.fromkeys(tag for it in copies for tag in it.get("tags", [])))
-        item["collaboration"] = any(it.get("collaboration") for it in copies)
         reading = next((it for it in copies if it.get("deep")), None)
         item["deep"] = not item["priority"] and bool(reading)
         item["reading_type"] = reading.get("reading_type", "") if item["deep"] else ""
@@ -1315,7 +1357,6 @@ def fetch_edition(previous=None):
     github = [dict(item) for item in sources.get("github", {}).get("items", [])]
     for item in github:
         item["desc"] = item["desc"] or item.get("desc_en", "")
-        item["collaboration"] = bool(_COLLAB_RE.search(item["title"] + " " + item["desc"]) or item.get("agent_related"))
     items = _merge_edition_items(items) + github
     localize_news_items(items, previous.get("items", []))
     return {
