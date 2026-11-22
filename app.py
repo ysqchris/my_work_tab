@@ -1328,7 +1328,7 @@ def _normalize_douban_item(raw, subtype):
     )
     if isinstance(card_subtitle, list):
         card_subtitle = " / ".join(str(x) for x in card_subtitle if x)
-    return {
+    item = {
         "douban_id": douban_id,
         "title": title or douban_id,
         "cover": cover,
@@ -1341,18 +1341,32 @@ def _normalize_douban_item(raw, subtype):
         "source": "douban",
         "release_date": "",  # 大陆上映/上线日期，由 _enrich_douban_release 补全
     }
+    if subtype in ("movie", "tv", "show"):
+        item.update(_douban_screen_metadata(raw))
+        item.update(_douban_screen_metadata(sub))
+    return item
+
+
+def _douban_screen_metadata(payload):
+    metadata = {}
+    for key in ("genres", "countries", "directors"):
+        values = payload.get(key)
+        if not isinstance(values, list):
+            continue
+        names = []
+        for value in values:
+            name = value.get("name") if isinstance(value, dict) else value
+            if isinstance(name, str) and name.strip():
+                names.append(name.strip())
+        if names:
+            metadata[key] = list(dict.fromkeys(names))
+    return metadata
 
 
 def _fetch_douban_subject_detail(douban_id, subtype):
-    """抓取作品详情，提取大陆上映/上线日期。
-
-    返回 (release_date, pubdate_raw)：
-      - release_date: 形如 '2026-08-11' 的大陆日期字符串，无则空串
-      - pubdate_raw: 原始 pubdate 列表（调试/兜底用）
-    任意异常均返回 ('', None)，由调用方兜底，不阻塞主流程。
-    """
+    """从作品详情提取上映日期及影视元数据。"""
     if not douban_id:
-        return "", None
+        return {}
     detail_type = "music" if subtype == "music" else "subject"
     page_type = "music" if subtype == "music" else "movie"
     url = f"https://m.douban.com/rexxar/api/v2/{detail_type}/{douban_id}"
@@ -1366,12 +1380,13 @@ def _fetch_douban_subject_detail(douban_id, subtype):
         with urllib.request.urlopen(req, timeout=6) as resp:
             payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
     except Exception:
-        return "", None
+        return {}
+    fields = _douban_screen_metadata(payload) if subtype in ("movie", "tv", "show") else {}
     pubdates = payload.get("pubdate") or payload.get("pubdates") or []
     if isinstance(pubdates, str):
         pubdates = [pubdates]
     if not isinstance(pubdates, list):
-        return "", None
+        return fields
     # 优先取带「中国大陆」标记的大陆上映日期
     cn_date = ""
     for p in pubdates:
@@ -1391,11 +1406,13 @@ def _fetch_douban_subject_detail(douban_id, subtype):
             if m:
                 cn_date = m.group(1).replace("/", "-")
                 break
-    return cn_date, pubdates
+    if cn_date:
+        fields["release_date"] = cn_date
+    return fields
 
 
 def _enrich_douban_release(items, subtype):
-    """对电影、电视、综艺、音乐补全上线/发行日期。
+    """补全影视元数据和影音上线/发行日期。
 
     图书不补。带简单并发（线程池）与超时兜底，单个失败不影响整体。
     """
@@ -1415,9 +1432,7 @@ def _enrich_douban_release(items, subtype):
             for fut in as_completed(fut_map):
                 it = fut_map[fut]
                 try:
-                    rel, _ = fut.result()
-                    if rel:
-                        it["release_date"] = rel
+                    it.update(fut.result())
                 except Exception:
                     pass
     except Exception:

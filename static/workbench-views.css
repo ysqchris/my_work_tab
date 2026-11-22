@@ -163,6 +163,15 @@
 #media .media-title { min-height: 2.6em; overflow-wrap: anywhere; }
 #media .media-card-meta { min-height: 30px; }
 #media .media-card-meta .media-sub { -webkit-line-clamp: 1; }
+#media .media-genre-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-block: 4px; }
+#media .media-genre-tags span {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bm-accent-soft);
+  color: var(--bm-accent);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
 #media .media-icon-row { border-top: 1px solid var(--line); padding-top: 6px; }
 #media .wr-sidebar { border-left: 1px solid var(--line); }
 #media .media-status.done { background: var(--bm-accent-soft); color: var(--bm-accent); }
