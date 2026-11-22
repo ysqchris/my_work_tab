@@ -1208,6 +1208,11 @@ _DOUBAN_HOT_TYPES = {
     "music": "music_single",
     "book": "book_hot",
 }
+_DOUBAN_RECENT_COLLECTIONS = {
+    "movie": ("movie_hot",),
+    "tv": ("tv_hot", "tv_domestic"),
+    "book": ("book_latest",),
+}
 _DOUBAN_DOMAIN = {
     "movie": "av", "tv": "av", "show": "av", "music": "av", "book": "book",
 }
@@ -1436,28 +1441,45 @@ def _fetch_douban_collection(collection, count=20):
 
 
 def _douban_hot_refresh(subtype):
-    """抓取某分类豆瓣热门并落盘缓存。返回 (items, error)。"""
-    error = None
-    items = []
-    try:
-        raw_items = _fetch_douban_collection(_DOUBAN_HOT_TYPES[subtype])
-        for raw in raw_items:
-            mapped = _normalize_douban_item(raw, subtype)
-            if mapped:
-                items.append(mapped)
-        # 影音类补全大陆上映/上线日期（每天一次，成本低，失败留空兜底）
-        _enrich_douban_release(items, subtype)
-    except Exception as e:
-        error = str(e)
+    """合并豆瓣热榜与补充榜单，再更新分类缓存。"""
+    collections = (_DOUBAN_HOT_TYPES[subtype], *_DOUBAN_RECENT_COLLECTIONS.get(subtype, ()))
+    items = {}
+    errors = []
+    for collection in collections:
+        # show_hot 本身就是近期热门综艺榜，直接扩大抓取范围。
+        count = 30 if subtype == "show" or collection != collections[0] else 20
+        try:
+            raw_items = _fetch_douban_collection(collection, count=count)
+            mapped = [item for raw in raw_items if (item := _normalize_douban_item(raw, subtype))]
+            if not mapped:
+                errors.append(f"{collection}: empty collection")
+            for item in mapped:
+                key = item["douban_id"] or item["url"] or item["title"]
+                items.setdefault(key, item)
+        except Exception as exc:
+            errors.append(f"{collection}: {exc}")
+
+    if not items:
+        with _douban_hot_lock:
+            return _load_douban_hot_cache()["items"].get(subtype, []), "; ".join(errors)
+
+    if errors:
+        with _douban_hot_lock:
+            previous = _load_douban_hot_cache()["items"].get(subtype, [])
+        for item in previous:
+            key = item.get("douban_id") or item.get("url") or item.get("title")
+            items.setdefault(key, item)
+        print(f"[douban] {subtype}: {'; '.join(errors)}", flush=True)
+
+    merged = list(items.values())
+    _enrich_douban_release(merged, subtype)
     with _douban_hot_lock:
         saved = _load_douban_hot_cache()
-        if items:
-            saved.setdefault("items", {})[subtype] = items
-            saved["date"] = _shanghai_date()
-            saved["updated_at"] = _now()
-            _save_douban_hot_cache(saved)
-            return items, None
-        return saved.get("items", {}).get(subtype, []), error
+        saved["items"][subtype] = merged
+        saved["date"] = _shanghai_date()
+        saved["updated_at"] = _now()
+        _save_douban_hot_cache(saved)
+    return merged, None
 
 
 _douban_hot_refresh_flag = False
