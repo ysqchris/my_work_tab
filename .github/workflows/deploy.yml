@@ -37,7 +37,7 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > "$ssh_dir/key"
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
 
-          printf -v remote_command 'bash -s -- %q' "$DEPLOY_DIR"
+          printf -v remote_command 'sudo -n bash -s -- %q' "$DEPLOY_DIR"
           ssh -i "$ssh_dir/key" \
             -o BatchMode=yes \
             -o IdentitiesOnly=yes \
