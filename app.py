@@ -2470,6 +2470,26 @@ def list_types():
             seen.append(t)
     return jsonify(seen)
 
+def _normalize_resource_recommendation(item):
+    """Keep the optional recommendation supplied by the external sync agent."""
+    recommendation = item.pop("recommendation", None)
+    if not isinstance(recommendation, dict):
+        return
+
+    fields = {}
+    score = recommendation.get("score")
+    if type(score) in (int, float) and 0 <= score <= 100:
+        fields["score"] = score
+    priority = recommendation.get("priority")
+    if isinstance(priority, bool):
+        fields["priority"] = priority
+    reason = recommendation.get("reason")
+    if isinstance(reason, str) and reason.strip():
+        fields["reason"] = reason.strip()
+    if fields:
+        item["recommendation"] = fields
+
+
 # ---------------------------------------------------------------------------
 # 腾讯学堂直播预告：由 cron 定时任务调用 QLearning MCP 抓取后写入，前端首页展示
 # ---------------------------------------------------------------------------
@@ -2489,6 +2509,7 @@ def sync_qlearning_lives():
         if not isinstance(it, dict):
             continue
         item = dict(it)
+        _normalize_resource_recommendation(item)
         if not item.get("id"):
             seed = str(item.get("href") or item.get("title") or uuid.uuid4().hex)
             item["id"] = uuid.uuid5(uuid.NAMESPACE_URL, seed).hex[:12]
@@ -2520,6 +2541,7 @@ def sync_km_hot():
         if not isinstance(it, dict):
             continue
         item = dict(it)
+        _normalize_resource_recommendation(item)
         if not item.get("title"):
             continue
         if not item.get("id"):
