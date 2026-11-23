@@ -576,7 +576,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     width: 100%;
   }
 }
-</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=2"><link rel="stylesheet" href="/static/workbench-views.css?v=17"><link rel="stylesheet" href="/static/ai-news.css?v=7"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
+</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=3"><link rel="stylesheet" href="/static/workbench-views.css?v=17"><link rel="stylesheet" href="/static/ai-news.css?v=7"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
 <section id="home" class="view">
 <section class="followup" aria-labelledby="followupTitle">
 <header class="followup-heading"><h2 id="followupTitle">工作跟进</h2></header>
@@ -607,6 +607,15 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 </div>
 </div>
 </section>
+<details class="resource-preferences">
+<summary>工作关注</summary>
+<form id="resourcePreferences">
+<label for="resourceTopics">填写项目名或工作关键词，供 KM 好文和学堂直播推荐使用</label>
+<input id="resourceTopics" maxlength="500" placeholder="用逗号分隔关键词">
+<button class="btn" type="submit">保存</button>
+<span id="resourcePreferencesStatus" role="status"></span>
+</form>
+</details>
 <div class="followup-resources">
 <div class="mini-panel" id="miniKmPanel">
 <div class="mini-panel-head"><div class="mp-titles"><h3>KM 好文</h3><span class="sub" id="kmHotUpdated"></span></div><div class="followup-resource-actions"><button type="button" class="followup-link followup-resource-toggle" aria-expanded="false" aria-controls="kmHotList" onclick="toggleFollowupResource(this)">查看更多</button><a class="mp-go" href="https://km.woa.com/" target="_blank" rel="noopener" title="前往 KM 官网">官网<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
@@ -893,38 +902,78 @@ function resourceLink(url,title){
   return label;
 }
 
+const resourceTopicsInput=$('resourceTopics');
+try{resourceTopicsInput.value=localStorage.getItem('workbench.resourceTopics')||''}catch{}
+function parseResourceTopics(value){
+  return [...new Set(value.toLowerCase().split(/[,，、;；]/).map(topic=>topic.trim()).filter(Boolean))];
+}
+let resourceTopics=parseResourceTopics(resourceTopicsInput.value);
+$('resourcePreferences').addEventListener('submit',event=>{
+  event.preventDefault();
+  resourceTopics=parseResourceTopics(resourceTopicsInput.value);
+  try{
+    localStorage.setItem('workbench.resourceTopics',resourceTopicsInput.value);
+    $('resourcePreferencesStatus').textContent='已保存';
+  }catch{
+    $('resourcePreferencesStatus').textContent='已应用到当前页面';
+  }
+  renderHomeLives();
+  renderKmHot();
+});
+
+function resourceRecommendation(item){
+  const title=String(item.title||'').toLowerCase();
+  const tags=[item.tags,item.category,item.topic].flat().map(tag=>
+    typeof tag==='object'&&tag!==null?tag.name||tag.title||'':tag
+  ).join(' ').toLowerCase();
+  const summary=[item.summary,item.description,item.abstract].join(' ').toLowerCase();
+  const matches=resourceTopics.map(topic=>({
+    topic, score:title.includes(topic)?100:tags.includes(topic)?80:summary.includes(topic)?60:0
+  })).filter(match=>match.score>0);
+  return {score:Math.max(0,...matches.map(match=>match.score)),topics:matches.map(match=>match.topic)};
+}
+
+function resourceRecommendationLabel({score,topics}){
+  if(!resourceTopics.length)return '';
+  const priority=score>=80?'<strong class="resource-priority">重点关注</strong>':'';
+  const reasons=topics.length?' · 匹配 '+esc(topics.join('、')):'';
+  return '<div class="row-meta resource-recommendation">'+priority+'推荐 '+score+' 分'+reasons+'</div>';
+}
+
 function renderHomeLives(){
   const now=new Date();
   const order={live:0,upcoming:1,started:2,ended:3};
-  const events=(data.qlLives||[]).map(event=>({event,status:liveStatus(event,now)}));
+  const events=(data.qlLives||[]).map(event=>({event,status:liveStatus(event,now),recommendation:resourceRecommendation(event)}));
   const active=events.filter(item=>item.status!=='ended');
   const visible=(active.length?active:events).sort((a,b)=>
-    order[a.status]-order[b.status]||(a.event.startTime||'').localeCompare(b.event.startTime||'')
+    order[a.status]-order[b.status]||b.recommendation.score-a.recommendation.score||
+    (a.event.startTime||'').localeCompare(b.event.startTime||'')
   ).slice(0,8);
   $('homeLivesUpdated').textContent=resourceUpdateText(data.qlLivesUpdated);
-  $('homeLives').innerHTML=visible.length?visible.map(({event,status})=>{
+  $('homeLives').innerHTML=visible.length?visible.map(({event,status,recommendation})=>{
     const start=event.startTime||'';
     const stamp=start?start.replace('T',' ').slice(5,16):'时间待定';
     const state=status==='live'?'<span class="resource-live">直播中</span>':status==='ended'?'已结束':status==='started'?'已开场':'';
     const metadata=[esc(stamp),state,esc(event.author||'腾讯学堂')].filter(Boolean).join(' · ');
     return `<div class="article"><div class="row-main">
       <div class="row-title">${resourceLink(event.href,event.title)}</div>
-      <div class="row-meta">${metadata}</div>
+      <div class="row-meta">${metadata}</div>${resourceRecommendationLabel(recommendation)}
     </div></div>`;
   }).join(''):empty('暂无学堂直播。');
 }
 
 function renderKmHot(){
-  const articles=data.kmHot||[];
+  const articles=(data.kmHot||[]).map(article=>({article,recommendation:resourceRecommendation(article)}))
+    .sort((a,b)=>b.recommendation.score-a.recommendation.score);
   $('kmHotUpdated').textContent=resourceUpdateText(data.kmHotUpdated);
-  $('kmHotList').innerHTML=articles.length?articles.map((article,index)=>{
+  $('kmHotList').innerHTML=articles.length?articles.map(({article,recommendation},index)=>{
     const metadata=[esc(article.author),article.headline?'头条':'',
       article.read_count?'阅读 '+Number(article.read_count).toLocaleString():'',
       article.hot?'热度 '+Number(article.hot).toLocaleString():''].filter(Boolean).join(' · ');
     return `<div class="km-item">
       <span class="km-rank" aria-hidden="true">${index+1}</span>
       <div class="row-main"><div class="row-title">${resourceLink(article.url,article.title)}</div>
-      <div class="row-meta">${metadata}</div></div>
+      <div class="row-meta">${metadata}</div>${resourceRecommendationLabel(recommendation)}</div>
     </div>`;
   }).join(''):empty('暂无 KM 好文数据。');
 }
