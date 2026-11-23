@@ -1,0 +1,56 @@
+name: Deploy Workbench
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: workbench-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    environment: 轻量云服务部署
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Deploy and wait for health check
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          for setting in DEPLOY_HOST DEPLOY_USER DEPLOY_DIR DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS; do
+            if [[ -z "${!setting}" ]]; then
+              echo "::error::Missing environment setting: $setting"
+              exit 1
+            fi
+          done
+          umask 077
+          ssh_dir="$(mktemp -d)"
+          trap 'rm -rf "$ssh_dir"' EXIT
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+
+          printf -v remote_command 'bash -s -- %q' "$DEPLOY_DIR"
+          ssh -i "$ssh_dir/key" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 \
+            -o "UserKnownHostsFile=$ssh_dir/known_hosts" \
+            -- "$DEPLOY_USER@$DEPLOY_HOST" "$remote_command" <<'REMOTE'
+          set -euo pipefail
+          cd "$1"
+          test "$(git branch --show-current)" = main
+          test -z "$(git status --porcelain --untracked-files=no)"
+          git pull --ff-only origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+          git rev-parse --short HEAD
+          docker compose up -d --build --no-deps --wait --wait-timeout 120 app
+          REMOTE
