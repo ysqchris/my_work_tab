@@ -443,7 +443,7 @@ def _parse_aihot_item(it):
     url_ = links.get("original") or links.get("aihot") or ""
     desc = _strip_tags(it.get("summary") or "")
     if desc:
-        desc = re.sub(r"\s+", " ", desc).strip()[:160]
+        desc = re.sub(r"\s+", " ", desc).strip()[:500]
     timestamp = it.get("publishedAt") or it.get("discoveredAt")
     date = _to_local_date(timestamp) if timestamp else ""
     if not title or not url_:
@@ -1501,6 +1501,39 @@ def _event_key(item):
     return next(iter(names)), primary, item["date"]
 
 
+_ROLLOUT_REGIONS = {
+    "英国": r"英国|(?:the )?(?:u\.?k\.?|united kingdom)",
+    "美国": r"美国|(?:the )?(?:u\.?s\.?a?\.?|united states)",
+    "加拿大": r"加拿大|canada",
+    "日本": r"日本|japan",
+    "澳大利亚": r"澳大利亚|澳洲|australia",
+    "欧盟": r"欧盟|(?:the )?(?:eu|european union)",
+}
+
+
+def _rollout_keys(item):
+    """Match product-wide geographic launches, keeping feature launches separate."""
+    product = agent_product(item)
+    day = item.get("date") or ""
+    if not product or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+        return set()
+    name = (r"(?:meta\s*(?:的\s*)?)?(?:个人智能体\s*)?muse(?:\s*(?:个人)?智能体)?"
+            if product == "Meta Muse" else re.escape(product))
+    for field in ("title", "title_en", "original_title"):
+        title = (item.get(field) or "").strip().lstrip("@").rstrip("。.!！")
+        for region, region_pattern in _ROLLOUT_REGIONS.items():
+            place = f"(?:{region_pattern})"
+            clauses = (
+                rf"(?:现已|正式)?\s*(?:登陆|登录|进入|上线)\s*{place}",
+                rf"(?:现已|正式)?\s*在\s*{place}\s*(?:上线|推出|开放|可用)",
+                rf"(?:现已|正式)?\s*面向\s*{place}\s*(?:(?:所有)?用户)?\s*(?:上线|开放)",
+                rf"(?:is\s+)?(?:now\s+)?(?:available|live|launch(?:es|ed)?)\s+in\s+{place}",
+            )
+            if re.fullmatch(rf"(?<!\w){name}\s*(?:{'|'.join(clauses)})", title, re.I):
+                return {("rollout", product, region, day)}
+    return set()
+
+
 def _article_keys(item):
     url = item.get("url") or ""
     keys = set()
@@ -1508,23 +1541,24 @@ def _article_keys(item):
         keys.add(("aihot", item["aihot_id"]))
     if url and item.get("feed_kind") not in {"updates", "ark", "world_notes"}:
         keys.add(("url", _news_url_key(url)))
+    rollout = _rollout_keys(item)
     for title in (item.get("title"), item.get("original_title")):
         normalized = re.sub(r"[^\w\u4e00-\u9fff]", "", (title or "").casefold())
         if len(normalized) >= 10:
-            if item.get("feed_kind") in {"model_html", "world_notes"}:
+            if rollout or item.get("feed_kind") in {"model_html", "world_notes"}:
                 keys.add(("dated-title", normalized, item.get("date")))
             else:
                 keys.add(("title", normalized))
     event = _event_key(item)
     if event:
         keys.add(("event", event))
-    return keys
+    return keys | rollout
 
 
-def _merge_edition_items(items):
+def _merge_edition_items(items, key_fn=_article_keys):
     groups = []
     for item in items:
-        keys = _article_keys(item)
+        keys = key_fn(item)
         matches = [group for group in groups if group["keys"] & keys]
         if matches:
             first, *rest = matches
@@ -1539,19 +1573,25 @@ def _merge_edition_items(items):
     result = []
     for group in groups:
         copies = group["items"]
-        primary = max(copies, key=lambda it: (bool(it.get("official")), len(it.get("date", "")),
+        if len(copies) == 1 and key_fn is not _article_keys:
+            result.append(copies[0])
+            continue
+        primary = max(copies, key=lambda it: (bool(it.get("official")), len(it.get("date") or ""),
                                              bool(it.get("desc"))))
         item = dict(primary)
         summaries = [it for it in copies if it.get("desc")]
+        rollout = any(key[0] == "rollout" for key in group["keys"])
+        if rollout:
+            summaries.sort(key=lambda it: len(it["desc"]), reverse=True)
         chinese = next((it for it in summaries if _has_cjk(it["desc"])), None)
         if chinese:
             item["desc"] = chinese["desc"]
-            if _has_cjk(chinese["title"]):
+            if _has_cjk(chinese["title"]) and (not rollout or not _has_cjk(item["title"])):
                 item["title"] = chinese["title"]
         elif summaries and not item.get("desc"):
             item["desc"] = summaries[0]["desc"]
-        item["priority"] = max(it.get("priority", 0) for it in copies)
-        item["tags"] = list(dict.fromkeys(tag for it in copies for tag in it.get("tags", [])))
+        item["priority"] = max(it.get("priority") or 0 for it in copies)
+        item["tags"] = list(dict.fromkeys(tag for it in copies for tag in (it.get("tags") or [])))
         identified = next((it for it in copies if it.get("agent_product")), None)
         if identified:
             item["agent_product"] = identified["agent_product"]
@@ -1560,15 +1600,18 @@ def _merge_edition_items(items):
         item["deep"] = not item["priority"] and bool(reading)
         item["reading_type"] = reading.get("reading_type", "") if item["deep"] else ""
         item["aliases"] = list(dict.fromkeys(
-            key for it in copies for key in (
+            key for it in copies for key in (*(it.get("aliases") or []),
                 it.get("url") if it.get("feed_kind") != "world_notes" else None,
                 it.get("aihot_url"), it.get("id"),
                 (it.get("aihot_url") or "").replace("https://aihot.news/", "https://aihot.virxact.com/"),
             ) if key))
         links = {}
         for it in sorted(copies, key=lambda x: not x.get("official")):
+            for source in it.get("sources") or []:
+                if source.get("url"):
+                    links.setdefault(_news_url_key(source["url"]), source)
             if it.get("url"):
-                links.setdefault(_news_url_key(it["url"]), {"url": it["url"], "label": it["source"]})
+                links.setdefault(_news_url_key(it["url"]), {"url": it["url"], "label": it.get("source") or "原文"})
             if it.get("aihot_url"):
                 links.setdefault(_news_url_key(it["aihot_url"]), {"url": it["aihot_url"], "label": "AI HOT"})
         item["sources"] = list(links.values())
@@ -1697,6 +1740,7 @@ def fetch_edition(previous=None):
         _apply_agent_catalog(item, catalog)
     items = _merge_edition_items(items) + github
     localize_news_items(items, previous.get("items", []))
+    items = _merge_edition_items(items, _rollout_keys)
     return {
         "items": items,
         "sources": sources,

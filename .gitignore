@@ -11,6 +11,7 @@ server.pid
 !.vscode/launch.json
 data/files/
 data/*.tmp
+data/social-news.json
 .env.bili
 .env
 config/

@@ -28,6 +28,7 @@ from flask import Flask, request, jsonify, send_from_directory
 import db
 import auth
 import beacon_fetcher
+import social_news
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 
@@ -57,6 +58,7 @@ _load_dotenv()
 DATA = os.environ.get("WORKTAB_DATA_DIR", os.path.join(BASE, "data"))
 FILES = os.path.join(DATA, "files")
 STATIC = os.path.join(BASE, "static")
+SOCIAL_NEWS_CACHE = os.path.join(DATA, social_news.CACHE_NAME)
 
 app = Flask(__name__, static_folder=STATIC, template_folder=os.path.join(BASE, "templates"))
 auth.init_auth(app, BASE)
@@ -320,6 +322,8 @@ def sync_news():
         if "date" not in item and "date_collected" not in item:
             item["date"] = _now()[:10]
         cleaned.append(item)
+    fetcher = _load_news_fetcher()
+    cleaned = fetcher._merge_edition_items(cleaned, fetcher._rollout_keys)
     # 按 date 倒序、同 date 按 created_at 倒序，保证最新在前
     cleaned.sort(key=lambda x: (x.get("date") or "", x.get("created_at") or ""), reverse=True)
     with _lock_for("news"):
@@ -412,6 +416,22 @@ def _start_news_scheduler():
     t1 = threading.Thread(target=_news_scheduler_loop, daemon=True, name="news-scheduler")
     t1.start()
     print("[news_scheduler] 已启动：AI 资讯 + GitHub Trending 定时抓取", flush=True)
+
+
+@app.route("/api/social-news", methods=["GET"])
+def get_social_news():
+    return jsonify(social_news.snapshot(social_news.read_cache(SOCIAL_NEWS_CACHE)))
+
+
+def _social_news_scheduler_loop():
+    while True:
+        try:
+            social_news.refresh(SOCIAL_NEWS_CACHE)
+        except Exception:
+            app.logger.exception("社会新闻同步失败")
+        time.sleep(social_news.REFRESH_SECONDS)
+
+
 make_crud("tasks")
 make_crud("notes")
 make_crud("knowledge")
@@ -2694,6 +2714,36 @@ def _creator_video_ids():
     ]
 
 
+_FOLLOWUP_UNREAD = ("brief", "km", "lives", "ops")
+
+
+def _content_key(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def _followup_news_ids(module):
+    if module == "brief":
+        return {"brief:" + _content_key([item.get("date"), item["content"]])
+                for item in read_json("daily_brief", {}).get("items", [])
+                if (item.get("content") or "").strip()}
+    if module in ("km", "lives"):
+        live = module == "lives"
+        history = _resource_response("qlearning_lives" if live else "km_hot", live=live)
+        return {str(item.get("id") or item.get("href" if live else "url"))
+                for day in history["days"] for item in day["items"]
+                if item.get("id") or item.get("href" if live else "url")}
+    if module == "ops":
+        snapshot = read_json("imate_ops", {})
+        return {_content_key({key: snapshot.get(key) for key in
+                             ("data_date", "kpi", "trends", "distributions", "overall")})} if snapshot.get("data_date") else set()
+    daily = _item_ids(read_json("news", {}).get("items", []))
+    social = social_news.snapshot(social_news.read_cache(SOCIAL_NEWS_CACHE))
+    weekly = read_json("aihot_weekly", {}).get("report")
+    return ({f"ai:{key}" for key in daily} |
+            {f"social:{key}" for key in _item_ids(social["items"])} |
+            ({"weekly:" + _content_key(weekly)} if weekly else set()))
+
+
 @app.route("/api/unread", methods=["GET"])
 def get_unread():
     """返回各 tab 未读数量：knowledge / radar / media。"""
@@ -2717,12 +2767,15 @@ def get_unread():
     creator_seen = set(marks.get("creators", []))
     creator_unread = sum(1 for i in _creator_video_ids() if i not in creator_seen)
 
+    updates = {module: sorted(_followup_news_ids(module) - set(marks.get(module, [])))
+               for module in (*_FOLLOWUP_UNREAD, "news")}
     return jsonify({
         "knowledge": knowledge_unread,
         "radar": radar_unread,
         "media": media_unread,
         "creators": creator_unread,
         "creator_seen": sorted(creator_seen),
+        "updates": updates,
     })
 
 
@@ -2745,19 +2798,25 @@ def mark_unread_read():
                 write_json("products_updates", data)
         return jsonify({"ok": True, "module": module})
 
-    if module in ("knowledge", "media", "creators"):
-        marks = _unread_marks()
+    if module in ("knowledge", "media", "creators", *_FOLLOWUP_UNREAD, "news"):
         if module == "knowledge":
             ids = _item_ids(read_json("knowledge", {"items": []}).get("items", []))
         elif module == "creators":
             ids = _creator_video_ids()
-        else:  # media
+        elif module == "media":
             ids = _media_hot_ids()
-        # 合并去重，保留历史已读
-        merged = list(dict.fromkeys(marks.get(module, []) + ids))
-        marks[module] = merged
-        with _lock_for(_UNREAD_MARK_NAME):
-            write_json(_UNREAD_MARK_NAME, marks)
+        else:
+            observed = body.get("ids")
+            if not isinstance(observed, list) or any(not isinstance(key, str) for key in observed):
+                return jsonify({"error": "Expected observed item IDs"}), 400
+            ids = list(_followup_news_ids(module).intersection(observed))
+
+        def merge(marks):
+            marks[module] = list(dict.fromkeys(marks.get(module, []) + ids))
+            return marks
+
+        db.update_json_doc(_UNREAD_MARK_NAME, merge)
+        _invalidate_json_cache(_UNREAD_MARK_NAME)
         return jsonify({"ok": True, "module": module})
 
     return jsonify({"error": "unknown module"}), 400
@@ -3492,7 +3551,7 @@ def _ai_pulse_groups_raw(news_items=None, hidden=None):
         return groups[key]
 
     fetcher = _load_news_fetcher()
-    for n in news:
+    for n in fetcher._merge_edition_items(news, fetcher._rollout_keys):
         brief = _news_item_brief(n, fetcher)
         if not brief["title"]:
             continue
@@ -4445,6 +4504,7 @@ def _start_background_jobs():
         return
     _BG_STARTED = True
     _start_news_scheduler()
+    threading.Thread(target=_social_news_scheduler_loop, daemon=True, name="social-news-scheduler").start()
     _start_douban_scheduler()
 
 
