@@ -170,6 +170,32 @@ def _write_doc(name, data):
             )
 
 
+def update_json_doc(name, transform):
+    """Apply a read-modify-write under a database row lock."""
+    with _conn() as conn, conn.cursor() as cur:
+        conn.begin()
+        try:
+            now = datetime.datetime.now()
+            cur.execute(
+                "INSERT INTO json_docs (name, data, updated_at) VALUES (%s, '{}', %s) "
+                "ON DUPLICATE KEY UPDATE name=name",
+                (name, now),
+            )
+            cur.execute("SELECT data FROM json_docs WHERE name=%s FOR UPDATE", (name,))
+            current = cur.fetchone()["data"]
+            updated = transform(json.loads(current) if isinstance(current, str) else current)
+            if updated is not None:
+                cur.execute(
+                    "UPDATE json_docs SET data=%s, updated_at=%s WHERE name=%s",
+                    (json.dumps(updated, ensure_ascii=False), now, name),
+                )
+            conn.commit()
+            return updated
+        except Exception:
+            conn.rollback()
+            raise
+
+
 # ---------------------------------------------------------------------------
 # creator_videos 专用关系化存储
 # ---------------------------------------------------------------------------

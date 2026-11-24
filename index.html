@@ -504,9 +504,8 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 @media(min-width:1300px){.np-body:has(.np-desk-github){grid-template-columns:minmax(0,1fr) 280px;gap:30px}.np-body:has(.np-desk-github) .np-desk:not(.np-desk-github){grid-column:1}.np-body:has(.np-desk-github) .np-desk-github{grid-column:2;grid-row:1 / span 4;border-left:1px solid var(--np-line);padding-left:24px}.np-body:has(.np-desk-github) .np-columns{columns:2}.np-body:has(.np-desk-github) .np-desk-github .np-columns{columns:1}.np-body:has(.np-desk-github:only-child){grid-template-columns:1fr}.np-body:has(.np-desk-github:only-child) .np-desk-github{grid-column:1;grid-row:auto;border:0;padding:0}.np-body:has(.np-desk-github:only-child) .np-desk-github .np-columns{columns:3}}
 @media(max-width:1100px){#news .newspaper{padding:20px 24px}.np-columns,.np-desk-github .np-columns{columns:2}.np-frontpage{gap:24px}.np-front-aside{padding-left:24px}.np-nameplate{gap:12px}.np-tools{gap:8px}.np-search input{width:160px}}
 @media(max-width:760px){.page:has(#news.active){padding:16px 12px 40px}#news .newspaper{padding:16px}.np-motto,.np-edition-mark{display:none}.np-nameplate{grid-template-columns:1fr;padding:20px 0}.np-nameplate h1{font-size:38px}.np-nameplate p{font-size:10px;letter-spacing:.07em}.np-edition{font-size:9px}.np-publication{font-size:10px}.np-toolbar{align-items:stretch}.np-tools{width:100%}.np-search{flex:1}.np-search input{width:100%}.np-type-btn span{display:none}.np-sections{gap:22px;margin-bottom:20px}.np-frontpage{grid-template-columns:1fr;gap:22px}.np-front-aside{border-left:0;padding-left:0;border-top:1px solid var(--np-line);padding-top:18px}.np-columns,.np-desk-github .np-columns{columns:1}.np-lead .np-article-title{font-size:29px}.np-article-title{font-size:21px}.np-article-text{font-size:14px}#news .insight-grid,#news .insight-pool{grid-template-columns:1fr}#news .insight-card,#news .insight-pool-item{border-right:0;border-bottom:1px solid var(--np-line);padding:0 0 22px}#news .report-keypoints{columns:1}.np-endnote{align-items:flex-start}.np-large .np-lead .np-article-title{font-size:32px}}
-.brief-expand{margin-left:auto;flex-shrink:0;width:32px;height:32px;display:grid;place-items:center;border:0;border-radius:9px;background:transparent;color:var(--worktable-muted);cursor:pointer;transition:background .18s,color .18s,transform .18s}.brief-expand svg{width:17px;height:17px}.brief-expand:hover{background:#eef3ff;color:#3b76f6;transform:translateY(-1px)}.brief-expand:focus-visible,.brief-reader-close:focus-visible{outline:2px solid #3b76f6;outline-offset:3px}
-.brief-reader{width:min(920px,calc(100vw - 32px));max-height:86vh;padding:0;border:1px solid #e5e9f0;border-radius:20px;background:#fff;color:var(--text);box-shadow:0 28px 100px #14213d33;overflow:hidden}.brief-reader::backdrop{background:#16243f66;backdrop-filter:blur(5px)}.brief-reader-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:24px 30px;background:linear-gradient(120deg,#f5f8ff,#fff);border-bottom:1px solid #e9edf3}.brief-reader-head h2{margin:0 0 5px;font-size:23px;letter-spacing:-.5px}.brief-reader-meta{font-size:12px;color:var(--worktable-muted)}.brief-reader-close{width:34px;height:34px;border:1px solid #e3e8f0;border-radius:10px;background:#fff;color:#64748b;font-size:24px;cursor:pointer}.brief-reader-close:hover{background:#eef3ff;color:#3b76f6}.brief-reader-content{padding:28px 34px;max-height:calc(86vh - 108px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}.brief-reader-content .brief-note,.brief-reader-content .brief-p,.brief-reader-content .brief-ul{font-size:16px;line-height:1.9}.brief-reader-content .brief-h{font-size:19px;margin-top:24px}.brief-reader-content .brief-card{padding:18px 22px;margin-bottom:20px}.brief-reader-content .brief-table{font-size:14px}.brief-reader-content .brief-src{margin-top:24px;color:var(--worktable-muted);font-size:12px}@media(max-width:600px){.brief-reader-head{padding:20px}.brief-reader-content{padding:20px}.brief-reader-content .brief-card{padding:14px}}
-@media(prefers-reduced-motion:reduce){.np-frontpage,.np-desk{animation:none}.brief-expand{transition:none}}
+
+@media(prefers-reduced-motion:reduce){.np-frontpage,.np-desk{animation:none}}
 
 /* Primary navigation */
 .top {
@@ -576,12 +575,18 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     width: 100%;
   }
 }
-</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=4"><link rel="stylesheet" href="/static/workbench-views.css?v=17"><link rel="stylesheet" href="/static/ai-news.css?v=7"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
+</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=7"><link rel="stylesheet" href="/static/workbench-views.css?v=17"><link rel="stylesheet" href="/static/ai-news.css?v=7"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
 <section id="home" class="view">
 <section class="followup" aria-labelledby="followupTitle">
 <header class="followup-heading"><h2 id="followupTitle">工作跟进</h2></header>
-<div class="followup-grid">
-<div class="mini-panel" id="miniTodoPanel">
+<div class="followup-tabs" role="tablist" aria-label="工作跟进栏目" onkeydown="handleFollowupTabKey(event)">
+<button type="button" role="tab" id="followupTodoTab" aria-selected="true" aria-controls="miniTodoPanel" onclick="selectFollowupTab(this)">待办</button>
+<button type="button" role="tab" id="followupBriefTab" aria-selected="false" aria-controls="followupBrief" tabindex="-1" onclick="selectFollowupTab(this)">工作总结</button>
+<button type="button" role="tab" id="followupKmTab" aria-selected="false" aria-controls="miniKmPanel" tabindex="-1" onclick="selectFollowupTab(this)">KM 好文</button>
+<button type="button" role="tab" id="followupLivesTab" aria-selected="false" aria-controls="miniLivesPanel" tabindex="-1" onclick="selectFollowupTab(this)">学堂直播</button>
+<button type="button" role="tab" id="followupOpsTab" aria-selected="false" aria-controls="imateOpsSection" tabindex="-1" onclick="selectFollowupTab(this)">运营数据</button>
+</div>
+<div class="mini-panel" id="miniTodoPanel" role="tabpanel" aria-labelledby="followupTodoTab">
 <div class="followup-section-head">
 <div class="followup-title"><h3>待推进</h3><span class="followup-meta" id="miniTodoCount"></span></div>
 <button type="button" class="btn primary followup-add" onclick="expandTodoCompose()">＋ 添加待办</button>
@@ -590,11 +595,10 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 <div class="mini-panel-body" id="todoList"></div>
 <button type="button" class="followup-link followup-more" id="followupTaskToggle" aria-expanded="false" aria-controls="todoList" onclick="toggleFollowupTasks()" hidden></button>
 </div>
-<div class="followup-side">
+<div class="followup-side" id="followupBrief" role="tabpanel" aria-labelledby="followupBriefTab" hidden>
 <div class="mini-panel" id="miniBriefPanel">
 <div class="followup-section-head">
 <h3>最新工作总结</h3>
-<button type="button" class="followup-link" id="briefOpen" onclick="openBriefReader()" hidden>查看全文</button>
 </div>
 <p class="followup-meta" id="briefUpdated"></p>
 <div id="briefBody"></div>
@@ -605,19 +609,18 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 <p class="followup-meta followup-feedback" id="followupFeedback" role="status"></p>
 </details>
 </div>
-</div>
-</section>
 <div class="followup-resources">
-<div class="mini-panel" id="miniKmPanel">
-<div class="mini-panel-head"><div class="mp-titles"><h3>KM 好文</h3><span class="sub" id="kmHotUpdated"></span></div><div class="followup-resource-actions"><button type="button" class="followup-link followup-resource-toggle" aria-expanded="false" aria-controls="kmHotList" onclick="toggleFollowupResource(this)">查看更多</button><a class="mp-go" href="https://km.woa.com/" target="_blank" rel="noopener" title="前往 KM 官网">官网<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
+<div class="mini-panel" id="miniKmPanel" role="tabpanel" aria-labelledby="followupKmTab" hidden>
+<div class="mini-panel-head"><div class="mp-titles"><h3>KM 好文</h3><span class="sub" id="kmHotUpdated"></span></div><div class="followup-resource-actions"><a class="mp-go" href="https://km.woa.com/" target="_blank" rel="noopener" title="前往 KM 官网">官网<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
+<p class="followup-meta followup-feedback" id="kmHotFeedback" role="status"></p>
 <div class="mini-panel-body" id="kmHotList"></div>
 </div>
-<div class="mini-panel" id="miniLivesPanel">
-<div class="mini-panel-head"><div class="mp-titles"><h3>学堂直播</h3><span class="sub" id="homeLivesUpdated"></span></div><div class="followup-resource-actions"><button type="button" class="followup-link followup-resource-toggle" aria-expanded="false" aria-controls="homeLives" onclick="toggleFollowupResource(this)">查看更多</button><a class="mp-go" href="https://learn.woa.com/" target="_blank" rel="noopener" title="前往腾讯学堂官网">官网<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
+<div class="mini-panel" id="miniLivesPanel" role="tabpanel" aria-labelledby="followupLivesTab" hidden>
+<div class="mini-panel-head"><div class="mp-titles"><h3>学堂直播</h3><span class="sub" id="homeLivesUpdated"></span></div><div class="followup-resource-actions"><a class="mp-go" href="https://learn.woa.com/" target="_blank" rel="noopener" title="前往腾讯学堂官网">官网<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
 <div class="mini-panel-body" id="homeLives"></div>
 </div>
 </div>
-<div class="ops-section" id="imateOpsSection">
+<div class="ops-section" id="imateOpsSection" role="tabpanel" aria-labelledby="followupOpsTab" hidden>
 <div class="ops-head">
 <div class="ops-head-title"><span class="ops-brand-dot"></span><div class="ops-brand-txt"><b>IMate 运营数据</b><em>灯塔 DataTalk</em></div></div>
 <div class="ops-head-actions">
@@ -637,6 +640,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 <div class="ops-charts" id="opsProjectCharts"></div>
 </div>
 </div>
+</section>
 </section>
 <section id="news" class="view">
 <div class="ai-news" id="pulseSection">
@@ -749,7 +753,6 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 
 </div></main></div>
 <div id="writeStage" class="write-stage" aria-hidden="true"><div class="write-bar"><span class="hint" id="writeStatus">自动保存</span><button class="btn shrink" onclick="collapseWrite()" title="收起">↘ 收起</button></div><div id="writePad" class="write-pad" contenteditable="true" data-placeholder="开始写点什么，也可以直接粘贴图片…" oninput="scheduleWriteSave()" onpaste="handleWritePaste(event)"></div></div>
-<dialog class="brief-reader" id="briefReader" aria-labelledby="briefReaderTitle"><header class="brief-reader-head"><div><h2 id="briefReaderTitle">工作总结</h2><div class="brief-reader-meta" id="briefReaderMeta"></div></div><button type="button" class="brief-reader-close" aria-label="关闭工作总结" onclick="closeBriefReader()">×</button></header><div class="brief-reader-content" id="briefReaderContent"></div></dialog>
 <div class="modal-bg" id="modal"><div class="modal" id="modalBody"></div></div><script>
 (()=>{const raw=window.fetch.bind(window);let jumping=false;window.fetch=async(...a)=>{const r=await raw(...a);try{const u=new URL(typeof a[0]==='string'?a[0]:a[0].url,location.href);if(r.status===401&&u.origin===location.origin&&u.pathname.startsWith('/api/')&&!jumping){jumping=true;location.href='/login?next='+encodeURIComponent(location.pathname+location.search)}}catch(e){}return r}})();
 const mediaHotTypes=['movie','tv','show','music','book'];
@@ -772,10 +775,10 @@ const viewLoaders={
     loadBmWeather()
   ],
   home:()=>[
-    loadViewResource('tasks',result=>{data.tasks=result.items||[];renderTodoPanel()}),
+    loadViewResource('tasks',result=>{data.tasks=result.items||[];renderTodoPanel();if(data.brief)renderBrief()}),
     loadViewResource('daily_brief',result=>{data.brief=result;renderBrief()}),
-    loadViewResource('qlearning-lives',result=>{data.qlLives=result.items||[];data.qlLivesUpdated=result.updated_at||'';renderHomeLives()}),
-    loadViewResource('km-hot',result=>{data.kmHot=result.items||[];data.kmHotUpdated=result.updated_at||'';renderKmHot()})
+    loadViewResource('qlearning-lives',result=>{data.qlLives=result.days||[];data.qlLivesUpdated=result.updated_at||'';renderHomeLives()}),
+    loadViewResource('km-hot',result=>{data.kmHot=result.days||[];data.kmHotUpdated=result.updated_at||'';renderKmHot()})
   ],
   news:()=>[renderAiPulse()],
   notes:()=>[loadNotes()],
@@ -904,32 +907,64 @@ function resourceRecommendationLabel(recommendation){
   return parts.length?'<div class="row-meta">'+parts.join(' · ')+'</div>':'';
 }
 
+const resourceDateFormat=new Intl.DateTimeFormat('zh-CN',{
+  timeZone:'Asia/Shanghai',month:'long',day:'numeric',weekday:'long'
+});
+const liveClockFormat=new Intl.DateTimeFormat('zh-CN',{
+  timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+});
+
+function resourceHistory(days, renderItem, emptyText, itemUnit){
+  const groups=days.filter(day=>day.items.length);
+  if(!groups.length)return empty(emptyText);
+  return groups.map(({date,items})=>{
+    const parts=Object.fromEntries(resourceDateFormat.formatToParts(new Date(date)).map(({type,value})=>[type,value]));
+    return `<section class="resource-day">
+      <header class="resource-day-head">
+        <h4><time datetime="${esc(date)}">${esc(parts.month+parts.day)} <span>${esc(parts.weekday)}</span></time></h4>
+        <span class="resource-day-count">${esc(date.slice(0,4))} 年 · ${items.length} ${itemUnit}</span>
+      </header>
+      <div class="resource-day-items">${items.map((item,index)=>renderItem(item,index,date)).join('')}</div>
+    </section>`;
+  }).join('');
+}
+
 function renderHomeLives(){
   const now=new Date();
-  const order={live:0,upcoming:1,started:2,ended:3};
-  const events=(data.qlLives||[]).map(event=>({event,status:liveStatus(event,now)}));
-  const active=events.filter(item=>item.status!=='ended');
-  const visible=(active.length?active:events).sort((a,b)=>
-    order[a.status]-order[b.status]||
-    (a.event.startTime||'').localeCompare(b.event.startTime||'')
-  ).slice(0,8);
+  const states={live:'直播中',ended:'已结束',started:'已开场',upcoming:'待开播'};
+  const formatTime=value=>{
+    const time=parseLiveTime(value);
+    return time&&!isNaN(time)?liveClockFormat.format(time):'';
+  };
   $('homeLivesUpdated').textContent=resourceUpdateText(data.qlLivesUpdated);
-  $('homeLives').innerHTML=visible.length?visible.map(({event,status})=>{
-    const start=event.startTime||'';
-    const stamp=start?start.replace('T',' ').slice(5,16):'时间待定';
-    const state=status==='live'?'<span class="resource-live">直播中</span>':status==='ended'?'已结束':status==='started'?'已开场':'';
-    const metadata=[esc(stamp),state,esc(event.author||'腾讯学堂')].filter(Boolean).join(' · ');
-    return `<div class="article"><div class="row-main">
-      <div class="row-title">${resourceLink(event.href,event.title)}</div>
-      <div class="row-meta">${metadata}</div>${resourceRecommendationLabel(event.recommendation)}
-    </div></div>`;
-  }).join(''):empty('暂无学堂直播。');
+  $('homeLives').innerHTML=resourceHistory(data.qlLives||[],event=>{
+    const status=liveStatus(event,now);
+    const start=formatTime(event.startTime);
+    const end=formatTime(event.endTime);
+    const {score,priority,reason}=event.recommendation||{};
+    const tags=(Array.isArray(event.tags)?event.tags:[]).filter(tag=>typeof tag==='string'&&tag.trim());
+    return `<article class="live-entry">
+      <div class="live-time"><strong>${start||'待定'}</strong>${end?`<span>至 ${end}</span>`:''}</div>
+      <div class="live-copy">
+        <div class="live-title">${resourceLink(event.href,event.title)}</div>
+        <div class="live-meta">
+          ${start?`<span class="live-status" data-status="${status}">${states[status]}</span>`:''}
+          <span>${esc(event.author||'腾讯学堂')}</span>
+          ${[...new Set(tags)].map(tag=>`<span class="live-tag">${esc(tag)}</span>`).join('')}
+        </div>
+        ${typeof reason==='string'&&reason?`<p class="live-reason">${esc(reason)}</p>`:''}
+      </div>
+      ${Number.isFinite(score)||priority===true?`<div class="live-rating">
+        ${Number.isFinite(score)?`<div class="live-score"><strong>${score}</strong><span> / 100</span></div><span>推荐分</span>`:''}
+        ${priority===true?'<span class="live-priority">重点关注</span>':''}
+      </div>`:''}
+    </article>`;
+  },'暂无学堂直播。','场');
 }
 
 function renderKmHot(){
-  const articles=data.kmHot||[];
   $('kmHotUpdated').textContent=resourceUpdateText(data.kmHotUpdated);
-  $('kmHotList').innerHTML=articles.length?articles.map((article,index)=>{
+  $('kmHotList').innerHTML=resourceHistory(data.kmHot||[],(article,index,date)=>{
     const metadata=[esc(article.author),article.headline?'头条':'',
       article.read_count?'阅读 '+Number(article.read_count).toLocaleString():'',
       article.hot?'热度 '+Number(article.hot).toLocaleString():''].filter(Boolean).join(' · ');
@@ -937,8 +972,31 @@ function renderKmHot(){
       <span class="km-rank" aria-hidden="true">${index+1}</span>
       <div class="row-main"><div class="row-title">${resourceLink(article.url,article.title)}</div>
       <div class="row-meta">${metadata}</div>${resourceRecommendationLabel(article.recommendation)}</div>
+      <button type="button" class="followup-link resource-delete" data-date="${esc(date)}" data-id="${esc(article.id)}"
+        aria-label="删除 ${esc(article.title)}" onclick="deleteKmArticle(this)">删除</button>
     </div>`;
-  }).join(''):empty('暂无 KM 好文数据。');
+  },'暂无 KM 好文数据。','篇');
+}
+
+async function deleteKmArticle(button){
+  const {date,id}=button.dataset;
+  if(!window.confirm('删除这篇 KM 文章的当日抓取记录？'))return;
+  button.disabled=true;
+  const feedback=$('kmHotFeedback');
+  feedback.textContent='';
+  try{
+    await api('/api/km-hot/'+encodeURIComponent(date),'DELETE',{id});
+    const day=data.kmHot.find(entry=>entry.date===date);
+    if(day)day.items=day.items.filter(article=>article.id!==id);
+    renderKmHot();
+    const next=$('kmHotList').querySelector('button[data-date="'+date+'"]');
+    (next||$('followupKmTab')).focus({preventScroll:true});
+    feedback.textContent='已删除抓取记录。';
+  }catch{
+    feedback.textContent='删除失败，请稍后重试。';
+  }finally{
+    button.disabled=false;
+  }
 }
 const BRIEF_CARD_COLORS={blue:'#3b76f6',green:'#0ea56e',orange:'#e08b2c',red:'#e5484d',purple:'#8a5cf5',yellow:'#c9a227'};
 function renderBriefMarkdown(md){
@@ -1000,44 +1058,111 @@ function renderBrief(){
   $('briefUpdated').textContent=brief.is_fallback
     ? (shortDate(brief.date)||'最近一次')+' · 今日总结尚未生成'
     : brief.updated_at?'更新于 '+brief.updated_at.slice(5,16):'';
-  $('briefOpen').hidden=!brief.content;
-  const summary=document.createElement('div');
-  summary.innerHTML=renderBriefMarkdown(brief.content);
-  const excerpts=[...summary.querySelectorAll('.brief-ul li,.brief-p')].slice(0,2);
-  $('briefBody').innerHTML=excerpts.length
-    ? '<ul class="followup-excerpts">'+excerpts.map(item=>'<li>'+esc(item.textContent)+'</li>').join('')+'</ul>'
-    : '<p class="followup-meta">'+(brief.content?'打开全文查看总结。':'暂无工作总结。')+'</p>';
-  if($('briefReader').open)syncBriefReader();
+  const reader=$('briefBody');
+  const generated=data.tasks.filter(task=>task.brief_date===brief.date).map(task=>task.brief_item);
+  const key=JSON.stringify([brief.date,brief.content,brief.source,generated]);
+  if(key===briefBodyKey)return;
+  briefBodyKey=key;
+  if(!brief.content){
+    reader.innerHTML='<p class="followup-meta">暂无工作总结。</p>';
+    return;
+  }
+  reader.innerHTML=`<div class="brief-layout">
+    <div class="brief-reading">
+      <article class="brief-note">${renderBriefMarkdown(brief.content)}</article>
+      ${brief.source?'<div class="brief-src">来源：'+esc(brief.source)+'</div>':''}
+    </div>
+  </div>`;
+  const note=reader.querySelector('.brief-note');
+  const {heading, candidates}=findBriefTasks(note);
+  const taskLink=buildBriefNavigation(note,heading,candidates);
+  if(candidates.length)addBriefTaskControls(candidates,brief.date||'',taskLink);
 }
-let briefReaderKey=null;
-function syncBriefReader(){
-  const brief=data.brief||{};
-  $('briefReaderMeta').textContent=$('briefUpdated').textContent;
-  const reader=$('briefReaderContent');
-  const key=JSON.stringify([brief.date,brief.content,brief.source]);
-  if(key===briefReaderKey)return;
-  briefReaderKey=key;
-  reader.innerHTML='<div class="brief-note">'+renderBriefMarkdown(brief.content)+'</div>'
-    +(brief.source?'<div class="brief-src">来源：'+esc(brief.source)+'</div>':'');
-  addBriefTaskControls(reader,brief.date||'');
+let briefBodyKey=null;
+
+function briefHeadingLabel(heading){
+  return heading.textContent.trim().replace(/^(?:[一二三四五六七八九十\d]+[、.．]\s*)/,'');
 }
-function addBriefTaskControls(reader,date){
-  let headingLevel=0;
+
+function findBriefTasks(note){
+  let heading=null;
   const candidates=[];
-  for(const node of reader.querySelectorAll('.brief-h,.brief-ul > li')){
+  for(const node of note.querySelectorAll('.brief-h,.brief-ul > li')){
     if(node.matches('.brief-h')){
-      const level=Number(node.tagName.slice(1));
-      if(headingLevel&&level<=headingLevel)break;
-      if(!headingLevel&&/^(?:[一二三四五六七八九十\d]+[、.．]\s*)?(?:待办|后续跟进|行动事项)/.test(node.textContent.trim()))headingLevel=level;
+      if(heading&&Number(node.tagName.slice(1))<=Number(heading.tagName.slice(1)))break;
+      if(!heading&&/^(待办|后续跟进|行动事项)/.test(briefHeadingLabel(node)))heading=node;
       continue;
     }
-    if(!headingLevel)continue;
+    if(!heading)continue;
     const text=node.textContent.trim();
     const title=node.querySelector('strong')?.textContent.trim().replace(/[：:]$/,'')||text;
     if(text)candidates.push({node,text,title});
   }
-  if(!candidates.length)return;
+  return {heading,candidates};
+}
 
+function briefJumpLink(heading,label){
+  const link=document.createElement('a');
+  link.href='#'+heading.id;
+  link.textContent=label;
+  link.addEventListener('click',event=>{
+    event.preventDefault();
+    heading.scrollIntoView({block:'start'});
+    heading.focus({preventScroll:true});
+  });
+  return link;
+}
+
+function buildBriefNavigation(note,taskHeading,candidates){
+  const headings=[...note.children].filter(node=>node.matches('.brief-h'));
+  const title=headings[0]===note.firstElementChild&&headings[0]?.matches('.brief-h1')?headings.shift():null;
+  const sectionLevel=Math.min(...headings.map(heading=>Number(heading.tagName.slice(1))));
+  const sections=headings.filter(heading=>Number(heading.tagName.slice(1))===sectionLevel);
+  sections.forEach((heading,index)=>{
+    heading.id='brief-section-'+(index+1);
+    heading.tabIndex=-1;
+    heading.classList.add('brief-section-heading');
+  });
+  if(taskHeading&&!taskHeading.id){
+    taskHeading.id='brief-section-actions';
+    taskHeading.tabIndex=-1;
+  }
+  const overview=sections[0];
+  if(overview&&/^(今日|工作)?(?:工作)?概览/.test(briefHeadingLabel(overview))){
+    const block=document.createElement('section');
+    block.className='brief-overview';
+    overview.before(block);
+    for(let node=overview;node&&node!==sections[1];){
+      const next=node.nextElementSibling;
+      block.append(node);
+      node=next;
+    }
+  }
+
+  let taskLink=null;
+  if(candidates.length){
+    taskLink=briefJumpLink(taskHeading,'');
+    taskLink.className='brief-action-jump';
+    if(title)title.after(taskLink);
+    else note.prepend(taskLink);
+  }
+  if(sections.length){
+    const nav=document.createElement('nav');
+    nav.className='brief-toc';
+    nav.setAttribute('aria-label','工作总结章节目录');
+    nav.innerHTML='<p>章节目录</p><ul></ul>';
+    const list=nav.querySelector('ul');
+    for(const heading of sections){
+      const row=document.createElement('li');
+      row.append(briefJumpLink(heading,briefHeadingLabel(heading)));
+      list.append(row);
+    }
+    note.closest('.brief-layout').append(nav);
+  }
+  return taskLink;
+}
+
+function addBriefTaskControls(candidates,date,taskLink){
   const actions=document.createElement('div');
   actions.className='brief-task-actions';
   actions.innerHTML='<button type="button" class="btn primary" disabled>生成所选待办</button><span role="status">勾选需要跟进的事项</span>';
@@ -1057,6 +1182,11 @@ function addBriefTaskControls(reader,date){
     checkbox.disabled=data.tasks.some(task=>exists(task,candidate));
     if(checkbox.disabled)label.lastElementChild.append('（已生成）');
   }
+  const updateTaskLink=()=>{
+    const count=candidates.filter(({checkbox})=>!checkbox.disabled).length;
+    taskLink.textContent=count?`查看 ${count} 项待生成的待办 ↓`:'查看后续跟进 ↓';
+  };
+  updateTaskLink();
   const selected=()=>candidates.filter(({checkbox})=>checkbox.checked&&!checkbox.disabled);
   const updateButton=()=>{
     const count=selected().length;
@@ -1095,14 +1225,12 @@ function addBriefTaskControls(reader,date){
       status.textContent=`已生成 ${created} 项，剩余事项可重试。`;
     }finally{
       for(const candidate of enabled)candidate.checkbox.disabled=finished.has(candidate);
+      updateTaskLink();
       updateButton();
       renderTodoPanel();
     }
   });
 }
-function openBriefReader(){let dialog=$('briefReader');syncBriefReader();if(!dialog.open)dialog.showModal();$('briefReaderContent').scrollTop=0}
-function closeBriefReader(){$('briefReader').close()}
-$('briefReader').addEventListener('click',e=>{if(e.target!==e.currentTarget)return;let r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeBriefReader()});
 function renderHomeGreeting(){let n=new Date(),h=n.getHours();let greet=h<6?'夜深了':h<12?'早上好':h<14?'中午好':h<18?'下午好':h<22?'晚上好':'夜深了';let hh=String(n.getHours()).padStart(2,'0'),mm=String(n.getMinutes()).padStart(2,'0');let g=$('homeGreeting');if(g)g.textContent=`${greet}，${n.getFullYear()}年${n.getMonth()+1}月${n.getDate()}日 · ${WEEKDAYS[n.getDay()]} ${hh}:${mm}`}
 let aiPulseMode = 'daily';
 let newsItems = [], newsEdition = {}, newsReady = false, newsLimit = 10;
@@ -1469,7 +1597,7 @@ function renderTodoPanel(){
   };
   const tasks=[...data.tasks].sort((a,b)=>rank(a)-rank(b));
   const pending=tasks.filter(task=>!task.done);
-  const visible=followupTasksExpanded?tasks:pending.slice(0,5);
+  const visible=followupTasksExpanded?tasks:pending;
   const examples=followupSuggestions.filter(item=>item.state==='accepted');
   $('miniTodoCount').textContent=pending.length+' 项未完成';
   $('todoList').innerHTML=(visible.length||examples.length)
@@ -1477,8 +1605,8 @@ function renderTodoPanel(){
       +examples.map(item=>'<div class="task followup-example-task"><div class="task-name">'+esc(item.title)+'</div><span class="followup-demo-label">预览</span></div>').join('')
     : '<p class="followup-empty">'+(tasks.length?'所有待办已完成。':'暂无待推进事项。')+'</p>';
   const toggle=$('followupTaskToggle');
-  toggle.hidden=tasks.length<=Math.min(pending.length,5);
-  toggle.textContent=followupTasksExpanded?'收起列表':'查看全部待办（'+tasks.length+'）';
+  toggle.hidden=tasks.length===pending.length;
+  toggle.textContent=followupTasksExpanded?'隐藏已完成':'显示已完成（'+(tasks.length-pending.length)+'）';
   toggle.setAttribute('aria-expanded',String(followupTasksExpanded));
 }
 
@@ -1487,10 +1615,28 @@ function toggleFollowupTasks(){
   renderTodoPanel();
 }
 
-function toggleFollowupResource(button){
-  const expanded=button.getAttribute('aria-expanded')==='true';
-  button.setAttribute('aria-expanded',String(!expanded));
-  button.textContent=expanded?'查看更多':'收起';
+function selectFollowupTab(selected){
+  const tabs=selected.closest('[role="tablist"]').querySelectorAll('[role="tab"]');
+  tabs.forEach(tab=>{
+    const active=tab===selected;
+    tab.setAttribute('aria-selected',String(active));
+    tab.tabIndex=active?0:-1;
+    $(tab.getAttribute('aria-controls')).hidden=!active;
+  });
+  if(selected.id==='followupOpsTab')loadImateOps();
+}
+
+function handleFollowupTabKey(event){
+  const tabs=[...event.currentTarget.querySelectorAll('[role="tab"]')];
+  const index=tabs.indexOf(event.target);
+  if(index<0)return;
+  const destinations={ArrowLeft:(index+tabs.length-1)%tabs.length,
+    ArrowRight:(index+1)%tabs.length,Home:0,End:tabs.length-1};
+  if(!Object.hasOwn(destinations,event.key))return;
+  event.preventDefault();
+  const next=tabs[destinations[event.key]];
+  selectFollowupTab(next);
+  next.focus();
 }
 
 function renderFollowupSuggestions(){
@@ -2949,16 +3095,17 @@ async function syncImateOps(){if(opsSyncing)return;opsSyncing=true;let btn=$('op
 function renderImateOps(){if(!opsData)return;let up=opsData.updated_at||'';$('opsUpdated').textContent=up?('更新于 '+up.replace('T',' ').slice(5,16)):'已就绪';renderOverallBlock();renderProjectBlock()}
 function renderOverallBlock(){renderOverallKpi();$('opsOverallCharts').innerHTML=opsRange==='1d'?'':renderOverallCharts()}
 function renderProjectBlock(){renderProjectKpi();$('opsProjectCharts').innerHTML=opsRange==='1d'?'':renderOpsCharts()}
-function opsKpiCard(definition,value,period=''){
+function opsKpiCard(definition,value,period='',missing=false){
   return '<div class="ops-kpi"><div class="kpi-value">'+value+'</div><div class="kpi-label">'+definition.label+'</div>'
-    +(period?'<span class="kpi-period">'+period+'</span>':'')+'</div>';
+    +(period?'<span class="kpi-period">'+period+(missing?' · 暂无数据':'')+'</span>':'')+'</div>';
 }
 function renderProjectKpi(){
   const kpi=opsData.kpi||{};
   const periods={'1d':'昨日','7d':'近 7 天','30d':'近 30 天'};
   $('opsProjectKpiGrid').innerHTML=OPS_KPI_DEFS.map(definition=>{
     const range=definition.sw?opsRange:'7d';
-    return opsKpiCard(definition,opsFmt((kpi[definition.key]||{})[range]),periods[range]);
+    const value=(kpi[definition.key]||{})[range];
+    return opsKpiCard(definition,opsFmt(value),periods[range],value==null);
   }).join('');
 }
 function renderOverallKpi(){
@@ -3007,7 +3154,6 @@ function svgPath(points,x,y){if(!points||points.length<2)return '';let d='M '+x(
 function renderLineChart(series,opt){opt=opt||{};let W=600,H=210,padL=40,padR=12,padT=14,padB=26;let allX=[],allV=[];series.forEach(s=>s.points.forEach(p=>{if(allX.indexOf(p.x)<0)allX.push(p.x);if(p.y!=null)allV.push(p.y)}));allX.sort();if(!allX.length)return opsEmpty();let maxV=niceMax(allV);let x=p=>{let i=allX.indexOf(p);return padL+(allX.length<=1?0:(W-padL-padR)*i/(allX.length-1))};let y=v=>padT+(H-padT-padB)*(1-(v||0)/maxV);let grid=[0,0.25,0.5,0.75,1].map(f=>{let gy=padT+(H-padT-padB)*(1-f);return '<line class="grid-line" x1="'+padL+'" y1="'+gy+'" x2="'+(W-padR)+'" y2="'+gy+'"/><text class="axis-label" x="'+(padL-6)+'" y="'+(gy+3)+'" text-anchor="end">'+(opt.pct?Math.round(f*maxV*100)+'%':Math.round(f*maxV))+'</text>'}).join('');let labels=allX.map((dx,i)=>{if(allX.length<=8||i%Math.ceil(allX.length/8)===0){let lx=x(dx);return '<text class="axis-label" x="'+lx+'" y="'+(H-8)+'" text-anchor="middle">'+dx.slice(5)+'</text>'}return ''}).join('');let body='';series.forEach(s=>{let pts=s.points.filter(p=>p.y!=null);if(pts.length<2){body+='<circle cx="'+x(pts[0]?pts[0].x:allX[0])+'" cy="'+y(pts[0]?pts[0].y:0)+'" r="4" fill="'+s.color+'"/>';return}let d=svgPath(pts,x,y);body+='<path class="area" d="'+d+' L '+x(pts[pts.length-1].x)+' '+(H-padB)+' L '+x(pts[0].x)+' '+(H-padB)+' Z" fill="'+s.color+'" opacity="0.08"/>';body+='<path class="series-line" d="'+d+'" stroke="'+s.color+'"/>';pts.forEach(p=>{body+='<circle class="data-dot" cx="'+x(p.x)+'" cy="'+y(p.y)+'" r="3" fill="#fff" stroke="'+s.color+'" stroke-width="2"><title>'+p.x+' · '+(opt.pct?(p.y*100).toFixed(1)+'%':opsFmt(p.y))+'</title></circle>'})});return '<div class="ops-chart-body"><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet">'+grid+labels+body+'</svg></div>'+opsLegend(series.map(s=>({name:s.name,color:s.color})))}
 function renderDonutChart(data){let total=data.reduce((a,b)=>a+(b.value||0),0);if(total<=0)return opsEmpty();let colors=OPS_PALETTE;let R=80,cx=100,cy=100,stroke=18;let C=2*Math.PI*R;let offset=0,segs='';data.forEach((d,i)=>{let frac=(d.value||0)/total;let segLen=frac*C;let gap=data.length>1?2:0;let draw=Math.max(segLen-gap,0.5);let dasharray=draw+' '+(C-draw);segs+='<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="none" stroke="'+(colors[i%colors.length])+'" stroke-width="'+stroke+'" stroke-dasharray="'+dasharray+'" stroke-dashoffset="'+(-offset)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';offset+=segLen});let legend=data.map((d,i)=>{let pct=total?((d.value||0)/total*100).toFixed(1):'0';return '<div class="ops-donut-item"><span class="dl-dot" style="background:'+(colors[i%colors.length])+'"></span><span class="dl-name" title="'+esc(d.name)+'">'+esc(d.name)+'</span><span class="dl-val">'+opsFmt(d.value)+'</span><span class="dl-pct">'+pct+'%</span></div>'}).join('');return '<div class="ops-chart-body"><div class="ops-donut-wrap"><div class="donut-svg"><svg viewBox="0 0 200 200">'+segs+'<text x="100" y="96" text-anchor="middle" style="font-size:22px;font-weight:760;fill:var(--text)">'+opsFmt(total)+'</text><text x="100" y="114" text-anchor="middle" style="font-size:10px;fill:var(--worktable-muted)">总计</text></svg></div><div class="ops-donut-legend">'+legend+'</div></div></div>'}
 function renderBarChart(data){if(!data||!data.length)return opsEmpty();let max=Math.max.apply(null,data.map(d=>d.value||0));let html=data.map((d,i)=>{let pct=d.pct!=null?d.pct:((d.value||0)/max*100);let w=Math.max((d.value||0)/max*100,2);return '<div class="ops-bar-row"><span class="ops-bar-label" title="'+esc(d.name)+'">'+esc(d.name)+'</span><div class="ops-bar-track"><div class="ops-bar-fill" style="width:'+w+'%"></div></div><span class="ops-bar-val">'+opsFmt(d.value)+'</span><span class="ops-bar-pct">'+(pct!=null?Number(pct).toFixed(1)+'%':'')+'</span></div>'}).join('');return '<div class="ops-chart-body"><div class="ops-bars">'+html+'</div></div>'}
-loadImateOps();
 /* 全局兜底：富文本正文（笔记/待办详情）里直接写入的 <img> 无法逐个加 onerror，
    用事件委托统一处理失效图片，避免控制台反复报资源加载错误、页面留破图标。 */
 document.addEventListener('error',function(e){let img=e.target;if(!img||img.tagName!=='IMG'||img.dataset.brokenHandled)return;img.dataset.brokenHandled='1';if(img.closest('.note-detail,.task-note,#mContent,.kb-doc')){img.style.display='none';let tip=document.createElement('span');tip.textContent='🖼️ 图片已失效';tip.style.cssText='display:inline-block;padding:4px 10px;border-radius:6px;background:rgba(150,150,150,.15);color:#999;font-size:12px;';img.insertAdjacentElement('afterend',tip)}},true);

@@ -2490,80 +2490,162 @@ def _normalize_resource_recommendation(item):
         item["recommendation"] = fields
 
 
-# ---------------------------------------------------------------------------
-# 腾讯学堂直播预告：由 cron 定时任务调用 QLearning MCP 抓取后写入，前端首页展示
-# ---------------------------------------------------------------------------
+def _resource_item_id(item, url_field):
+    seed = str(item.get(url_field) or item.get("title") or uuid.uuid4().hex)
+    return str(item.get("id") or uuid.uuid5(uuid.NAMESPACE_URL, seed).hex[:12])
+
+
+def _resource_day(value, fallback):
+    if isinstance(value, str):
+        try:
+            stamp = datetime.datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+            if stamp.tzinfo is not None:
+                stamp = stamp.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
+            return stamp.date().isoformat()
+        except ValueError:
+            pass
+    return fallback
+
+
+def _resource_history(document, *, live=False):
+    """Expose the old snapshot as history until the first archive write."""
+    if "days" in document:
+        return document["days"]
+    fetched_day = _resource_day(document.get("updated_at"), _now()[:10])
+    url_field = "href" if live else "url"
+    days = {}
+    for item in document.get("items", []):
+        day = _resource_day(item.get("startTime"), fetched_day) if live else fetched_day
+        days.setdefault(day, []).append({**item, "id": _resource_item_id(item, url_field)})
+    return days
+
+
+def _resource_response(name, *, live=False):
+    document = db.db_read_json(name, {})
+    days = _resource_history(document, live=live)
+    return {
+        "items": document.get("items", []),
+        "updated_at": document.get("updated_at", ""),
+        "days": [{"date": day, "items": days[day]}
+                 for day in sorted(days, reverse=True) if days[day]],
+    }
+
+
+def _resource_count(value):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
+def _km_key(item):
+    return str(item.get("url") or item["id"])
+
+
+def _km_order(item):
+    return -_resource_count(item.get("hot")), -_resource_count(item.get("read_count"))
+
+
+def _live_order(item):
+    return str(item.get("startTime") or "")
+
+
+def _sync_resources(name, *, live=False):
+    body = request.get_json(force=True, silent=True)
+    items = body.get("items", []) if isinstance(body, dict) else None
+    if not isinstance(items, list):
+        return jsonify({"error": "items must be a list"}), 400
+    updated_at = _now()
+    fetched_day = updated_at[:10]
+    url_field = "href" if live else "url"
+    order = _live_order if live else _km_order
+    key = (lambda item: item["id"]) if live else _km_key
+    batches = {}
+    for raw in items:
+        if not isinstance(raw, dict) or not (live or raw.get("title")):
+            continue
+        item = dict(raw)
+        item["id"] = _resource_item_id(item, url_field)
+        _normalize_resource_recommendation(item)
+        if not live:
+            item["hot"] = _resource_count(item.get("hot"))
+        day = _resource_day(item.get("startTime"), fetched_day) if live else fetched_day
+        batches.setdefault(day, {}).setdefault(key(item), item)
+
+    def merge(document):
+        days = _resource_history(document, live=live)
+        deleted = document.get("deleted", {})
+        latest = []
+        for day, batch in batches.items():
+            excluded = set(deleted.get(day, []))
+            incoming = {item_key: item for item_key, item in batch.items()
+                        if item_key not in excluded and item["id"] not in excluded}
+            merged = {key(item): item for item in days.get(day, [])}
+            merged.update(incoming)
+            days[day] = sorted(merged.values(), key=order)
+            latest.extend(incoming.values())
+        return {
+            **document, "days": days, "updated_at": updated_at,
+            "items": sorted(latest, key=order) if live else days.get(fetched_day, []),
+        }
+
+    db.update_json_doc(name, merge)
+    _invalidate_json_cache(name)
+    touch_meta()
+    return jsonify({"ok": True, "count": sum(map(len, batches.values()))})
+
+
 @app.route("/api/qlearning-lives", methods=["GET"])
 def get_qlearning_lives():
-    data = read_json("qlearning_lives", {"items": []})
-    return jsonify(data)
+    return jsonify(_resource_response("qlearning_lives", live=True))
+
 
 @app.route("/api/qlearning-lives/sync", methods=["POST"])
 def sync_qlearning_lives():
-    body = request.get_json(force=True, silent=True) or {}
-    items = body.get("items", [])
-    if not isinstance(items, list):
-        return jsonify({"error": "items must be a list"}), 400
-    cleaned = []
-    for it in items:
-        if not isinstance(it, dict):
-            continue
-        item = dict(it)
-        _normalize_resource_recommendation(item)
-        if not item.get("id"):
-            seed = str(item.get("href") or item.get("title") or uuid.uuid4().hex)
-            item["id"] = uuid.uuid5(uuid.NAMESPACE_URL, seed).hex[:12]
-        cleaned.append(item)
-    cleaned.sort(key=lambda x: x.get("startTime") or "")
-    with _lock_for("qlearning_lives"):
-        write_json("qlearning_lives", {"items": cleaned, "updated_at": _now()})
-    touch_meta()
-    return jsonify({"ok": True, "count": len(cleaned)})
+    return _sync_resources("qlearning_lives", live=True)
 
-# ---------------------------------------------------------------------------
-# KM 热榜：由外部 Agent 通过 KM MCP 的 hot-articles 抓取后写入，前端工作台首页展示。
-# 与学堂直播一致：后端只负责读缓存 + 收整批覆盖，抓取动作在外部定时任务侧完成。
-# ---------------------------------------------------------------------------
+
 @app.route("/api/km-hot", methods=["GET"])
 def get_km_hot():
-    data = read_json("km_hot", {"items": [], "updated_at": ""})
-    return jsonify(data)
+    return jsonify(_resource_response("km_hot"))
+
 
 @app.route("/api/km-hot/sync", methods=["POST"])
 def sync_km_hot():
-    body = request.get_json(force=True, silent=True) or {}
-    items = body.get("items", [])
-    if not isinstance(items, list):
-        return jsonify({"error": "items must be a list"}), 400
-    cleaned = []
-    seen = set()
-    for it in items:
-        if not isinstance(it, dict):
-            continue
-        item = dict(it)
-        _normalize_resource_recommendation(item)
-        if not item.get("title"):
-            continue
-        if not item.get("id"):
-            seed = str(item.get("url") or item.get("title") or uuid.uuid4().hex)
-            item["id"] = uuid.uuid5(uuid.NAMESPACE_URL, seed).hex[:12]
-        key = item.get("url") or item.get("id")
-        if key in seen:
-            continue
-        seen.add(key)
-        # 热度统一转 int，便于前端展示与排序
-        try:
-            item["hot"] = int(item.get("hot") or 0)
-        except (TypeError, ValueError):
-            item["hot"] = 0
-        cleaned.append(item)
-    # 按热度倒序，热度相同按阅读数倒序
-    cleaned.sort(key=lambda x: (-(int(x.get("hot") or 0) or 0),
-                                -(int(x.get("read_count") or 0) or 0)))
-    with _lock_for("km_hot"):
-        write_json("km_hot", {"items": cleaned, "updated_at": _now()})
-    touch_meta()
-    return jsonify({"ok": True, "count": len(cleaned)})
+    return _sync_resources("km_hot")
+
+
+@app.route("/api/km-hot/<day>", methods=["DELETE"])
+def delete_km_hot_item(day):
+    body = request.get_json(silent=True)
+    item_id = body.get("id") if isinstance(body, dict) else None
+    if _resource_day(day, None) != day or not isinstance(item_id, str) or not item_id:
+        return jsonify({"error": "date and article id are required"}), 400
+
+    def remove(document):
+        days = _resource_history(document)
+        deleted = document.setdefault("deleted", {})
+        removed = deleted.setdefault(day, [])
+        if item_id in removed:
+            return document
+        items = days.get(day, [])
+        matched = [item for item in items if item["id"] == item_id]
+        if not matched:
+            return None
+        keys = {_km_key(item) for item in matched}
+        remaining = [item for item in items if _km_key(item) not in keys]
+        removed.extend(sorted(keys | {item_id}))
+        days[day] = remaining
+        document["days"] = days
+        if day == _resource_day(document.get("updated_at"), _now()[:10]):
+            document["items"] = remaining
+        return document
+
+    if db.update_json_doc("km_hot", remove) is None:
+        return jsonify({"error": "article not found"}), 404
+    _invalidate_json_cache("km_hot")
+    return jsonify({"ok": True})
+
 
 # ---------------------------------------------------------------------------
 # Tab 未读红点：记录各模块「已读条目 id」集合，有新 id 即视为有更新（标红）。

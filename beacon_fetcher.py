@@ -253,15 +253,14 @@ def build_snapshot():
     var7 = [{"key": "date_range", "value": dr7}]
     var30 = [{"key": "date_range", "value": dr30}]
 
-    # 生成全部抓取任务：(tag, card_id, variables)
-    # 无 date_range 依赖（sw=False）的图卡：7d 用默认 paramsId（None）还原"最近 7 天"，
-    #   强行传 date_range 变量反而会导致部分图卡（如活跃人数）返回空。
-    # 可切换（sw=True）的图卡：1d/7d/30d 分别显式传对应 date_range。
+    # 两张固定口径的 SQL 图卡仍需要显式传入看板日期，事件模型则不接收该变量。
+    fixed_sql_kpis = {"active_projects", "wecom_groups"}
+    # 生成抓取任务：(tag, card_id, variables)。固定口径图卡仍仅存为 7d。
     jobs = []
     for field, card_id, _key, sw in KPI_CARDS:
         if sw:
             jobs.append((f"kpi:{field}:1d", card_id, var1))
-        jobs.append((f"kpi:{field}:7d", card_id, var7 if sw else None))
+        jobs.append((f"kpi:{field}:7d", card_id, var7 if sw or field in fixed_sql_kpis else None))
         if sw:
             jobs.append((f"kpi:{field}:30d", card_id, var30))
     for field, (card_id, _dk, _series, sw) in TREND_CARDS.items():
