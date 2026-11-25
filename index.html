@@ -575,7 +575,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     width: 100%;
   }
 }
-</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=17"><link rel="stylesheet" href="/static/workbench-views.css?v=21"><link rel="stylesheet" href="/static/ai-news.css?v=21"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
+</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=17"><link rel="stylesheet" href="/static/workbench-views.css?v=21"><link rel="stylesheet" href="/static/ai-news.css?v=22"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
 <section id="home" class="view">
 <section class="followup" aria-labelledby="followupTitle">
 <div class="workspace-pinned">
@@ -984,7 +984,7 @@ function resourceRecommendationLabel(recommendation){
 }
 
 const resourceDateFormat=new Intl.DateTimeFormat('zh-CN',{
-  timeZone:'Asia/Shanghai',month:'long',day:'numeric',weekday:'long'
+  timeZone:'Asia/Shanghai',weekday:'long'
 });
 const liveClockFormat=new Intl.DateTimeFormat('zh-CN',{
   timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
@@ -1006,11 +1006,11 @@ function resourceHistory(days, renderItem, emptyText, itemUnit, today){
   const groups=days.filter(day=>day.items.length);
   if(!groups.length)return empty(emptyText);
   return groups.map(({date,items})=>{
-    const parts=Object.fromEntries(resourceDateFormat.formatToParts(new Date(date)).map(({type,value})=>[type,value]));
+    const weekday=resourceDateFormat.format(new Date(date));
     return `<section class="resource-day" data-date="${esc(date)}"${date===today?' data-today':''}>
       <header class="resource-day-head">
-        <h4><time datetime="${esc(date)}">${esc(today?parts.month+' 月 '+parts.day+' 日':parts.month+parts.day)} <span>${esc(parts.weekday)}</span></time></h4>
-        <span class="resource-day-count">${today?(date===today?'今天 · ':''):esc(date.slice(0,4))+' 年 · '}${items.length} ${itemUnit}</span>
+        <h4><time datetime="${esc(date)}">${esc(shortDate(date))} <span>${esc(weekday)}</span></time></h4>
+        <span class="resource-day-count">${date===today?'今天 · ':''}${items.length} ${itemUnit}</span>
       </header>
       <div class="resource-day-items">${items.map((item,index)=>renderItem(item,index,date)).join('')}</div>
     </section>`;
@@ -1343,8 +1343,9 @@ let aiPulseMode = 'daily';
 let newsPrimary = 'ai';
 let socialSnapshot = null;
 let socialRequest = null;
+let socialCategory = null;
 const socialCategories = [
-  ['world','国际局势'], ['finance','财经科技'], ['people','民生'], ['sports','体育']
+  ['world','国际局势'], ['finance','财经科技'], ['people','社会民生'], ['sports','体育']
 ];
 
 const newsDirectory = [
@@ -1412,13 +1413,21 @@ async function loadSocialNews() {
   if (newsPrimary === 'social') renderSocialNews();
 }
 
+function toggleSocialCategory(button) {
+  const category = button.dataset.category;
+  socialCategory = socialCategory === category ? null : category;
+  renderSocialNews();
+  $('socialCategoryFilters').querySelector(`[data-category="${category}"]`).focus({preventScroll:true});
+}
+
 function renderSocialNews() {
   const groups = new Map();
   const today = newsDaysAgo(0);
   const earliest = newsDaysAgo(2);
   const items = socialSnapshot.items
     .filter(item => /^\d{4}-\d{2}-\d{2}$/.test(item.date || '') &&
-      item.date >= earliest && item.date <= today)
+      item.date >= earliest && item.date <= today &&
+      (!socialCategory || item.category === socialCategory))
     .sort((a,b) => b.date.localeCompare(a.date));
   for (const item of items) {
     if (!groups.has(item.date)) groups.set(item.date, []);
@@ -1440,13 +1449,18 @@ function renderSocialNews() {
     }).join('');
     return `<section class="social-day">
       <h3 class="social-day-heading">${esc(label)}</h3>
-      <div class="social-grid">${boards}</div>
+      <div class="social-boards">${boards}</div>
     </section>`;
   }).join('');
   const updated = socialSnapshot.updated_at?.replace('T',' ').slice(0,16);
   $('socialNews').innerHTML = `<section class="social-panel">
     <header class="social-heading"><h2>社会新闻</h2>${updated ? `<p>更新于 ${esc(updated)}${socialSnapshot.partial ? ' · 部分来源暂未更新' : ''}</p>` : ''}</header>
-    ${sections || '<p class="ai-news-empty">最近三天暂无要闻。</p>'}
+    <div class="social-filters" id="socialCategoryFilters" role="group" aria-label="要闻分类筛选">
+      ${socialCategories.map(([category,title]) => `<button type="button" data-category="${category}"
+        aria-pressed="${category === socialCategory}" aria-controls="socialNewsResults"
+        onclick="toggleSocialCategory(this)">${esc(title)}</button>`).join('')}
+    </div>
+    <div id="socialNewsResults">${sections || `<p class="ai-news-empty">${socialCategory ? '最近三天该分类暂无要闻。' : '最近三天暂无要闻。'}</p>`}</div>
   </section>`;
 }
 
