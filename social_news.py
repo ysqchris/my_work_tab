@@ -374,9 +374,8 @@ def _fetch_source(source, earliest, today):
         return [], []
 
 
-def refresh(path):
-    path = Path(path)
-    cache = read_cache(path)
+def collect(cache):
+    """Merge newly fetched stories into the previous snapshot."""
     now = dt.datetime.now(LOCAL_TIME)
     earliest, today = _date_window(now)
     previous = {(item["source"], item["category"], item["url"]): item for item in cache.get("candidates", [])
@@ -399,12 +398,21 @@ def refresh(path):
         merged[key] = {**item, "desc": item["desc"] or old.get("desc", "")}
     if not recent:
         logging.warning("[social-news] no new publishable data, retaining last snapshot")
-        return snapshot(cache, now)
-    cache = {
+        return cache
+    return {
         "updated_at": now.isoformat(timespec="seconds"),
         "candidates": list(merged.values()),
         "failed_sources": failed_sources,
     }
+
+
+def refresh(path):
+    """Refresh the file snapshot for standalone CLI runs."""
+    path = Path(path)
+    previous = read_cache(path)
+    cache = collect(previous)
+    if cache is previous:
+        return snapshot(cache)
     path.parent.mkdir(parents=True, exist_ok=True)
     file = NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, suffix=".tmp", delete=False)
     temp_path = Path(file.name)
@@ -414,7 +422,7 @@ def refresh(path):
         os.replace(temp_path, path)
     finally:
         temp_path.unlink(missing_ok=True)
-    return snapshot(cache, now)
+    return snapshot(cache)
 
 
 if __name__ == "__main__":

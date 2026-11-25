@@ -1413,9 +1413,9 @@ async function loadSocialNews() {
   if (newsPrimary === 'social') renderSocialNews();
 }
 
-function toggleSocialCategory(button) {
+function selectSocialCategory(button) {
   const category = button.dataset.category;
-  socialCategory = socialCategory === category ? null : category;
+  socialCategory = category || null;
   renderSocialNews();
   $('socialCategoryFilters').querySelector(`[data-category="${category}"]`).focus({preventScroll:true});
 }
@@ -1456,9 +1456,9 @@ function renderSocialNews() {
   $('socialNews').innerHTML = `<section class="social-panel">
     <header class="social-heading"><h2>社会新闻</h2>${updated ? `<p>更新于 ${esc(updated)}${socialSnapshot.partial ? ' · 部分来源暂未更新' : ''}</p>` : ''}</header>
     <div class="social-filters" id="socialCategoryFilters" role="group" aria-label="要闻分类筛选">
-      ${socialCategories.map(([category,title]) => `<button type="button" data-category="${category}"
-        aria-pressed="${category === socialCategory}" aria-controls="socialNewsResults"
-        onclick="toggleSocialCategory(this)">${esc(title)}</button>`).join('')}
+      ${[['','全部'],...socialCategories].map(([category,title]) => `<button type="button" data-category="${category}"
+        aria-pressed="${category === (socialCategory || '')}" aria-controls="socialNewsResults"
+        onclick="selectSocialCategory(this)">${esc(title)}</button>`).join('')}
     </div>
     <div id="socialNewsResults">${sections || `<p class="ai-news-empty">${socialCategory ? '最近三天该分类暂无要闻。' : '最近三天暂无要闻。'}</p>`}</div>
   </section>`;

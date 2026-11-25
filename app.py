@@ -59,6 +59,7 @@ DATA = os.environ.get("WORKTAB_DATA_DIR", os.path.join(BASE, "data"))
 FILES = os.path.join(DATA, "files")
 STATIC = os.path.join(BASE, "static")
 SOCIAL_NEWS_CACHE = os.path.join(DATA, social_news.CACHE_NAME)
+SOCIAL_NEWS_DOC = "social_news"
 
 app = Flask(__name__, static_folder=STATIC, template_folder=os.path.join(BASE, "templates"))
 auth.init_auth(app, BASE)
@@ -418,15 +419,36 @@ def _start_news_scheduler():
     print("[news_scheduler] 已启动：AI 资讯 + GitHub Trending 定时抓取", flush=True)
 
 
+def _social_news_snapshot():
+    cache = read_json(SOCIAL_NEWS_DOC, {})
+    if not cache:
+        cache = social_news.read_cache(SOCIAL_NEWS_CACHE)
+    return social_news.snapshot(cache)
+
+
+def _refresh_social_news():
+    stored = db.db_read_json(SOCIAL_NEWS_DOC, {})
+    previous = stored or social_news.read_cache(SOCIAL_NEWS_CACHE)
+    refreshed = social_news.collect(previous)
+    if refreshed and refreshed is not stored:
+        def keep_latest(current):
+            if current.get("updated_at", "") > refreshed.get("updated_at", ""):
+                return None
+            return refreshed
+
+        db.update_json_doc(SOCIAL_NEWS_DOC, keep_latest)
+        _invalidate_json_cache(SOCIAL_NEWS_DOC)
+
+
 @app.route("/api/social-news", methods=["GET"])
 def get_social_news():
-    return jsonify(social_news.snapshot(social_news.read_cache(SOCIAL_NEWS_CACHE)))
+    return jsonify(_social_news_snapshot())
 
 
 def _social_news_scheduler_loop():
     while True:
         try:
-            social_news.refresh(SOCIAL_NEWS_CACHE)
+            _refresh_social_news()
         except Exception:
             app.logger.exception("社会新闻同步失败")
         time.sleep(social_news.REFRESH_SECONDS)
@@ -2737,7 +2759,7 @@ def _followup_news_ids(module):
         return {_content_key({key: snapshot.get(key) for key in
                              ("data_date", "kpi", "trends", "distributions", "overall")})} if snapshot.get("data_date") else set()
     daily = _item_ids(read_json("news", {}).get("items", []))
-    social = social_news.snapshot(social_news.read_cache(SOCIAL_NEWS_CACHE))
+    social = _social_news_snapshot()
     weekly = read_json("aihot_weekly", {}).get("report")
     return ({f"ai:{key}" for key in daily} |
             {f"social:{key}" for key in _item_ids(social["items"])} |
