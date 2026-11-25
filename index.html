@@ -575,20 +575,20 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     width: 100%;
   }
 }
-</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=17"><link rel="stylesheet" href="/static/workbench-views.css?v=21"><link rel="stylesheet" href="/static/ai-news.css?v=22"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
+</style><link rel="stylesheet" href="/static/bookmarks.css?v=7"><link rel="stylesheet" href="/static/work-followup.css?v=30"><link rel="stylesheet" href="/static/workbench-views.css?v=21"><link rel="stylesheet" href="/static/ai-news.css?v=22"></head><body><div class="app"><header class="top"><div class="brand-mini" title="工作台"><div class="mark"><img src="/static/apple-touch-icon.png?v=2" alt=""></div></div><nav class="pillnav" aria-label="主导航"><button type="button" class="pill" data-view="bookmarks" onclick="showView('bookmarks',this)">书签导航</button><button type="button" class="pill" data-view="home" onclick="showView('home',this)">工作台</button><button type="button" class="pill" data-view="news" onclick="showView('news',this)">资讯</button><button type="button" class="pill" data-view="radar" onclick="showView('radar',this)">鹰眼</button><button type="button" class="pill" data-view="media" onclick="showView('media',this)">书影音</button><button type="button" class="pill" data-view="creators" onclick="showView('creators',this)">视频</button><button type="button" class="pill" data-view="notes" onclick="showView('notes',this)">笔记</button><button type="button" class="pill" data-view="knowledge" onclick="showView('knowledge',this)">知识库</button></nav><div class="top-right"><span id="topDate">周三，8 月 5 日</span> <span class="avatar">C</span></div></header><main><div class="page">
 <section id="home" class="view">
 <section class="followup" aria-labelledby="followupTitle">
 <div class="workspace-pinned">
 <header class="followup-heading"><h2 id="followupTitle">工作跟进</h2></header>
 <div class="followup-tabs" role="tablist" aria-label="工作跟进栏目" onkeydown="handleFollowupTabKey(event)">
-<button type="button" role="tab" id="followupTodoTab" aria-selected="true" aria-controls="miniTodoPanel" onclick="selectFollowupTab(this)">待办</button>
-<button type="button" role="tab" id="followupBriefTab" aria-selected="false" aria-controls="followupBrief" tabindex="-1" onclick="selectFollowupTab(this)">工作总结</button>
-<button type="button" role="tab" id="followupKmTab" aria-selected="false" aria-controls="miniKmPanel" tabindex="-1" onclick="selectFollowupTab(this)">KM 好文</button>
+<button type="button" role="tab" id="followupKmTab" aria-selected="true" aria-controls="miniKmPanel" onclick="selectFollowupTab(this)">KM 好文</button>
 <button type="button" role="tab" id="followupLivesTab" aria-selected="false" aria-controls="miniLivesPanel" tabindex="-1" onclick="selectFollowupTab(this)">学堂直播</button>
 <button type="button" role="tab" id="followupOpsTab" aria-selected="false" aria-controls="imateOpsSection" tabindex="-1" onclick="selectFollowupTab(this)">运营数据</button>
+<button type="button" role="tab" id="followupBriefTab" aria-selected="false" aria-controls="followupBrief" tabindex="-1" onclick="selectFollowupTab(this)">工作总结</button>
+<button type="button" role="tab" id="followupTodoTab" aria-selected="false" aria-controls="miniTodoPanel" tabindex="-1" onclick="selectFollowupTab(this)">待办</button>
 </div>
 </div>
-<div class="mini-panel" id="miniTodoPanel" role="tabpanel" aria-labelledby="followupTodoTab">
+<div class="mini-panel" id="miniTodoPanel" role="tabpanel" aria-labelledby="followupTodoTab" hidden>
 <div class="followup-section-head">
 <div class="followup-title"><h3>待推进</h3><span class="followup-meta" id="miniTodoCount"></span></div>
 <button type="button" class="btn primary followup-add" onclick="expandTodoCompose()">＋ 添加待办</button>
@@ -601,18 +601,13 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 <div class="mini-panel" id="miniBriefPanel">
 <div class="followup-section-head">
 <h3>最新工作总结</h3>
-</div>
 <p class="followup-meta" id="briefUpdated"></p>
+</div>
 <div id="briefBody"></div>
 </div>
-<details class="followup-review">
-<summary><span>AI 建议预览 <span id="followupReviewCount"></span></span></summary>
-<div id="followupSuggestions"></div>
-<p class="followup-meta followup-feedback" id="followupFeedback" role="status"></p>
-</details>
 </div>
 <div class="followup-resources">
-<div class="mini-panel" id="miniKmPanel" role="tabpanel" aria-labelledby="followupKmTab" hidden>
+<div class="mini-panel" id="miniKmPanel" role="tabpanel" aria-labelledby="followupKmTab">
 <div class="mini-panel-head"><div class="mp-titles"><h3>KM 好文</h3><span class="sub" id="kmHotUpdated"></span></div><div class="followup-resource-actions"><a class="mp-go" href="https://km.woa.com/" target="_blank" rel="noopener" title="前往 KM 官网">官网<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
 <p class="followup-meta followup-feedback" id="kmHotFeedback" role="status"></p>
 <div class="mini-panel-body" id="kmHotList"></div>
@@ -972,15 +967,10 @@ function resourceLink(url,title){
   return label;
 }
 
-function resourceRecommendationLabel(recommendation){
-  if(!recommendation)return '';
-  const {score,priority,reason}=recommendation;
-  const parts=[
-    priority===true?'<strong class="resource-priority">重点关注</strong>':'',
-    Number.isFinite(score)&&score>=0&&score<=100?'推荐 '+score+' 分':'',
-    typeof reason==='string'?esc(reason):''
-  ].filter(Boolean);
-  return parts.length?'<div class="row-meta">'+parts.join(' · ')+'</div>':'';
+function kmScoreBand(score){
+  if(score>=80)return 'high';
+  if(score>=60)return 'mid';
+  return 'low';
 }
 
 const resourceDateFormat=new Intl.DateTimeFormat('zh-CN',{
@@ -1073,15 +1063,26 @@ function renderKmHot(){
     const metrics=[['阅读',article.read_count],['热度',article.hot]]
       .filter(([,value])=>Number(value)>0)
       .map(([label,value])=>`<span class="km-metric">${label} <strong>${Number(value).toLocaleString('zh-CN')}</strong></span>`);
-    return `<div class="km-item">
-      <span class="km-rank" aria-hidden="true">${index+1}</span>
-      <div class="row-main"><div class="row-title">${resourceLink(article.url,article.title)}</div>
-      <div class="row-meta km-meta">${article.author?`<span>${esc(article.author)}</span>`:''}
-        ${article.headline?'<span class="km-headline">头条</span>':''}${metrics.join('')}
-      </div>${resourceRecommendationLabel(article.recommendation)}</div>
-      <button type="button" class="followup-link resource-delete" data-date="${esc(date)}" data-id="${esc(article.id)}"
-        aria-label="删除 ${esc(article.title)}" onclick="deleteKmArticle(this)">删除</button>
-    </div>`;
+    const recommendation=article.recommendation||{};
+    const score=Number(recommendation.score);
+    const hasScore=Number.isFinite(score)&&score>=0&&score<=100;
+    const scoreText=hasScore?(Number.isInteger(score)?String(score):String(Math.round(score*10)/10)):'';
+    const reason=typeof recommendation.reason==='string'?recommendation.reason.trim():'';
+    return `<article class="km-entry">
+      <div class="km-entry-main">
+        <div class="km-entry-title"><span class="km-rank${index<3?' r'+(index+1):''}" aria-hidden="true">${index+1}</span>${resourceLink(article.url,article.title)}</div>
+        ${reason?`<p class="km-reason">${esc(reason)}</p>`:''}
+        <div class="km-meta">${article.author?`<span>${esc(article.author)}</span>`:''}
+          ${article.headline?'<span class="km-headline">头条</span>':''}${metrics.join('')}
+        </div>
+      </div>
+      <div class="km-aside">
+        ${hasScore?`<div class="km-score" data-band="${kmScoreBand(score)}"><strong>${scoreText}</strong><span>推荐分</span></div>`:''}
+        ${recommendation.priority===true?'<span class="km-priority">重点关注</span>':''}
+        <button type="button" class="followup-link resource-delete" data-date="${esc(date)}" data-id="${esc(article.id)}"
+          aria-label="删除 ${esc(article.title)}" onclick="deleteKmArticle(this)">删除</button>
+      </div>
+    </article>`;
   },'暂无 KM 好文数据。','篇');
 }
 
@@ -1123,13 +1124,64 @@ function renderBriefMarkdown(md){
 function mdToHtml(md){
   if(!md||!md.trim())return '';
   let lines=md.replace(/\r\n/g,'\n').split('\n');
-  let out=[],listBuf=[],inList=false;
-  function flushList(){if(inList){out.push('<ul class="brief-ul">'+listBuf.join('')+'</ul>');listBuf=[];inList=false}}
+  let out=[],listBuf=[],listKind='',baseIndent=0,inActionSection=false;
+  const plainText=html=>html.replace(/<[^>]+>/g,'').trim();
+  const stripEnd=html=>html.trim().replace(/[。；;，,\s]+$/,'');
+  const joinClauses=items=>items.map(stripEnd).filter(Boolean).join('；');
+  function flushList(){
+    if(!listKind)return;
+    const items=listBuf,kind=listKind;
+    listBuf=[];listKind='';baseIndent=0;
+    if(kind==='ul'&&!inActionSection){
+      const folded=items.map(({html,subs})=>{
+        if(!subs.length)return html;
+        const sub=joinClauses(subs);
+        return /[：:]\s*$/.test(plainText(html))?html.trim()+sub:stripEnd(html)+'。'+sub;
+      });
+      const structured=items.length>1&&items.filter(({html})=>/^<(?:strong|a)\b/.test(html.trim())).length>=Math.ceil(items.length/2);
+      if(!structured){
+        let acc='';
+        const emit=()=>{
+          if(!acc)return;
+          if(!/[。！？!?）)”」』]$/.test(plainText(acc)))acc+='。';
+          out.push('<p class="brief-p brief-prose">'+acc+'</p>');
+          acc='';
+        };
+        for(const seg of folded){
+          const clean=stripEnd(seg);
+          if(!clean)continue;
+          if(!acc){acc=clean;continue}
+          if(plainText(acc).length+plainText(clean).length>240){emit();acc=clean;continue}
+          const lastSeg=plainText(acc).split(/[。；]/).pop()||'';
+          const curPlain=plainText(clean);
+          acc+=(lastSeg.length>28&&curPlain.length>22?'。':'；')+clean;
+        }
+        emit();
+        return;
+      }
+    }
+    const lis=items.map(({html,subs,num})=>{
+      const attr=num?` data-num="${num}"`:'';
+      return subs.length
+        ?`<li${attr}><div class="brief-li-main">${html}</div><div class="brief-subnote">${joinClauses(subs)}</div></li>`
+        :`<li${attr}>${html}</li>`;
+    }).join('');
+    out.push(`<${kind} class="brief-${kind}">${lis}</${kind}>`);
+  }
   function inline(s){
+    const links=[];
+    const stashLink=(label,url)=>{
+      const index=links.length;
+      links.push('<a class="brief-inline-link" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(label)+'</a>');
+      return '\u0000LINK'+index+'\u0000';
+    };
+    s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,(match,label,url)=>stashLink(label,url));
+    s=s.replace(/(^|[\s(（])(https?:\/\/[^\s<>)）]+)/g,(match,prefix,url)=>prefix+stashLink(url,url));
     s=esc(s.replace(/\[([^\]]+)\]\(@(?:person|group)\)/g,'$1'));
     s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
     s=s.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g,'<em>$1</em>');
     s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+    s=s.replace(/\u0000LINK(\d+)\u0000/g,(match,index)=>links[+index]||'');
     return s;
   }
   function isTableRow(s){return /^\|.*\|$/.test(s)||(/\|/.test(s)&&!/^[-*]\s/.test(s))}
@@ -1140,8 +1192,25 @@ function mdToHtml(md){
     let raw=lines[i],line=raw.trim();
     if(!line){flushList();i++;continue}
     if(/^([-*_])\1{2,}$/.test(line)){flushList();out.push('<hr class="brief-hr">');i++;continue}
+    if(line.startsWith('>')){
+      flushList();
+      let q=[];
+      while(i<lines.length&&lines[i].trim().startsWith('>')){q.push(inline(lines[i].trim().replace(/^>\s?/,'')));i++}
+      out.push('<blockquote class="brief-quote">'+q.filter(Boolean).join(' ')+'</blockquote>');
+      continue;
+    }
     let h=line.match(/^(#{1,4})\s+(.*)$/);
-    if(h){flushList();let lvl=h[1].length;out.push(`<h${lvl+2} class="brief-h brief-h${lvl}">${inline(h[2])}</h${lvl+2}>`);i++;continue}
+    if(h){
+      flushList();
+      let lvl=h[1].length;
+      if(lvl<=2){
+        const label=h[2].trim().replace(/^(?:[一二三四五六七八九十\d]+[、.．]\s*)/,'');
+        inActionSection=/待办|后续跟进|行动事项/.test(label)&&!/不确定|取不到/.test(label);
+      }
+      out.push(`<h${lvl+2} class="brief-h brief-h${lvl}">${inline(h[2])}</h${lvl+2}>`);
+      i++;
+      continue;
+    }
     if(isTableRow(line)&&i+1<lines.length&&isTableSep(lines[i+1].trim())){
       flushList();
       let head=splitRow(line);
@@ -1151,8 +1220,23 @@ function mdToHtml(md){
       out.push('<div class="brief-table-wrap"><table class="brief-table"><thead><tr>'+head.map(c=>'<th>'+inline(c)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+inline(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>');
       continue;
     }
-    let li=line.match(/^[-*]\s+(.*)$/);
-    if(li){inList=true;listBuf.push('<li>'+inline(li[1])+'</li>');i++;continue}
+    let boldOl=line.match(/^\*\*(\d+)[.)．]\*\*\s+(.*)$/);
+    let lm=boldOl?['', '', null, boldOl[1]+'.', boldOl[2]]:raw.match(/^(\s*)(?:([-*])|(\d+[.)．]))\s+(.*)$/);
+    if(lm){
+      let indent=lm[1].replace(/\t/g,'  ').length;
+      let kind=lm[2]?'ul':'ol';
+      let num=lm[3]?parseInt(lm[3],10):0;
+      let body=inline(lm[4].trim());
+      if(listKind&&indent>=baseIndent+2&&listBuf.length){
+        listBuf[listBuf.length-1].subs.push(body);
+      }else{
+        if(listKind&&listKind!==kind)flushList();
+        if(!listKind){listKind=kind;baseIndent=indent}
+        listBuf.push({html:body,subs:[],num});
+      }
+      i++;
+      continue;
+    }
     flushList();
     out.push('<p class="brief-p">'+inline(line)+'</p>');
     i++;
@@ -1181,6 +1265,7 @@ function renderBrief(){
     </div>
   </div>`;
   const note=reader.querySelector('.brief-note');
+  shapeBriefArticle(note);
   const {heading, candidates}=findBriefTasks(note);
   const taskLink=buildBriefNavigation(note,heading,candidates);
   if(candidates.length)addBriefTaskControls(candidates,brief.date||'',taskLink);
@@ -1191,19 +1276,141 @@ function briefHeadingLabel(heading){
   return heading.textContent.trim().replace(/^(?:[一二三四五六七八九十\d]+[、.．]\s*)/,'');
 }
 
+const BRIEF_STATUS={'已发布':'done','待测试':'test','待讨论':'talk','未开始':'todo','待发布':'ship','开发中':'doing','建设中':'doing','挂起':'hold'};
+function shapeBriefArticle(note){
+  // 1) 关键待办章节中，若标题写成 **1. xxx** + <ul>，归并为单条待办项（主标题 + 补充说明）
+  for(const h of note.querySelectorAll('.brief-h')){
+    if(!isBriefActionHeading(h))continue;
+    let cursor=h.nextElementSibling;
+    const grouped=[];
+    while(cursor&&!cursor.matches('.brief-h,.brief-hr')){
+      const next=cursor.nextElementSibling;
+      const first=cursor.matches('.brief-p')?cursor.firstElementChild:null;
+      const numbered=first?.matches('strong')&&cursor.firstChild===first&&/^\d+[.、．]\s*/.test(first.textContent.trim());
+      if(numbered&&next?.matches('.brief-ul')){
+        const afterUl=next.nextElementSibling;
+        first.textContent=first.textContent.trim().replace(/^\d+[.、．]\s*/,'');
+        const subText=[...next.querySelectorAll(':scope > li')].map(li=>li.innerHTML.trim().replace(/[。；;，,\s]+$/,'')).filter(Boolean).join('；');
+        const li=document.createElement('li');
+        li.innerHTML=`<div class="brief-li-main">${cursor.innerHTML}</div>${subText?`<div class="brief-subnote">${subText}</div>`:''}`;
+        grouped.push({anchor:cursor,nodes:[cursor,next],li});
+        cursor=afterUl;
+        continue;
+      }
+      cursor=next;
+    }
+    if(grouped.length){
+      const ol=document.createElement('ol');
+      ol.className='brief-ol';
+      grouped[0].anchor.before(ol);
+      for(const {nodes,li} of grouped){
+        ol.append(li);
+        for(const n of nodes)n.remove();
+      }
+    }
+  }
+  // 2) 有序列表若被中间说明段打断（如 3. 后接说明段再接 4.），或首条写成 **1. xxx** + 说明段 + 2.，自动缝合为连续列表
+  for(const prose of [...note.querySelectorAll('.brief-prose')]){
+    const prev=prose.previousElementSibling,next=prose.nextElementSibling;
+    if(prev?.matches('.brief-ol')&&prev.lastElementChild){
+      const sub=document.createElement('div');
+      sub.className='brief-subnote';
+      sub.innerHTML=prose.innerHTML;
+      prev.lastElementChild.append(sub);
+      prose.remove();
+      if(next?.matches('.brief-ol')){
+        prev.append(...next.children);
+        next.remove();
+      }
+      continue;
+    }
+    const pFirst=prev?.matches('.brief-p')?prev.firstElementChild:null;
+    const m=pFirst?.matches('strong')&&prev.firstChild===pFirst&&pFirst.textContent.trim().match(/^(\d+)[.、．]\s*(.+)$/);
+    if(m&&next?.matches('.brief-ol')){
+      pFirst.textContent=m[2];
+      const li=document.createElement('li');
+      li.dataset.num=m[1];
+      li.innerHTML=`<div class="brief-li-main">${prev.innerHTML}</div><div class="brief-subnote">${prose.innerHTML}</div>`;
+      next.prepend(li);
+      prev.remove();
+      prose.remove();
+    }
+  }
+  // 3) 群聊总结里被加粗成独立行的引子句（如 **他发布...：** 或过长叙述句）并入紧随其后的段落
+  for(const p of [...note.querySelectorAll('.brief-p:not(.brief-prose)')]){
+    const first=p.firstElementChild;
+    if(!first||!first.matches('strong')||p.children.length!==1)continue;
+    const lead=first.textContent.trim();
+    if(p.textContent.trim()!==lead)continue;
+    if(/^(?:▌|\d+[.、．]|[一二三四五六七八九十]+[、.．])/.test(lead))continue;
+    const next=p.nextElementSibling;
+    if(!next?.matches('.brief-prose'))continue;
+    if(/[：:]$/.test(lead)){
+      next.innerHTML=`<strong>${esc(lead)}</strong>`+next.innerHTML;
+      p.remove();
+    }else if(lead.length>24){
+      next.innerHTML=esc(lead.replace(/[。；;]+$/,''))+'。'+next.innerHTML;
+      p.remove();
+    }
+  }
+  for(const p of note.querySelectorAll('.brief-p:not(.brief-prose)')){
+    const first=p.firstElementChild;
+    if(!first||!first.matches('strong')||p.firstChild!==first)continue;
+    const lead=first.textContent.trim();
+    if(!lead)continue;
+    const nextText=first.nextSibling?.nodeType===3?first.nextSibling.textContent:'';
+    const onlyStrong=p.children.length===1&&p.textContent.trim()===lead;
+    const isModule=/^▌/.test(lead);
+    const isNumbered=/^(?:\d+[.、．]|[一二三四五六七八九十]+[、.．])/.test(lead)&&!/^\s*[：:]/.test(nextText);
+    if(onlyStrong||isModule||isNumbered){
+      p.classList.add('brief-topic-head');
+      if(isModule){
+        first.textContent=lead.replace(/^▌\s*/,'');
+        p.classList.add('is-module');
+      }
+      if(!onlyStrong&&first.nextSibling){
+        const noteSpan=document.createElement('span');
+        noteSpan.className='brief-topic-note';
+        while(first.nextSibling)noteSpan.append(first.nextSibling);
+        if(noteSpan.firstChild?.nodeType===3){
+          noteSpan.firstChild.textContent=noteSpan.firstChild.textContent.replace(/^\s*[—–-]+\s*/,'');
+        }
+        if(noteSpan.textContent.trim())p.append(noteSpan);
+      }
+    }else if(/^\s*[：:]/.test(nextText)){
+      p.classList.add('brief-meta-line');
+    }
+  }
+  for(const strong of note.querySelectorAll('strong')){
+    const kind=BRIEF_STATUS[strong.textContent.trim()];
+    if(!kind)continue;
+    strong.classList.add('brief-status','is-'+kind);
+    const prev=strong.previousSibling;
+    if(prev?.nodeType===3)prev.textContent=prev.textContent.replace(/\s*[—–-]{1,3}\s*$/,' ');
+  }
+}
+function isBriefActionHeading(node){
+  const label=briefHeadingLabel(node);
+  return /待办|后续跟进|行动事项/.test(label)&&!/不确定|取不到/.test(label);
+}
 function findBriefTasks(note){
   let heading=null;
   const candidates=[];
-  for(const node of note.querySelectorAll('.brief-h,.brief-ul > li')){
+  for(const node of note.querySelectorAll('.brief-h,:is(.brief-ul,.brief-ol) > li')){
     if(node.matches('.brief-h')){
       if(heading&&Number(node.tagName.slice(1))<=Number(heading.tagName.slice(1)))break;
-      if(!heading&&/^(待办|后续跟进|行动事项)/.test(briefHeadingLabel(node)))heading=node;
+      if(!heading&&isBriefActionHeading(node))heading=node;
       continue;
     }
     if(!heading)continue;
+    const mainNode=node.querySelector('.brief-li-main');
+    const subNode=node.querySelector('.brief-subnote');
+    const title=(mainNode||node).textContent.trim().replace(/[：:]\s*$/,'');
+    if(!title)continue;
+    if(mainNode)mainNode.classList.add('brief-point-title');
+    const body=subNode?subNode.textContent.trim():'';
     const text=node.textContent.trim();
-    const title=node.querySelector('strong')?.textContent.trim().replace(/[：:]$/,'')||text;
-    if(text)candidates.push({node,text,title});
+    candidates.push({node,text,title,body});
   }
   return {heading,candidates};
 }
@@ -1235,6 +1442,18 @@ function buildBriefNavigation(note,taskHeading,candidates){
     taskHeading.tabIndex=-1;
   }
   const overview=sections[0];
+  for(const heading of sections){
+    if(!/取不到|不确定/.test(briefHeadingLabel(heading)))continue;
+    const block=document.createElement('section');
+    block.className='brief-appendix';
+    heading.before(block);
+    for(let node=heading;node;){
+      const next=node.nextElementSibling;
+      block.append(node);
+      node=next;
+    }
+    break;
+  }
   if(overview&&/^(今日|工作)?(?:工作)?概览/.test(briefHeadingLabel(overview))){
     const block=document.createElement('section');
     block.className='brief-overview';
@@ -1270,73 +1489,86 @@ function buildBriefNavigation(note,taskHeading,candidates){
 }
 
 function addBriefTaskControls(candidates,date,taskLink){
+  const list=candidates[0].node.parentElement;
+  list.classList.add('brief-task-list');
   const actions=document.createElement('div');
   actions.className='brief-task-actions';
-  actions.innerHTML='<button type="button" class="btn primary" disabled>生成所选待办</button><span role="status">勾选需要跟进的事项</span>';
-  candidates.at(-1).node.closest('ul').after(actions);
+  actions.innerHTML='<button type="button" class="btn primary" disabled>将所选加入待办</button><span role="status">勾选后可以一次加入，也可以逐条加入。</span>';
+  list.after(actions);
   const button=actions.querySelector('button');
   const status=actions.querySelector('[role="status"]');
-  const exists=(task,candidate)=>task.brief_date===date&&task.brief_item===candidate.text;
+  const exists=(task,candidate)=>task.brief_date===date&&(task.brief_item===candidate.text||task.brief_item===candidate.title);
+  const markDone=candidate=>{
+    candidate.checkbox.checked=false;
+    candidate.checkbox.disabled=true;
+    candidate.addButton.disabled=true;
+    candidate.addButton.textContent='已加入';
+    candidate.node.classList.add('is-added');
+  };
   for(const candidate of candidates){
     const label=document.createElement('label');
     label.className='brief-task-option';
     label.innerHTML='<input type="checkbox"><span></span>';
     const checkbox=label.querySelector('input');
+    const addButton=document.createElement('button');
+    addButton.type='button';
+    addButton.className='btn brief-task-add';
+    addButton.textContent='加入待办';
     candidate.node.classList.add('brief-task-item');
     label.lastElementChild.append(...candidate.node.childNodes);
-    candidate.node.append(label);
+    candidate.node.append(label,addButton);
     candidate.checkbox=checkbox;
-    checkbox.disabled=data.tasks.some(task=>exists(task,candidate));
-    if(checkbox.disabled)label.lastElementChild.append('（已生成）');
+    candidate.addButton=addButton;
+    if(data.tasks.some(task=>exists(task,candidate)))markDone(candidate);
+    addButton.addEventListener('click',()=>submitBriefTasks([candidate]));
   }
+  const openCount=()=>candidates.filter(({checkbox})=>!checkbox.disabled).length;
   const updateTaskLink=()=>{
-    const count=candidates.filter(({checkbox})=>!checkbox.disabled).length;
-    taskLink.textContent=count?`查看 ${count} 项待生成的待办 ↓`:'查看后续跟进 ↓';
+    if(!taskLink)return;
+    const count=openCount();
+    taskLink.textContent=count?`文末 ${count} 项待办，去处理 ↓`:'查看后续跟进 ↓';
   };
-  updateTaskLink();
   const selected=()=>candidates.filter(({checkbox})=>checkbox.checked&&!checkbox.disabled);
   const updateButton=()=>{
     const count=selected().length;
     button.disabled=!count;
-    button.textContent=count?`生成 ${count} 项待办`:'生成所选待办';
+    button.textContent=count?`将 ${count} 项加入待办`:'将所选加入待办';
   };
-  for(const {checkbox} of candidates)checkbox.addEventListener('change',updateButton);
-  button.addEventListener('click',async()=>{
-    const pending=selected();
-    if(!pending.length)return;
+  async function submitBriefTasks(pending){
+    const queue=pending.filter(candidate=>!candidate.checkbox.disabled);
+    if(!queue.length)return;
     button.disabled=true;
-    const enabled=candidates.filter(({checkbox})=>!checkbox.disabled);
-    for(const {checkbox} of enabled)checkbox.disabled=true;
-    status.textContent='正在生成…';
+    for(const candidate of queue)candidate.addButton.disabled=true;
+    status.textContent='正在加入待办…';
     let created=0,skipped=0;
-    const finished=new Set();
     try{
       const {items}=await api('/api/tasks');
       data.tasks=items;
-      for(const candidate of pending){
-        if(data.tasks.some(task=>exists(task,candidate)))skipped++;
-        else{
-          const task=await api('/api/tasks','POST',{
-            title:candidate.title,content:esc(candidate.text),priority:'中',date:'',
-            brief_date:date,brief_item:candidate.text
-          });
-          data.tasks.unshift(task);
-          created++;
-        }
-        finished.add(candidate);
-        candidate.checkbox.checked=false;
-        candidate.checkbox.nextElementSibling.append('（已生成）');
+      for(const candidate of queue){
+        if(data.tasks.some(task=>exists(task,candidate))){skipped++;markDone(candidate);continue}
+        const task=await api('/api/tasks','POST',{
+          title:candidate.title,content:candidate.body||candidate.text,priority:'中',date:'',
+          brief_date:date,brief_item:candidate.text
+        });
+        data.tasks.unshift(task);
+        created++;
+        markDone(candidate);
       }
-      status.textContent=`已生成 ${created} 项待办${skipped?`，已有 ${skipped} 项`:''}。`;
+      status.textContent=created?`已加入 ${created} 项待办${skipped?`，${skipped} 项本来就有`:''}。`:`${skipped} 项已在待办中。`;
+      renderTodoPanel();
     }catch(error){
-      status.textContent=`已生成 ${created} 项，剩余事项可重试。`;
+      status.textContent=created?`已加入 ${created} 项，其余可以重试。`:'加入失败，请重试。';
+      for(const candidate of queue)if(!candidate.node.classList.contains('is-added'))candidate.addButton.disabled=false;
     }finally{
-      for(const candidate of enabled)candidate.checkbox.disabled=finished.has(candidate);
       updateTaskLink();
       updateButton();
-      renderTodoPanel();
     }
-  });
+  }
+  for(const {checkbox} of candidates)checkbox.addEventListener('change',updateButton);
+  button.addEventListener('click',()=>submitBriefTasks(selected()));
+  if(!openCount())status.textContent='这些事项都已在待办里。';
+  updateTaskLink();
+  updateButton();
 }
 function renderHomeGreeting(){let n=new Date(),h=n.getHours();let greet=h<6?'夜深了':h<12?'早上好':h<14?'中午好':h<18?'下午好':h<22?'晚上好':'夜深了';let hh=String(n.getHours()).padStart(2,'0'),mm=String(n.getMinutes()).padStart(2,'0');let g=$('homeGreeting');if(g)g.textContent=`${greet}，${n.getFullYear()}年${n.getMonth()+1}月${n.getDate()}日 · ${WEEKDAYS[n.getDay()]} ${hh}:${mm}`}
 let aiPulseMode = 'daily';
@@ -1812,10 +2044,6 @@ async function refreshPulseNews() {
   await renderAiPulse();
 }
 function todoRowHtml(x,status){let thumbMatch=x.content&&x.content.match(/<img[^>]*src="([^"]+)"/);let thumb=x.image?`/api/knowledge/files/${encodeURIComponent(x.image)}`:(thumbMatch?thumbMatch[1]:'');let textPreview=x.content?x.content.replace(/<img[^>]*>/g,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim():'';let meta=[status?`<span class="followup-due ${status==='已逾期'?'overdue':''}">${status}</span>`:'',x.priority?`<span class="tag">${esc(x.priority)}</span>`:'',x.date?shortDate(x.date):''].filter(Boolean).join(' · ');let editId=encodeURIComponent(String(x.id)).replace(/'/g,'%27');return `<div class="task ${x.done?'done':''}"><span class="tick ${x.done?'done':''}" onclick="toggleTask('${x.id}')">${x.done?'✓':''}</span>${thumb?`<img class="task-thumb" src="${esc(thumb)}" alt="" onerror="this.remove()">`:''}<div class="task-name">${esc(x.title)}${textPreview?`<div class="task-note">${esc(textPreview.slice(0,60))}</div>`:''}${meta?`<div class="task-note">${meta}</div>`:''}</div><button type="button" class="task-edit" onclick="editTask(decodeURIComponent('${editId}'))" title="编辑待办" aria-label="编辑待办"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5M4 20l4-1L21 6a2.1 2.1 0 0 0-3-3L5 16l-1 4Z"/></svg></button><span class="task-del" onclick="removeTask('${x.id}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span></div>`}
-const followupSuggestions=[
-  {id:'release',title:'跟进灰度发布时间',source:'发布方案已评审，灰度时间等研发确认。'},
-  {id:'feedback',title:'整理试用反馈中的高频问题',source:'已收到第一批试用反馈，下次评审前需要汇总。'}
-];
 let followupTasksExpanded=false;
 
 function followupTaskStatus(task,today){
@@ -1835,11 +2063,9 @@ function renderTodoPanel(){
   const tasks=[...data.tasks].sort((a,b)=>rank(a)-rank(b));
   const pending=tasks.filter(task=>!task.done);
   const visible=followupTasksExpanded?tasks:pending;
-  const examples=followupSuggestions.filter(item=>item.state==='accepted');
   $('miniTodoCount').textContent=pending.length+' 项未完成';
-  $('todoList').innerHTML=(visible.length||examples.length)
+  $('todoList').innerHTML=visible.length
     ? visible.map(task=>todoRowHtml(task,followupTaskStatus(task,today))).join('')
-      +examples.map(item=>'<div class="task followup-example-task"><div class="task-name">'+esc(item.title)+'</div><span class="followup-demo-label">预览</span></div>').join('')
     : '<p class="followup-empty">'+(tasks.length?'所有待办已完成。':'暂无待推进事项。')+'</p>';
   const toggle=$('followupTaskToggle');
   toggle.hidden=tasks.length===pending.length;
@@ -1881,50 +2107,6 @@ function handleFollowupTabKey(event){
   next.focus();
 }
 
-function renderFollowupSuggestions(){
-  const pending=followupSuggestions.filter(item=>!item.state);
-  $('followupReviewCount').textContent=pending.length?pending.length+' 条待确认':'';
-  $('followupSuggestions').innerHTML=pending.length?pending.map(item=>`
-    <article class="followup-suggestion">
-      <div class="followup-suggestion-copy">
-        <strong>${esc(item.title)}</strong>
-        <p class="followup-meta">示例总结 · ${esc(item.source)}</p>
-      </div>
-      <div class="followup-suggestion-actions">
-        <button type="button" class="followup-link" onclick="reviewFollowup('${item.id}','ignored')">忽略</button>
-        <button type="button" class="followup-link" onclick="editFollowupSuggestion('${item.id}')">修改</button>
-        <button type="button" class="followup-confirm" onclick="reviewFollowup('${item.id}','accepted')">确认</button>
-      </div>
-    </article>`).join(''):'<p class="followup-meta">示例建议已处理完毕。</p>';
-}
-
-function reviewFollowup(id,state,title){
-  const item=followupSuggestions.find(suggestion=>suggestion.id===id&&!suggestion.state);
-  if(!item)return;
-  if(title)item.title=title;
-  item.state=state;
-  renderFollowupSuggestions();
-  renderTodoPanel();
-  $('followupFeedback').textContent=state==='accepted'?'已加入本页待办预览。':'已忽略这条示例建议。';
-  const next=$('followupSuggestions').querySelector('button.followup-confirm');
-  if(next)next.focus();
-}
-
-function editFollowupSuggestion(id){
-  const item=followupSuggestions.find(suggestion=>suggestion.id===id&&!suggestion.state);
-  if(!item)return;
-  modal(`<h3>修改建议</h3><form id="followupEditForm"><div class="field"><label for="followupEditTitle">待办标题</label><input id="followupEditTitle" value="${esc(item.title)}" required></div><div class="modal-actions"><button type="button" class="btn" onclick="closeModal()">取消</button><button type="submit" class="btn primary">确认预览</button></div></form>`);
-  $('followupEditTitle').focus();
-  $('followupEditForm').onsubmit=event=>{
-    event.preventDefault();
-    const title=$('followupEditTitle').value.trim();
-    if(!title)return;
-    closeModal();
-    reviewFollowup(id,'accepted',title);
-  };
-}
-
-renderFollowupSuggestions();
 async function toggleTask(id){let x=data.tasks.find(x=>x.id===id);await api('/api/tasks/'+id,'PUT',{done:!x.done});await load('home')}
 async function removeTask(id){await api('/api/tasks/'+id,'DELETE');await load('home')}
 function editTask(id){
