@@ -26,10 +26,27 @@ CLOUD_READ_ONLY = {
     "news": None,
     "ai_pulse": None,
     "aihot_weekly": "ai_pulse/weekly",
-    "douban_hot": "media/douban-hot",
-    "imate_ops": None,
-    "product_insights": None,  # 已下线，云端如无数据会返回空
+    "product_insights": None,  # 已下線，云端如无数据会返回空
 }
+
+# 豆瓣热榜：云端按分类提供 /api/media/douban-hot?type=xxx，需逐类拉取后拼成整份。
+DOUBAN_TYPES = ("movie", "tv", "show", "music", "book")
+
+
+def cloud_read_douban():
+    """从云端按分类拉取豆瓣热榜，拼成 With 本地期望的 {date, items:{...}} 结构。"""
+    if not enabled():
+        return None
+    result = {"date": "", "items": {}, "updated_at": None}
+    for subtype in DOUBAN_TYPES:
+        try:
+            data = _request("/api/media/douban-hot?type=" + subtype)
+            if isinstance(data, dict) and isinstance(data.get("items"), list):
+                result["items"][subtype] = data["items"]
+                result["updated_at"] = data.get("updated_at") or result["updated_at"]
+        except Exception as exc:
+            print(f"[cloud_proxy] 读取豆瓣 {subtype} 失败: {exc}", flush=True)
+    return result if result["items"] else None
 
 
 def enabled():

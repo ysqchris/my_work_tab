@@ -1325,6 +1325,10 @@ def _shanghai_date():
 
 def _load_douban_hot_cache():
     """读取每天中午任务写入的持久缓存，服务重启后仍可复用。"""
+    if cloud_proxy.enabled():
+        remote = cloud_proxy.cloud_read_douban()
+        if remote is not None:
+            return remote
     saved = read_json(_DOUBAN_HOT_CACHE_NAME, {"date": "", "items": {}})
     if not isinstance(saved, dict) or not isinstance(saved.get("items"), dict):
         return {"date": "", "items": {}}
@@ -1594,8 +1598,9 @@ def media_douban_hot():
     if force_refresh:
         items, error = _douban_hot_refresh(subtype)
         return jsonify({"items": items, "cached": False, "updated_at": _now(), "error": error})
-    # 首次无缓存：后台异步初始化，本次先返回空，前端显示「加载热门中…」，稍后重新进入即可看到。
-    _douban_hot_refresh_async(subtype)
+    # 首次无缓存：云端模式下不本地抓取，直接返回空；本地开发（未配云端）才异步初始化。
+    if not cloud_proxy.enabled():
+        _douban_hot_refresh_async(subtype)
     return jsonify({"items": [], "cached": False, "updated_at": saved.get("updated_at"), "error": None})
 
 make_crud("media")
