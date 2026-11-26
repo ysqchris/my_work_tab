@@ -1835,8 +1835,12 @@ def bookmark_favicon_proxy():
             result = cached[1]
         else:
             cached = None
-            if src in _favicon_inflight or len(_favicon_inflight) >= _FAVICON_MAX_INFLIGHT:
-                return Response(status=503, headers={"Cache-Control": "no-store"})
+            if src in _favicon_inflight:
+                # 同一图标并发请求时返回占位图而不是 503：空响应体会触发浏览器
+                # Resource loading error，占位图能让页面正常渲染，下一轮缓存命中后再换真图。
+                return _img_proxy_placeholder()
+            if len(_favicon_inflight) >= _FAVICON_MAX_INFLIGHT:
+                return _img_proxy_placeholder()
             _favicon_inflight.add(src)
 
     if cached is None:
