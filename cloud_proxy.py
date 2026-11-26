@@ -17,18 +17,17 @@ _TOKEN = (os.environ.get("CLOUD_API_TOKEN", "") or "").strip()
 # 这些资源在云端使用同一套 /api/<name> CRUD 接口。
 PROXY_NAMES = {
     "tasks", "notes", "bookmarks", "bookmark_groups", "knowledge",
-    "products", "inbox", "media", "news_read", "creators",
-    "creator_videos",
-}
+    "products", "inbox", "media", "creators",
+    }
 
 # 云端抓取的数据：本服务不抓取，读取时转发云端接口。
 # 值是与 HTTP 接口名不同的资源名映射；None 表示接口名与资源名相同。
 CLOUD_READ_ONLY = {
     "news": None,
     "ai_pulse": None,
-    "aihot_weekly": None,
+    "aihot_weekly": "ai_pulse/weekly",
     "douban_hot": "media/douban-hot",
-    "imate_ops": "imate/ops",
+    "imate_ops": None,
     "product_insights": None,  # 已下线，云端如无数据会返回空
 }
 
@@ -85,11 +84,36 @@ def cloud_list(name, default=None):
         return False, default
 
 
-def cloud_write(name, data, method="PUT", path=None):
-    """把整份资源写回云端。成功返回 True。"""
+def cloud_write(name, data, method="POST", path=None):
+    """把整份资源写回云端：按 id 做差异同步（新增 POST / 更新 PATCH / 删除 DELETE）。
+
+    云端只提供单条 CRUD，没有整份覆盖接口，所以这里不直接 POST 整份文档，
+    否则会把整个文档当成一条 item 塞进 items 数组。
+    """
     target = path or ("/api/" + name)
+    items = (data or {}).get("items")
+    if not isinstance(items, list):
+        try:
+            _request(target, method=method, body=data)
+            return True
+        except Exception as exc:
+            print(f"[cloud_proxy] 写入 {name} 失败: {exc}", flush=True)
+            return False
     try:
-        _request(target, method=method, body=data)
+        remote = _request(target) or {"items": []}
+        remote_items = remote.get("items", []) if isinstance(remote, dict) else []
+        local_ids = {str(it.get("id")) for it in items if it.get("id")}
+        remote_by_id = {str(it.get("id")): it for it in remote_items if it.get("id")}
+        for item in items:
+            iid = str(item.get("id") or "")
+            if iid and iid in remote_by_id:
+                if item != remote_by_id[iid]:
+                    _request(f"{target}/{iid}", method="PATCH", body=item)
+            else:
+                _request(target, method="POST", body=item)
+        for iid in remote_by_id:
+            if iid not in local_ids:
+                _request(f"{target}/{iid}", method="DELETE")
         return True
     except Exception as exc:
         print(f"[cloud_proxy] 写入 {name} 失败: {exc}", flush=True)
