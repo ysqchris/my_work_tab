@@ -2600,7 +2600,7 @@ def _resource_day(value, fallback):
 def _resource_history(document, *, live=False):
     """Expose the old snapshot as history until the first archive write."""
     if "days" in document:
-        return document["days"]
+        return document["days"] if live else _dedupe_days(document["days"], _km_key)
     fetched_day = _resource_day(document.get("updated_at"), _now()[:10])
     url_field = "href" if live else "url"
     days = {}
@@ -2608,6 +2608,21 @@ def _resource_history(document, *, live=False):
         day = _resource_day(item.get("startTime"), fetched_day) if live else fetched_day
         days.setdefault(day, []).append({**item, "id": _resource_item_id(item, url_field)})
     return days
+
+
+def _dedupe_days(days, key):
+    """同一篇内容跨天出现时只保留在最新的日期里，避免按天展示时重复。"""
+    seen = set()
+    result = {}
+    for day in sorted(days, reverse=True):
+        kept = []
+        for item in days[day] or []:
+            item_key = key(item)
+            if item_key not in seen:
+                seen.add(item_key)
+                kept.append(item)
+        result[day] = kept
+    return result
 
 
 def _resource_response(name, *, live=False):
@@ -2674,6 +2689,8 @@ def _sync_resources(name, *, live=False):
             merged.update(incoming)
             days[day] = sorted(merged.values(), key=order)
             latest.extend(incoming.values())
+        if not live:
+            days = {day: items for day, items in _dedupe_days(days, key).items() if items}
         return {
             **document, "days": days, "updated_at": updated_at,
             "items": sorted(latest, key=order) if live else days.get(fetched_day, []),
