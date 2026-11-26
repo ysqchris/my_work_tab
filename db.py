@@ -19,6 +19,7 @@ import datetime
 import pymysql
 from pymysql.cursors import DictCursor
 from dbutils.pooled_db import PooledDB
+import cloud_proxy
 
 DB_REQUIRED_ENV = ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD")
 
@@ -172,6 +173,14 @@ def _write_doc(name, data):
 
 def update_json_doc(name, transform):
     """Apply a read-modify-write under a database row lock."""
+    if cloud_proxy.should_proxy(name):
+        ok, current = cloud_proxy.cloud_list(name, {"items": []})
+        if not ok:
+            raise RuntimeError(f"云端读取失败：{name}")
+        updated = transform(current if isinstance(current, dict) else json.loads(current))
+        if updated is not None and not cloud_proxy.cloud_write(name, updated):
+            raise RuntimeError(f"云端写入失败：{name}")
+        return updated
     with _conn() as conn, conn.cursor() as cur:
         conn.begin()
         try:
@@ -279,12 +288,20 @@ def _write_creator_videos(data):
 # 统一入口：供 app.py 的 read_json / write_json 调用
 # ---------------------------------------------------------------------------
 def db_read_json(name, default=None):
+    if cloud_proxy.should_proxy(name) or cloud_proxy.should_cloud_read(name):
+        ok, data = cloud_proxy.cloud_read(name, default)
+        if ok:
+            return data
     if name == _CREATOR_VIDEO_STORE:
         return _read_creator_videos()
     return _read_doc(name, default)
 
 
 def db_write_json(name, data):
+    if cloud_proxy.should_proxy(name):
+        if cloud_proxy.cloud_write(name, data):
+            return
+        raise RuntimeError(f"云端写入失败：{name}")
     if name == _CREATOR_VIDEO_STORE:
         _write_creator_videos(data)
         return

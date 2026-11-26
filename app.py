@@ -29,6 +29,7 @@ import db
 import auth
 import beacon_fetcher
 import social_news
+import cloud_proxy
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 
@@ -141,6 +142,11 @@ def _now():
 _JSON_CACHE_TTL = 5  # 秒；写操作会立即失效对应 key，保证写后可见
 
 def read_json(name, default=None):
+    # with 分支：操作类数据与云端抓取的数据都从云端读取，本地只读内网数据。
+    if cloud_proxy.should_proxy(name) or cloud_proxy.should_cloud_read(name):
+        ok, data = cloud_proxy.cloud_read(name, default)
+        if ok:
+            return data
     now = time.time()
     with _json_read_cache_lock:
         cached = _json_read_cache.get(name)
@@ -165,6 +171,12 @@ def _invalidate_json_cache(name=None):
             _json_read_cache.pop(name, None)
 
 def write_json(name, data):
+    # with 分支：个人操作类数据统一写到云端；本地只保留工作总结与内网数据。
+    if cloud_proxy.should_proxy(name):
+        if cloud_proxy.cloud_write(name, data):
+            _invalidate_json_cache(name)
+            return
+        raise RuntimeError(f"云端写入失败：{name}")
     db.db_write_json(name, data)
     _invalidate_json_cache(name)
 
@@ -3978,6 +3990,8 @@ def _ops_scheduler_loop():
 
 
 def _start_ops_scheduler():
+    if cloud_proxy.enabled():
+        return
     if not beacon_fetcher.get_token():
         print("[ops] 未配置 TAI_IT_TOKEN，跳过灯塔运营数据抓取（公网部署无法访问内网灯塔）", flush=True)
         return
@@ -4306,6 +4320,9 @@ def _insight_scheduler_loop():
 
 
 def _start_insight_scheduler():
+    # with 分支：产品洞察已下线，不再抓取/生成。
+    if cloud_proxy.enabled():
+        return
     def _boot():
         try:
             date = _insight_target_date()
@@ -4588,9 +4605,10 @@ def _start_background_jobs():
     if _BG_STARTED or os.environ.get("WORKTAB_SCHEDULERS", "1").strip() == "0":
         return
     _BG_STARTED = True
-    _start_news_scheduler()
-    threading.Thread(target=_social_news_scheduler_loop, daemon=True, name="social-news-scheduler").start()
-    _start_douban_scheduler()
+    if not cloud_proxy.enabled():
+        _start_news_scheduler()
+        threading.Thread(target=_social_news_scheduler_loop, daemon=True, name="social-news-scheduler").start()
+        _start_douban_scheduler()
 
 
 _start_background_jobs()
