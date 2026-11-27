@@ -4168,17 +4168,31 @@ def _km_fetch_once(slot_hour=9):
         item_day = _resource_day(item.get("date"), updated_at[:10])
         days.setdefault(item_day, []).append(item)
 
+    def merge_key(item, existing):
+        """URL 优先；无 URL 时用标题兜底，防止新旧数据 URL 不一致导致重复。"""
+        url = str(item.get("url") or "").strip()
+        title = str(item.get("title") or "").strip()
+        if url:
+            return ("url", url)
+        if title:
+            return ("title", title)
+        return ("id", str(item.get("id") or ""))
+
     def merge(document):
         existing_days = _resource_history(document)
         for item_day, batch in days.items():
-            merged = {str(it.get("url") or it.get("id")): it
-                      for it in existing_days.get(item_day, [])}
+            merged = {}
+            for it in existing_days.get(item_day, []):
+                merged.setdefault(merge_key(it, None), it)
             for item in batch:
-                key = str(item.get("url") or item.get("id"))
-                old = merged.get(key)
+                item_key = merge_key(item, None)
+                old = merged.get(item_key)
                 if old and old.get("recommendation") and not item.get("recommendation"):
                     item["recommendation"] = old["recommendation"]
-                merged[key] = item
+                # 有 URL 的新记录优先于无 URL 的旧记录
+                if old and not old.get("url") and item.get("url"):
+                    merged.pop(item_key, None)
+                merged[merge_key(item, old)] = item
             existing_days[item_day] = sorted(
                 merged.values(), key=lambda x: str(x.get("date") or ""))
         return {**document, "days": existing_days, "updated_at": updated_at}

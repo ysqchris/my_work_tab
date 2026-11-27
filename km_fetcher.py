@@ -135,13 +135,14 @@ def _to_int(value):
         return 0
 
 
-def _article_id(url):
+def _article_id(url, title=""):
+    import hashlib
     m = re.search(r"/show/(\d+)", url or "")
     if m:
-        import hashlib
         return hashlib.md5(m.group(1).encode()).hexdigest()[:12]
-    import hashlib
-    return hashlib.md5((url or "").encode()).hexdigest()[:12]
+    # URL 缺失时以标题兜底，避免所有空 URL 撞成同一个 MD5(空串)。
+    source = (url or "").strip() or ("title:" + (title or ""))
+    return hashlib.md5(source.encode()).hexdigest()[:12]
 
 
 def fetch_raw_hot(period=2, limit=30):
@@ -152,12 +153,25 @@ def fetch_raw_hot(period=2, limit=30):
     session = _initialize()
     text = _call_tool("hot-articles", {"period": period, "limit": limit},
                       session=session)
-    articles = []
+    # 一篇 KM 文章的文本可能因导语换行而占多行：按「- 标题:」分段，
+    # 段内所有行合并成一条再解析字段，避免 URL 落在后续行上被拆成两篇。
+    blocks = []
+    current = []
     for line in text.splitlines():
-        line = line.strip()
-        if not line.startswith("-") and "标题:" not in line:
+        if line.lstrip().startswith("- 标题:"):
+            if current:
+                blocks.append(" ".join(current))
+            current = [line.strip()]
+        elif current:
+            current.append(line.strip())
+    if current:
+        blocks.append(" ".join(current))
+
+    articles = []
+    for block in blocks:
+        if "标题:" not in block:
             continue
-        f = _split_fields(line)
+        f = _split_fields(block)
         title = f.get("标题", "")
         if not title:
             continue
@@ -168,7 +182,7 @@ def fetch_raw_hot(period=2, limit=30):
         if gm:
             group = gm.group(1).strip()
         articles.append({
-            "id": _article_id(url),
+            "id": _article_id(url, title),
             "title": title,
             "author": f.get("作者", ""),
             "date": f.get("创建时间", "")[:10],
@@ -204,13 +218,14 @@ AI_SCORE_SYSTEM = """你在替一位做 imate / MA 数字同事（Agent 协作�
 - 纯产品宣传公告（没干货的那种）
 - 纯论文/学术推导、读起来吃力的
 
-输出 JSON 数组，每个候选都要有一项（包括要排除的），字段：
-  id: 候选项里给的 id（原样返回，不要改）
+输出 JSON 对象：{"items":[...]}，数组里每个候选都要有一项（包括要排除的），字段：
+  id: 候选项里给的 id（必须原样返回，严禁写错或张冠李戴）
   keep: 是否值得保留（true/false）
   score: 0-100 的整数。100=今日最值得读（核心主题+实战案例/对标价值）；90+核心主题+头条推荐；80-89 核心主题或顺带保留里的优质项；70-79 顺带保留且浅显；<70 或排除项给低分
   priority: 是否重点推荐（布尔，通常 score>=90 才为 true）
-  reason: 一句话中文理由，说明为什么保留或排除（排除也要写清原因）
-只输出 JSON 数组，不要 Markdown 代码块，不要其它文字。"""
+  reason: 一句话中文理由，必须针对该 id 对应文章的标题和内容来写，严禁把别的文章的理由写到这里
+严格要求：逐条独立判断，reason 里必须体现该文章自身的标题主题；不要套用同一段话给多篇文章。
+只输出 JSON 对象，不要 Markdown 代码块，不要其它文字。"""
 
 
 def _call_ai(messages, max_tokens=3000, timeout=90):
@@ -261,6 +276,22 @@ def _ai_score(articles):
         print(f"[km] AI 打分失败，保留原始热榜: {e}", flush=True)
         return articles, {}
 
+    # 校验理由串味：从标题提取英文专名/数字型号等强特征（如 MetaInsight、APEC、
+    # Hy3D、CodeBuddy），若理由里出现另一篇文章独有的强特征，判定为张冠李戴，
+    # 丢弃该理由，避免误导用户。中文通用词（如"多模态检索"）不参与判定，防误伤。
+    def _title_features(title):
+        feats = set()
+        for tok in re.findall(r"[A-Za-z][A-Za-z0-9]{2,}|\d+[A-Za-z]{1,4}\d*", title or ""):
+            if len(tok) >= 3:
+                feats.add(tok.lower())
+        return feats
+
+    all_features = {a["id"]: _title_features(a["title"]) for a in articles}
+    own_features = {}
+    for aid, feats in all_features.items():
+        for f in feats:
+            own_features.setdefault(f, set()).add(aid)
+
     picked = []
     for a in articles:
         s = by_id.get(str(a["id"]))
@@ -269,6 +300,33 @@ def _ai_score(articles):
         score = s.get("score")
         score = int(score) if isinstance(score, (int, float)) else 0
         reason = str(s.get("reason") or "").strip()
+        reason_lower = reason.lower()
+        contaminated = False
+        for feat, owners in own_features.items():
+            if a["id"] in owners:
+                continue
+            if feat in reason_lower and len(owners) == 1:
+                contaminated = True
+                break
+        if contaminated:
+            print(f"[km] 理由串味，重新生成单篇理由: {a['title'][:30]}", flush=True)
+            try:
+                solo = _call_ai([
+                    {"role": "system", "content": "你是为 imate/MA 数字同事用户服务的文章推荐助手。只输出一句话中文理由，说明这篇文章为什么值得读或不值得读，必须针对该标题本身，不要提到任何其它文章。不要 JSON，不要 Markdown。"},
+                    {"role": "user", "content": f"标题：{a['title']}\n标签：{a.get('tags', [])}\n导语：{a.get('summary', '')[:150]}"},
+                ], max_tokens=200)
+                reason = str(solo or "").strip().strip('"').replace("\n", " ")[:160]
+                if reason.startswith("{"):
+                    try:
+                        wrapper = json.loads(reason)
+                        if isinstance(wrapper, dict):
+                            reason = str(next(iter(wrapper.values()))).strip()
+                    except (ValueError, TypeError):
+                        pass
+                reason = reason[:120]
+            except Exception as e:
+                print(f"[km] 单篇理由生成失败: {e}", flush=True)
+                reason = ""
         a["recommendation"] = {
             "score": max(0, min(100, score)),
             "priority": bool(s.get("priority")),
