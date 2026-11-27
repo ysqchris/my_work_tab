@@ -430,12 +430,6 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 .ops-brand-txt b{font-size:14px;color:var(--text);letter-spacing:-.02em}
 .ops-brand-txt em{font-size:10.5px;color:var(--worktable-muted);font-style:normal}
 .radar-nav-group{position:relative;padding-left:14px}.radar-nav-group::before{content:'';position:absolute;left:4px;top:15px;bottom:6px;width:3px;border-radius:2px;background:var(--blue)}
-.radar-hero{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:18px 22px;border-radius:18px;background:linear-gradient(120deg,#1f2937 0%,#2f3f5b 55%,#3d5a8a 100%);color:#fff;box-shadow:0 10px 30px rgba(31,41,55,.16);position:relative;overflow:hidden}
-.radar-hero::after{content:'';position:absolute;right:-40px;top:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.14),transparent 70%)}
-.radar-hero h1{font-size:26px;margin:0;letter-spacing:-.04em;position:relative;z-index:1}
-.radar-hero .rh-sub{font-size:12px;opacity:.78;margin-top:3px;position:relative;z-index:1}
-.radar-hero .rh-badge{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);font-size:11px;font-weight:700;letter-spacing:.04em;position:relative;z-index:1}
-.radar-hero .rh-badge .dot{width:6px;height:6px;border-radius:50%;background:#7fe3a6;box-shadow:0 0 0 3px rgba(127,227,166,.18)}
 .radar-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
 .ro-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;transition:transform .16s,box-shadow .16s,border-color .16s}
 .ro-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(26,29,33,.06);border-color:#cfd5dc}
@@ -475,7 +469,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 .radar-freshness{font-size:11px;color:var(--worktable-muted);margin-left:auto;display:inline-flex;align-items:center;gap:5px}
 .radar-freshness .rf-dot{width:6px;height:6px;border-radius:50%;background:#3f9d6e;box-shadow:0 0 0 3px rgba(63,157,110,.15)}
 .radar-freshness.old .rf-dot{background:#e8825a;box-shadow:0 0 0 3px rgba(232,130,90,.15)}
-@media(max-width:900px){.radar-hero{padding:14px 16px}.radar-hero h1{font-size:21px}.radar-overview{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.radar-overview{grid-template-columns:repeat(2,1fr)}}
 
 .vid-grid{display:flex;flex-direction:column;gap:16px}
 /* 资讯阅读版：纸面层级，栏目与文章共用排版 */
@@ -829,7 +823,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
     <img alt="">
   </dialog>
 </section>
-<section id="radar" class="view"><header class="workspace-view-head workspace-pinned"><h1>鹰眼</h1></header><div class="radar-hero"><div><h1>鹰眼</h1><div class="rh-sub">竞品情报台 · 追踪产品动态，提炼对 imate 的启示</div></div><span class="rh-badge"><span class="dot"></span> COMPETITOR INTELLIGENCE</span></div><div class="radar-overview" id="radarOverview"><div class="radar-freshness" id="radarFreshness"></div></div><div class="radar-layout"><aside class="radar-nav" id="radarNav"></aside><div class="radar-main"><div class="vid-feed-head"><span class="hint" id="radarUpdated"></span><button type="button" class="btn ghost" id="radarRefreshBtn" onclick="refreshRadar()" title="重新读取本地已抓取的数据，不会触发外部抓取">↻ 重新加载</button></div><div id="productProfile"></div><div class="radar-toolbar"><div class="filters" id="radarFavFilters"></div></div><div class="day-cards" id="radarList"></div></div></div></section>
+<section id="radar" class="view"><header class="workspace-view-head workspace-pinned"><h1>鹰眼</h1></header><div class="radar-overview" id="radarOverview"><div class="radar-freshness" id="radarFreshness"></div></div><div class="radar-layout"><aside class="radar-nav" id="radarNav"></aside><div class="radar-main"><div class="vid-feed-head"><span class="hint" id="radarUpdated"></span><button type="button" class="btn ghost" id="radarRefreshBtn" onclick="refreshRadar()" title="重新读取本地已抓取的数据，不会触发外部抓取">↻ 重新加载</button></div><div id="productProfile"></div><div class="radar-toolbar"><div class="filters" id="radarFavFilters"></div></div><div class="day-cards" id="radarList"></div></div></div></section>
 
 </div></main></div>
 <div id="writeStage" class="write-stage" aria-hidden="true"><div class="write-bar"><span class="hint" id="writeStatus">自动保存</span><button class="btn shrink" onclick="collapseWrite()" title="收起">↘ 收起</button></div><div id="writePad" class="write-pad" contenteditable="true" data-placeholder="开始写点什么，也可以直接粘贴图片…" oninput="scheduleWriteSave()" onpaste="handleWritePaste(event)"></div></div>
