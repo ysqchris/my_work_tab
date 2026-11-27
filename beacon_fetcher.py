@@ -28,7 +28,7 @@ BIZ_ID = "gongfeng"
 PAGE_ID = 372662
 PARAMS_ID = "f4e32320af1e0bdc3ac216a729e73c50"
 DATE_VAR = "selected_date_range"
-_LLM_MODEL = "tokenhub_deepseek-v4-pro"
+_LLM_MODEL = "hy4-flash"
 
 TZ8 = datetime.timezone(datetime.timedelta(hours=8))
 REQUEST_INTERVAL = 1.2  # 每次查询前的间隔秒数，规避限流
