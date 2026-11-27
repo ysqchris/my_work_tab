@@ -4908,6 +4908,28 @@ def ai_chat():
     except Exception as e:
         return jsonify({"ok": False, "error": "AI 调用失败：" + str(e)}), 502
 
+@app.route("/api/products_updates/purge", methods=["POST"])
+def purge_product_updates():
+    """按产品名彻底清理该产品的所有动态（删除监控/忽略产品时调用）。"""
+    data = request.get_json(silent=True) or {}
+    names = data.get("names") or []
+    if isinstance(names, str):
+        names = [names]
+    names = set(str(n) for n in names if n)
+    if not names:
+        return jsonify({"error": "names 不能为空"}), 400
+    with _lock_for("products_updates"):
+        doc = read_json("products_updates", {"items": []})
+        before = len(doc.get("items", []))
+        doc["items"] = [it for it in doc.get("items", []) if str(it.get("product") or "") not in names]
+        removed = before - len(doc["items"])
+        if removed:
+            doc["updated_at"] = _now()
+            write_json("products_updates", doc)
+    touch_meta()
+    return jsonify({"ok": True, "removed": removed})
+
+
 @app.route("/healthz")
 def healthz():
     return "ok"
