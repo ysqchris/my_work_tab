@@ -621,7 +621,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 <div class="ops-head">
 <div class="ops-head-title"><span class="ops-brand-dot"></span><div class="ops-brand-txt"><b>IMate 运营数据</b><em>灯塔 DataTalk</em></div></div>
 <div class="ops-head-actions">
-<div class="ops-seg" id="opsRangeSeg" role="group" aria-label="运营数据时间范围"><button type="button" data-range="1d" class="active" aria-pressed="true" onclick="setOpsRange('1d')">昨日</button><button type="button" data-range="7d" aria-pressed="false" onclick="setOpsRange('7d')">近 7 天</button><button type="button" data-range="30d" aria-pressed="false" onclick="setOpsRange('30d')">近 30 天</button></div>
+<div class="ops-seg" id="opsRangeSeg" role="group" aria-label="运营数据时间范围"><button type="button" data-range="1d" aria-pressed="false" onclick="setOpsRange('1d')">昨日</button><button type="button" data-range="7d" class="active" aria-pressed="true" onclick="setOpsRange('7d')">近 7 天</button><button type="button" data-range="30d" aria-pressed="false" onclick="setOpsRange('30d')">近 30 天</button></div>
 <button type="button" class="btn ghost ops-refresh" id="opsRefresh" onclick="syncImateOps()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>刷新</button>
 <span class="ops-updated" id="opsUpdated">加载中…</span>
 </div>
@@ -632,7 +632,7 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 <div class="ops-charts" id="opsOverallCharts"></div>
 </div>
 <div class="ops-block">
-<div class="ops-block-head"><div class="ops-block-head-left"><h3 class="ops-block-title">项目协作</h3><span class="ops-block-sub">项目 · 任务 · 节点</span></div><a class="btn ghost ops-beacon" href="https://beacon.woa.com/datatalk/gongfeng/dashboard/365227?paramsid=acf0b06776dabb8f6491a36a3e088f4c" target="_blank" rel="noopener">打开灯塔看板<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div>
+<div class="ops-block-head"><div class="ops-block-head-left"><h3 class="ops-block-title">项目协作</h3><span class="ops-block-sub">项目 · 任务 · 节点</span></div><a class="btn ghost ops-beacon" href="https://beacon.woa.com/datatalk/gongfeng/dashboard/372662?menuIds=menu_v2206h06&paramsid=f4e32320af1e0bdc3ac216a729e73c50" target="_blank" rel="noopener">打开灯塔看板<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div>
 <div class="ops-kpi-grid" id="opsProjectKpiGrid"></div>
 <div class="ops-charts" id="opsProjectCharts"></div>
 </div>
@@ -3550,17 +3550,17 @@ setInterval(()=>{if(!document.hidden)loadUnread()},30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadUnread()});
 
 /* ===== IMate 运营数据 ===== */
-let opsRange='1d',opsData=null,opsSyncing=false;
+let opsRange='7d',opsData=null,opsSyncing=false;
 const OPS_PALETTE=['#5b7cd6','#3f9d6e','#e8825a','#8b5cf6','#0ea5e9','#f59e0b','#d5574a','#14b8a6','#6366f1','#94a3b8','#ec4899','#84cc16'];
 const OPS_KPI_DEFS=[
-{key:'new_projects',label:'新建项目数',sw:true},
-{key:'active_projects',label:'活跃项目数',sw:false},
-{key:'active_users_7d',label:'协作活跃人数',sw:false},
-{key:'conversation_users',label:'对话人数',sw:true},
-{key:'node_users',label:'节点挂名人数',sw:true},
-{key:'task_created',label:'任务新建数',sw:true},
-{key:'task_executed',label:'任务执行数',sw:true},
-{key:'wecom_groups',label:'已绑定企微群',sw:false}
+{key:'new_projects',label:'新建项目数',sw:true,desc:'周期内新建项目总数'},
+{key:'active_projects',label:'活跃项目数',sw:false,desc:'周期内活跃项目数'},
+{key:'active_users_7d',label:'协作功能使用人数',sw:false,desc:'协作功能使用人数（去重）'},
+{key:'conversation_users',label:'进入协作页人数',sw:true,desc:'进入协作页面总人数'},
+{key:'node_users',label:'工作流任务使用人数',sw:true,desc:'工作流任务使用人数'},
+{key:'task_created',label:'任务新建数',sw:true,desc:'工作流任务新建数'},
+{key:'task_executed',label:'工作流启动数',sw:true,desc:'工作流任务启动数（按创建时间）'},
+{key:'wecom_groups',label:'自由群聊存量',sw:false,desc:'自由群聊存量（新看板无企微群等价图卡）'}
 ];
 const OPS_OVERALL_KPI_DEFS=[
 {key:'total_users',label:'累计用户数'},
@@ -3587,7 +3587,8 @@ function renderImateOps(){if(!opsData)return;let up=opsData.updated_at||'';$('op
 function renderOverallBlock(){renderOverallKpi();$('opsOverallCharts').innerHTML=opsRange==='1d'?'':renderOverallCharts()}
 function renderProjectBlock(){renderProjectKpi();$('opsProjectCharts').innerHTML=opsRange==='1d'?'':renderOpsCharts()}
 function opsKpiCard(definition,value,period='',missing=false){
-  return '<div class="ops-kpi"><div class="kpi-value">'+value+'</div><div class="kpi-label">'+definition.label+'</div>'
+  const tip=definition.desc?' title="'+definition.desc.replace(/"/g,'&quot;')+'"':'';
+  return '<div class="ops-kpi"'+tip+'><div class="kpi-value">'+value+'</div><div class="kpi-label">'+definition.label+'</div>'
     +(period?'<span class="kpi-period">'+period+(missing?' · 暂无数据':'')+'</span>':'')+'</div>';
 }
 function renderProjectKpi(){

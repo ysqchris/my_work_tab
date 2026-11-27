@@ -22,8 +22,12 @@ import urllib.request
 
 BASE = "https://beacon.mcp.it.woa.com/"
 BIZ_ID = "gongfeng"
-PAGE_ID = 365227
-PARAMS_ID = "acf0b06776dabb8f6491a36a3e088f4c"
+# 项目协作看板 372662（IMate - 团队协作（新））。旧看板 365227 已下线，
+# 图卡 ID 与变量池整体迁移；详情页：
+# https://beacon.woa.com/datatalk/gongfeng/dashboard/372662?menuIds=menu_v2206h06&paramsid=f4e32320af1e0bdc3ac216a729e73c50
+PAGE_ID = 372662
+PARAMS_ID = "f4e32320af1e0bdc3ac216a729e73c50"
+DATE_VAR = "selected_date_range"
 _LLM_MODEL = "tokenhub_deepseek-v4-pro"
 
 TZ8 = datetime.timezone(datetime.timedelta(hours=8))
@@ -172,40 +176,43 @@ def _first_value(objects, key):
 # ---------------------------------------------------------------------------
 # 图卡清单与字段映射
 # ---------------------------------------------------------------------------
-# (字段名, cardId, 取值 key, 是否支持 date_range 切换)
+# (字段名, cardId, 取值 key, 是否支持周期切换, 口径说明)
+# 图卡均来自新看板 372662；旧看板 365227 已下线。
 KPI_CARDS = [
-    ("new_projects", "indexCard_qgomgnqh", "project_count", True),
-    ("active_projects", "indexCard_yp9esdrv", "active_project_count", False),
-    ("active_users_7d", "indexCard_lmfikfpt", "index_0", False),
-    ("conversation_users", "indexCard_yey8eeci", "conversation_user_uv", True),
-    ("node_users", "indexCard_b7577jc4", "active_user_count", True),
-    ("wecom_groups", "indexCard_fh07ux77", "total_bound_wecom_group_count", False),
-    ("task_created", "indexCard_pvvxuhht", "new_issue_count", True),
-    ("task_executed", "indexCard_pn0jjwpf", "executed_issue_count", True),
+    ("new_projects", "indexCard_qgomgnqh", "project_count", True, "周期内新建项目总数"),
+    ("active_projects", "indexCard_e0n3yf4d", "active_project_count", False, "周期内活跃项目数"),
+    ("active_users_7d", "indexCard_gnf1t4ke", "uv", False, "协作功能使用人数"),
+    ("conversation_users", "indexCard_vhesvn73", "index_0", True, "进入协作页面总人数"),
+    ("node_users", "indexCard_3a6n96zj", "count", True, "工作流任务使用人数"),
+    ("wecom_groups", "indexCard_jzxqo46f", "stock_count", False, "自由群聊存量"),
+    ("task_created", "indexCardUltra_i9iy6r4x", "new_issue_count", True, "工作流任务新建数"),
+    ("task_executed", "indexCardUltra_gl8gq211", "started_workflow_issue_count", True, "工作流任务启动数"),
 ]
 
-# 趋势：字段名 -> (cardId, 日期 key, [系列 key...], 是否支持切换)
+# 趋势：字段名 -> (cardId, 日期 key, [系列 key...], 是否支持切换, 口径说明)
 TREND_CARDS = {
-    "projects": ("line_o0cz5dqc", "create_date", ["project_count"], True),
-    "active_users": ("line_jlhcodgh", "dim_0", ["index_0"], False),
-    "node_users": ("line_2ppb8xq3", "active_date", ["active_user_count"], True),
-    "tasks": ("line_kko1bxe0", "stat_date", ["new_issue_count", "executed_issue_count"], True),
-    "success_rate": ("line_d5nbc8tg", "stat_date", ["success_rate", "failed_count"], True),
+    "projects": ("line_ih7xeb30", "stat_period", ["project_count"], True, "周期内项目趋势"),
+    "active_users": ("line_m5e5qb51", "dim_0", ["index_0"], False, "进入协作页面人数"),
+    "node_users": ("line_6p7xjkbk", "stat_period", ["node_count"], True, "创建工作流节点任务数"),
+    "tasks": ("line_e8tdacih", "stat_period", ["new_issue_count", "executed_issue_count"], True, "任务新建情况"),
+    "success_rate": ("line_kr2bal8l", "stat_period", ["workflow_success_rate", "node_success_rate"], True, "工作流/节点执行成功率"),
 }
 
-# 分布：字段名 -> (cardId, 名称 key, 值 key, 是否支持切换)
+# 分布：字段名 -> (cardId, 名称 key, 值 key, 是否支持切换, 口径说明)
 DIST_CARDS = {
-    "engine": ("pieIndicator_aqancj63", "engine", "node_count", True),
-    "model": ("pie_d33j9p80", "model", "node_count", True),
-    "fail_error": ("pie_v2f10ilv", "error_category", "count", False),
-    "task_error": ("pie_r3fhnc95", "error_category", "count", False),
+    "engine": ("pieIndicator_r8qbk7qq", "engine", "node_count", True, "已执行工作流节点任务引擎分布"),
+    "model": ("pie_zyv64x2h", "model", "node_count", True, "已执行工作流节点模型分布"),
+    "fail_error": ("barStack_0soardi6", "error_category", "failure_count", False, "失败节点错误分类"),
+    "task_error": ("barStack_kdrmm7x4", "error_category", "failure_count", False, "工作流任务错误原因分布"),
 }
 
 
 def _normalize_trend(rows, date_key, series):
     pts = []
     for r in rows:
-        pt = {"date": r.get(date_key)}
+        # 新看板图卡多为周粒度，日期键可能是 stat_period（形如 2026-11-16 ~ 2026-11-22）
+        date_val = r.get(date_key) or r.get("stat_period") or r.get("dt") or r.get("stat_date")
+        pt = {"date": date_val}
         for s in series:
             pt[s] = r.get(s)
         pts.append(pt)
@@ -215,7 +222,7 @@ def _normalize_trend(rows, date_key, series):
 
 
 def _normalize_dist(field, rows):
-    card_id, name_key, value_key, _sw = DIST_CARDS[field]
+    card_id, name_key, value_key, _sw, _desc = DIST_CARDS[field]
     if field in ("fail_error", "task_error"):
         items = [{"name": _clean_error_label(r.get(name_key)), "value": r.get(value_key),
                   "pct": r.get("pct")} for r in rows]
@@ -249,26 +256,24 @@ def build_snapshot():
     dr1, _ = _date_range_value(1)
     dr7, data_date = _date_range_value(7)
     dr30, _ = _date_range_value(30)
-    var1 = [{"key": "date_range", "value": dr1}]
-    var7 = [{"key": "date_range", "value": dr7}]
-    var30 = [{"key": "date_range", "value": dr30}]
+    var1 = [{"key": DATE_VAR, "value": dr1}]
+    var7 = [{"key": DATE_VAR, "value": dr7}]
+    var30 = [{"key": DATE_VAR, "value": dr30}]
 
-    # 两张固定口径的 SQL 图卡仍需要显式传入看板日期，事件模型则不接收该变量。
-    fixed_sql_kpis = {"active_projects", "wecom_groups"}
-    # 生成抓取任务：(tag, card_id, variables)。固定口径图卡仍仅存为 7d。
+    # 生成抓取任务：(tag, card_id, variables)。新看板图卡均响应 selected_date_range。
     jobs = []
-    for field, card_id, _key, sw in KPI_CARDS:
+    for field, card_id, _key, sw, _desc in KPI_CARDS:
         if sw:
             jobs.append((f"kpi:{field}:1d", card_id, var1))
-        jobs.append((f"kpi:{field}:7d", card_id, var7 if sw or field in fixed_sql_kpis else None))
+        jobs.append((f"kpi:{field}:7d", card_id, var7))
         if sw:
             jobs.append((f"kpi:{field}:30d", card_id, var30))
-    for field, (card_id, _dk, _series, sw) in TREND_CARDS.items():
-        jobs.append((f"trend:{field}:7d", card_id, var7 if sw else None))
+    for field, (card_id, _dk, _series, sw, _desc) in TREND_CARDS.items():
+        jobs.append((f"trend:{field}:7d", card_id, var7))
         if sw:
             jobs.append((f"trend:{field}:30d", card_id, var30))
-    for field, (card_id, _nk, _vk, sw) in DIST_CARDS.items():
-        jobs.append((f"dist:{field}:7d", card_id, var7 if sw else None))
+    for field, (card_id, _nk, _vk, sw, _desc) in DIST_CARDS.items():
+        jobs.append((f"dist:{field}:7d", card_id, var7))
         if sw:
             jobs.append((f"dist:{field}:30d", card_id, var30))
 
@@ -279,7 +284,9 @@ def build_snapshot():
 
     # ---- 组装 KPI ----
     kpi = {}
-    for field, _card_id, key, sw in KPI_CARDS:
+    definitions = {}
+    for field, _card_id, key, sw, desc in KPI_CARDS:
+        definitions[field] = desc
         v7 = _first_value(results.get(f"kpi:{field}:7d", []), key)
         if sw:
             v1 = _first_value(results.get(f"kpi:{field}:1d", []), key)
@@ -290,7 +297,8 @@ def build_snapshot():
 
     # ---- 组装趋势 ----
     trends = {}
-    for field, (_card_id, dk, series, sw) in TREND_CARDS.items():
+    for field, (_card_id, dk, series, sw, desc) in TREND_CARDS.items():
+        definitions[field] = desc
         t7 = _normalize_trend(results.get(f"trend:{field}:7d", []), dk, series)
         if sw:
             t30 = _normalize_trend(results.get(f"trend:{field}:30d", []), dk, series)
@@ -300,7 +308,8 @@ def build_snapshot():
 
     # ---- 组装分布 ----
     distributions = {}
-    for field, (_card_id, _nk, _vk, sw) in DIST_CARDS.items():
+    for field, (_card_id, _nk, _vk, sw, desc) in DIST_CARDS.items():
+        definitions[field] = desc
         d7 = _normalize_dist(field, results.get(f"dist:{field}:7d", []))
         if sw:
             d30 = _normalize_dist(field, results.get(f"dist:{field}:30d", []))
@@ -313,6 +322,7 @@ def build_snapshot():
         "kpi": kpi,
         "trends": trends,
         "distributions": distributions,
+        "definitions": definitions,
     }
 
 
