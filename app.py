@@ -31,6 +31,7 @@ import beacon_fetcher
 import social_news
 import cloud_proxy
 import qlearning_fetcher
+import km_fetcher
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 
@@ -4105,6 +4106,78 @@ def _start_qlearning_scheduler():
 
 
 _start_qlearning_scheduler()
+
+
+# ===================== KM 好文：直连 KM MCP 自抓（内网数据存 With 本地） =====================
+# 数据源：KM MCP hot-articles（TAI_IT_TOKEN 鉴权）。
+# 这是内网数据，不写轻量云：km_hot 不在 cloud_proxy 代理名单中，落 With 本地库。
+# 抓取结果按文章创建日期分天；同一 URL 视为同一篇，保留旧数据已有的 recommendation 打分。
+
+
+def _km_fetch_once():
+    items = km_fetcher.fetch_hot(period=2, limit=10)
+    if not items:
+        print("[km] 抓取结果为空，跳过写入", flush=True)
+        return False
+    updated_at = _now()
+    days = {}
+    for item in items:
+        day = _resource_day(item.get("date"), updated_at[:10])
+        days.setdefault(day, []).append(item)
+
+    def merge(document):
+        existing_days = _resource_history(document)
+        for day, batch in days.items():
+            merged = {str(it.get("url") or it.get("id")): it
+                      for it in existing_days.get(day, [])}
+            for item in batch:
+                key = str(item.get("url") or item.get("id"))
+                old = merged.get(key)
+                if old and old.get("recommendation"):
+                    item["recommendation"] = old["recommendation"]
+                merged[key] = item
+            existing_days[day] = sorted(
+                merged.values(), key=lambda x: str(x.get("date") or ""))
+        return {**document, "days": existing_days, "updated_at": updated_at}
+
+    db.update_json_doc("km_hot", merge)
+    _invalidate_json_cache("km_hot")
+    print(f"[km] 热榜抓取完成，共 {len(items)} 篇，{len(days)} 天", flush=True)
+    return True
+
+
+def _km_scheduler_loop():
+    while True:
+        time.sleep(_qlearning_next_delay_seconds())
+        try:
+            if db.try_acquire_daily_lock("km_hot", _now()[:10]):
+                _km_fetch_once()
+            else:
+                print("[km] 今日已抓取，跳过", flush=True)
+        except Exception as e:
+            print(f"[km] 定时抓取失败: {e}", flush=True)
+
+
+def _start_km_scheduler():
+    if not km_fetcher.get_token():
+        print("[km] 未配置 TAI_IT_TOKEN，跳过 KM 热榜抓取", flush=True)
+        return
+
+    def _boot():
+        try:
+            updated = (read_json("km_hot", {}).get("updated_at") or "")[:10]
+            if updated != _now()[:10] and db.try_acquire_daily_lock("km_hot", _now()[:10]):
+                _km_fetch_once()
+        except Exception as e:
+            print(f"[km] 启动抓取失败: {e}", flush=True)
+
+    threading.Thread(target=_boot, daemon=True, name="km-boot-fetch").start()
+    threading.Thread(target=_km_scheduler_loop, daemon=True,
+                     name="km-scheduler").start()
+    print("[km] 已启动：每日 9:00 抓取 KM 热榜（存 With 本地）", flush=True)
+
+
+_start_km_scheduler()
 
 
 # ===================== 产品洞察（每日 3 个值得深入思考的话题） =====================
