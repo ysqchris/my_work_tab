@@ -4114,47 +4114,105 @@ _start_qlearning_scheduler()
 # 抓取结果按文章创建日期分天；同一 URL 视为同一篇，保留旧数据已有的 recommendation 打分。
 
 
-def _km_fetch_once():
-    items = km_fetcher.fetch_hot(period=2, limit=30)
-    if not items:
-        print("[km] 抓取结果为空，跳过写入", flush=True)
+# 每天三个抓取时段（东八区）：早 9 点覆盖昨晚 17:00 至今早 9:00；
+# 下午 2 点 / 5 点只取当天发布的稿件。三个时段互补，基本不漏文章。
+_KM_SLOTS = ((9, 0, "09"), (14, 0, "14"), (17, 0, "17"))
+
+
+def _km_slot_window(slot_hour, now=None):
+    """返回 (start, end, day)；day 用于独立时段锁。"""
+    tz = datetime.timezone(datetime.timedelta(hours=8))
+    now = now or datetime.datetime.now(tz)
+    day = now.date()
+    start_hour = 17 if slot_hour == 9 else 0
+    if slot_hour == 9:
+        start = datetime.datetime.combine(
+            day - datetime.timedelta(days=1), datetime.time(17, 0), tzinfo=tz)
+    else:
+        start = datetime.datetime.combine(day, datetime.time(0, 0), tzinfo=tz)
+    end = datetime.datetime.combine(day, datetime.time(slot_hour, 0), tzinfo=tz)
+    return start, end, day.isoformat()
+
+
+def _km_in_window(item, start, end):
+    created = item.get("created_at") or item.get("date") or ""
+    try:
+        stamp = datetime.datetime.fromisoformat(created.strip().replace("Z", "+00:00"))
+    except ValueError:
         return False
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=8)))
+    return start <= stamp <= end
+
+
+def _km_fetch_once(slot_hour=9):
+    start, end, day = _km_slot_window(slot_hour)
+    # 三个窗口都在 24 小时内：9:00 覆盖前一日 17 点至今（16h），
+    # 14:00/17:00 只取当天。取近 24 小时热榜 period=1，候选数拉满 30。
+    raw = km_fetcher.fetch_raw_hot(period=1, limit=30)
+    items = [it for it in raw if _km_in_window(it, start, end)]
+    print(f"[km] {slot_hour}:00 窗口 {start:%m-%d %H:%M}~{end:%m-%d %H:%M}，"
+          f"候选 {len(raw)} 篇，命中 {len(items)} 篇", flush=True)
+    if not items:
+        return False
+    picked, stat = km_fetcher._ai_score(items)
+    if stat:
+        print(f"[km] AI 精选：{stat['total']} 篇候选中保留 {stat['kept']} 篇", flush=True)
+    items = picked
+    if not items:
+        return False
+
     updated_at = _now()
     days = {}
     for item in items:
-        day = _resource_day(item.get("date"), updated_at[:10])
-        days.setdefault(day, []).append(item)
+        item_day = _resource_day(item.get("date"), updated_at[:10])
+        days.setdefault(item_day, []).append(item)
 
     def merge(document):
         existing_days = _resource_history(document)
-        for day, batch in days.items():
+        for item_day, batch in days.items():
             merged = {str(it.get("url") or it.get("id")): it
-                      for it in existing_days.get(day, [])}
+                      for it in existing_days.get(item_day, [])}
             for item in batch:
                 key = str(item.get("url") or item.get("id"))
                 old = merged.get(key)
-                # 新抓取（含 AI 打分）优先；仅当本次没有打分时才沿用旧数据打分。
                 if old and old.get("recommendation") and not item.get("recommendation"):
                     item["recommendation"] = old["recommendation"]
                 merged[key] = item
-            existing_days[day] = sorted(
+            existing_days[item_day] = sorted(
                 merged.values(), key=lambda x: str(x.get("date") or ""))
         return {**document, "days": existing_days, "updated_at": updated_at}
 
     db.update_json_doc("km_hot", merge)
     _invalidate_json_cache("km_hot")
-    print(f"[km] 热榜抓取完成，共 {len(items)} 篇，{len(days)} 天", flush=True)
+    print(f"[km] {slot_hour}:00 抓取完成，写入 {len(items)} 篇", flush=True)
     return True
+
+
+def _km_next_slot_delay_seconds():
+    tz = datetime.timezone(datetime.timedelta(hours=8))
+    now = datetime.datetime.now(tz)
+    for hour, minute, label in _KM_SLOTS:
+        target = datetime.datetime(now.year, now.month, now.day, hour, minute,
+                                   tzinfo=tz)
+        if target > now:
+            return int((target - now).total_seconds()), label
+    tomorrow = now.date() + datetime.timedelta(days=1)
+    target = datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day,
+                               9, 0, tzinfo=tz)
+    return int((target - now).total_seconds()), "09"
 
 
 def _km_scheduler_loop():
     while True:
-        time.sleep(_qlearning_next_delay_seconds())
+        delay, label = _km_next_slot_delay_seconds()
+        time.sleep(max(delay, 1))
         try:
-            if db.try_acquire_daily_lock("km_hot", _now()[:10]):
-                _km_fetch_once()
+            slot_hour = int(label)
+            if db.try_acquire_daily_lock(f"km_hot:{label}", _now()[:10]):
+                _km_fetch_once(slot_hour)
             else:
-                print("[km] 今日已抓取，跳过", flush=True)
+                print(f"[km] {label} 时段今日已抓取，跳过", flush=True)
         except Exception as e:
             print(f"[km] 定时抓取失败: {e}", flush=True)
 
@@ -4166,16 +4224,21 @@ def _start_km_scheduler():
 
     def _boot():
         try:
-            updated = (read_json("km_hot", {}).get("updated_at") or "")[:10]
-            if updated != _now()[:10] and db.try_acquire_daily_lock("km_hot", _now()[:10]):
-                _km_fetch_once()
+            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))
+            for hour, minute, label in _KM_SLOTS:
+                slot_time = datetime.datetime(now.year, now.month, now.day,
+                                              hour, minute,
+                                              tzinfo=datetime.timezone(datetime.timedelta(hours=8)))
+                # 只补偿已过且当天还没抓过的时段
+                if slot_time <= now and db.try_acquire_daily_lock(f"km_hot:{label}", now.date().isoformat()):
+                    _km_fetch_once(hour)
         except Exception as e:
-            print(f"[km] 启动抓取失败: {e}", flush=True)
+            print(f"[km] 启动补偿抓取失败: {e}", flush=True)
 
     threading.Thread(target=_boot, daemon=True, name="km-boot-fetch").start()
     threading.Thread(target=_km_scheduler_loop, daemon=True,
                      name="km-scheduler").start()
-    print("[km] 已启动：每日 9:00 抓取 KM 热榜（存 With 本地）", flush=True)
+    print("[km] 已启动：每日 9:00 / 14:00 / 17:00 抓取 KM 热榜（存 With 本地）", flush=True)
 
 
 _start_km_scheduler()

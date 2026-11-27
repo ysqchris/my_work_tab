@@ -172,6 +172,8 @@ def fetch_raw_hot(period=2, limit=30):
             "title": title,
             "author": f.get("作者", ""),
             "date": f.get("创建时间", "")[:10],
+            "created_at": f.get("创建时间", ""),
+            "updated_at": f.get("更新时间", ""),
             "url": url,
             "tags": [t.strip() for t in f.get("标签", "").split("|") if t.strip()],
             "read_count": _to_int(f.get("阅读", "0")),
