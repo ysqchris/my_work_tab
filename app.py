@@ -28,6 +28,7 @@ from flask import Flask, request, jsonify, send_from_directory
 import db
 import auth
 import beacon_fetcher
+import weekly_report
 import social_news
 import cloud_proxy
 import qlearning_fetcher
@@ -3905,6 +3906,22 @@ def _ops_fetch():
             print(f"[ops] 第 {attempt + 1} 次抓取失败: {e}", flush=True)
     print(f"[ops] 抓取全部失败，保留旧数据: {last_err}", flush=True)
     return None
+
+
+@app.route("/api/weekly_report", methods=["GET"])
+def get_weekly_report():
+    return jsonify(read_json("weekly_report", {}))
+
+
+@app.route("/api/weekly_report/sync", methods=["POST"])
+def sync_weekly_report():
+    try:
+        report = weekly_report.build_report()
+    except Exception as e:
+        print(f"[weekly_report] 生成失败: {e}", flush=True)
+        return jsonify({"ok": False, "error": str(e)}), 500
+    write_json("weekly_report", report)
+    return jsonify({"ok": True, "period": report.get("period", {}).get("label")})
 
 
 @app.route("/api/imate_ops", methods=["GET"])

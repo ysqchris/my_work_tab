@@ -348,6 +348,30 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 .ops-seg button{border:0;background:transparent;color:var(--worktable-muted);padding:5px 12px;border-radius:7px;font:inherit;font-size:12px;font-weight:650;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap}
 .ops-seg button:hover{color:var(--text)}
 .ops-seg button.active{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(26,29,33,.08)}
+.weekly-block{margin-top:6px}
+.weekly-head-actions{display:flex;align-items:center;gap:8px}
+.weekly-section{margin-top:14px;padding:14px;border:1px solid var(--border,rgba(26,29,33,.08));border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,.2))}
+.weekly-section-title{font-size:13px;font-weight:740;color:var(--text);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.weekly-section-title .wk-num{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#2a2f35,#5b7cd6);color:#fff;font-size:10px;font-weight:700}
+.weekly-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
+.weekly-kpi{padding:12px;border:1px solid rgba(26,29,33,.06);border-radius:10px;background:#fff;transition:transform .16s,box-shadow .16s}
+.weekly-kpi:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(26,29,33,.07)}
+.weekly-kpi .wk-label{font-size:11px;color:var(--worktable-muted);margin-bottom:4px}
+.weekly-kpi .wk-val{font-size:22px;font-weight:780;letter-spacing:-.03em;color:var(--text);line-height:1.15}
+.weekly-kpi .wk-change{font-size:11px;margin-top:3px;font-weight:650}
+.weekly-kpi .wk-change.up{color:#3f9d6e}
+.weekly-kpi .wk-change.down{color:#d0604a}
+.weekly-kpi .wk-change.flat{color:var(--worktable-muted)}
+.weekly-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.weekly-list{display:flex;flex-direction:column;gap:6px;padding:4px 0}
+.weekly-list-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 8px;border-radius:7px;transition:background .15s}
+.weekly-list-row:hover{background:var(--soft)}
+.weekly-list-rank{width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:var(--soft);color:var(--worktable-muted);flex:0 0 auto}
+.weekly-list-row:nth-child(-n+3) .weekly-list-rank{background:linear-gradient(135deg,#5b7cd6,#8ba3e0);color:#fff}
+.weekly-list-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.weekly-list-metric{color:var(--worktable-muted);font-variant-numeric:tabular-nums}
+.weekly-summary{font-size:12px;color:var(--worktable-muted);line-height:1.6;margin-top:8px}
+.weekly-summary b{color:var(--text)}
 .ops-refresh{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;font-size:12px;border-radius:8px}
 .ops-refresh:disabled{opacity:.55;cursor:default}
 .ops-refresh.loading svg{animation:spin .8s linear infinite}
@@ -635,6 +659,10 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 <div class="ops-block-head"><div class="ops-block-head-left"><h3 class="ops-block-title">项目协作</h3><span class="ops-block-sub">项目 · 任务 · 节点</span></div><a class="btn ghost ops-beacon" href="https://beacon.woa.com/datatalk/gongfeng/dashboard/372662?menuIds=menu_v2206h06&paramsid=f4e32320af1e0bdc3ac216a729e73c50" target="_blank" rel="noopener">打开灯塔看板<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div>
 <div class="ops-kpi-grid" id="opsProjectKpiGrid"></div>
 <div class="ops-charts" id="opsProjectCharts"></div>
+</div>
+<div class="ops-block weekly-block">
+<div class="ops-block-head"><div class="ops-block-head-left"><h3 class="ops-block-title">协作数据周报</h3><span class="ops-block-sub" id="weeklyPeriod">近一个完整自然周 · 运营库深挖</span></div><div class="weekly-head-actions"><button type="button" class="btn ghost ops-refresh" onclick="syncWeeklyReport()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>生成周报</button></div></div>
+<div id="weeklyReportBody"><div class="ops-empty">周报加载中…</div></div>
 </div>
 </div>
 </section>
@@ -3573,6 +3601,44 @@ const OPS_OVERALL_KPI_DEFS=[
 function opsFmt(n){if(n==null||n===''||isNaN(n))return '—';n=Number(n);if(Math.abs(n)>=10000)return (n/10000).toFixed(1)+'w';return String(Math.round(n));}
 function opsSlice(arr,range){if(!arr||!arr.length)return [];if(range==='1d')return arr.slice(-1);return range==='7d'?arr.slice(-7):arr;}
 async function loadImateOps(){try{const snapshot=await api('/api/imate_ops');if(snapshot.kpi){opsData=snapshot;renderImateOps()}return Boolean(snapshot.kpi)}catch(e){return false}}
+let weeklyData=null,weeklySyncing=false;
+function wkFmt(n){if(n==null||isNaN(n))return '—';n=Number(n);if(Math.abs(n)>=10000)return (n/10000).toFixed(1)+'w';return String(Math.round(n))}
+function wkChange(v){if(v==null)return '<span class="wk-change flat">— 无对比</span>';let c=Number(v);if(Math.abs(c)<0.1)return '<span class="wk-change flat">· 持平</span>';return '<span class="wk-change '+(c>0?'up':'down')+'">'+(c>0?'▲ +':'▼ ')+c.toFixed(1)+'%</span>'}
+function wkKpi(label,val,change){return '<div class="weekly-kpi"><div class="wk-label">'+label+'</div><div class="wk-val">'+wkFmt(val)+'</div>'+(change!==undefined?wkChange(change):'')+'</div>'}
+function wkList(items,metric,unit){if(!items||!items.length)return '<div class="ops-empty">暂无数据</div>';return '<div class="weekly-list">'+items.map((it,i)=>'<div class="weekly-list-row"><span class="weekly-list-rank">'+(i+1)+'</span><span class="weekly-list-name" title="'+esc(it.name||'')+'">'+esc(it.name||'匿名')+'</span><span class="weekly-list-metric">'+wkFmt(it[metric])+(unit||'')+'</span></div>').join('')+'</div>'}
+function wkTrendChart(trends){let defs=[['projects','新建项目','#5b7cd6'],['issues','新建任务','#e8825a'],['sessions','新建会话','#3f9d6e'],['messages','消息量','#9b7cd6']];let series=defs.filter(d=>trends[d[0]]&&trends[d[0]].length).map(d=>({name:d[1],color:d[2],points:trends[d[0]].map(p=>({x:p.date,y:p.value}))}));return series.length?renderLineChart(series):opsEmpty()}
+async function loadWeeklyReport(){try{let d=await api('/api/weekly_report');if(d&&d.activity){weeklyData=d;renderWeeklyReport()}}catch(e){}}
+function renderWeeklyReport(){
+  if(!weeklyData)return;
+  let d=weeklyData,k=d.activity.kpis||{},u=d.users||{},q=d.quality||{};
+  let p=d.period||{};
+  $('weeklyPeriod').textContent='统计周期 '+(p.label||'—')+' · 运营库深挖';
+  let html='';
+  html+='<div class="weekly-section"><h4 class="weekly-section-title"><span class="wk-num">1</span>协作活跃度与趋势</h4>';
+  html+='<div class="weekly-kpis">'+Object.entries({'新建项目':k.new_projects,'新建任务':k.new_issues,'新建会话':k.new_sessions,'消息量':k.messages,'活跃用户':k.active_users}).map(([label,key])=>wkKpi(label,key?key.current:null,key?key.change_pct:undefined)).join('')+'</div>';
+  html+='<div class="ops-charts">'+opsChartCard('每日活跃趋势',p.label||'',wkTrendChart(d.activity.trends||{}))+'</div>';
+  html+='<div class="weekly-grid2" style="margin-top:10px"><div><div class="wk-label" style="font-size:11px;color:var(--worktable-muted);margin-bottom:4px">活跃项目 Top10（按消息量）</div>'+wkList(d.activity.top_projects,'messages',' 条')+'</div><div><div class="wk-label" style="font-size:11px;color:var(--worktable-muted);margin-bottom:4px">高价值用户 Top10（按发消息数）</div>'+wkList(u.top_users,'messages',' 条')+'</div></div>';
+  html+='</div>';
+  html+='<div class="weekly-section"><h4 class="weekly-section-title"><span class="wk-num">2</span>用户与功能使用分析</h4>';
+  html+='<div class="weekly-kpis">'+wkKpi('新增用户',(u.new_users||{}).current,(u.new_users||{}).change_pct)+wkKpi('回访用户',u.retained_users)+wkKpi('用户留存率',u.retention_pct!=null?u.retention_pct+'%':null)+'</div>';
+  html+='<div class="weekly-grid2"><div>'+opsChartCard('会话功能分布',p.label||'',renderDonutChart((u.chat_types||[]).map(x=>({name:x.label,value:x.sessions}))))+'</div><div>'+opsChartCard('用户参与分布','按会话数',renderBarChart((u.top_users||[]).slice(0,8).map(x=>({name:x.name||x.nick,value:x.sessions}))))+'</div></div>';
+  html+='</div>';
+  html+='<div class="weekly-section"><h4 class="weekly-section-title"><span class="wk-num">3</span>任务与 Agent 执行质量</h4>';
+  html+='<div class="weekly-kpis">'+wkKpi('节点完成数',q.node_total)+wkKpi('节点成功率',q.node_success_rate!=null?q.node_success_rate+'%':null)+'</div>';
+  html+='<div class="weekly-grid2"><div>'+opsChartCard('失败原因分布','近一完整周',renderBarChart(q.failure_reasons||[]))+'</div><div>'+opsChartCard('Agent 引擎分布（按任务数）','近一完整周',renderDonutChart((q.engines||[]).map(x=>({name:x.name,value:x.tasks}))))+'</div></div>';
+  html+='<div class="weekly-grid2" style="margin-top:10px"><div>'+opsChartCard('节点状态分布','近一完整周',renderDonutChart(q.node_status||[]))+'</div><div><div class="wk-label" style="font-size:11px;color:var(--worktable-muted);margin-bottom:4px">响应耗时</div><div class="weekly-summary">Agent 消息平均响应 <b>'+(q.latency? wkFmt(q.latency.avg_s):'—')+' 秒</b>，P50 <b>'+(q.latency?wkFmt(q.latency.p50_s):'—')+' 秒</b>，P90 <b>'+(q.latency?wkFmt(q.latency.p90_s):'—')+' 秒</b>（基于 '+wkFmt(q.latency?q.latency.n:0)+' 条完成消息）。<br>失败主因：'+(q.failure_reasons||[]).slice(0,3).map(x=>esc(x.name)+' '+x.value+' 次').join('、')+'。</div></div></div>';
+  html+='</div>';
+  $('weeklyReportBody').innerHTML=html;
+}
+async function syncWeeklyReport(){
+  if(weeklySyncing)return;weeklySyncing=true;
+  let btn=event&&event.currentTarget;
+  if(btn){btn.classList.add('loading');btn.disabled=true}
+  $('weeklyReportBody').innerHTML='<div class="ops-empty">正在从运营库生成周报…</div>';
+  try{let r=await fetch('/api/weekly_report/sync',{method:'POST'}).then(r=>r.json());if(!r.ok)throw new Error(r.error||'生成失败');await loadWeeklyReport()}
+  catch(e){$('weeklyReportBody').innerHTML='<div class="ops-empty">周报生成失败：'+esc(String(e.message||e))+'</div>'}
+  finally{if(btn){btn.classList.remove('loading');btn.disabled=false}weeklySyncing=false}
+}
 function setOpsRange(range){
   opsRange=range;
   document.querySelectorAll('#opsRangeSeg button').forEach(button=>{
@@ -3583,7 +3649,7 @@ function setOpsRange(range){
   renderImateOps();
 }
 async function syncImateOps(){if(opsSyncing)return;opsSyncing=true;let btn=$('opsRefresh');btn.classList.add('loading');btn.disabled=true;$('opsUpdated').textContent='抓取中…';try{await fetch('/api/imate_ops/sync',{method:'POST'});let start=Date.now();let timer=setInterval(async()=>{try{let j=await fetch('/api/imate_ops').then(r=>r.json());if(j&&j.updated_at&&j.updated_at!==(opsData&&opsData.updated_at)){clearInterval(timer);opsData=j;renderImateOps()}}catch(e){if(Date.now()-start>120000)clearInterval(timer)}},2500)}catch(e){$('opsUpdated').textContent='刷新失败'}finally{setTimeout(()=>{opsSyncing=false;btn.classList.remove('loading');btn.disabled=false},1500)}}
-function renderImateOps(){if(!opsData)return;let up=opsData.updated_at||'';$('opsUpdated').textContent=up?('更新于 '+up.replace('T',' ').slice(5,16)):'已就绪';renderOverallBlock();renderProjectBlock()}
+function renderImateOps(){if(!opsData)return;let up=opsData.updated_at||'';$('opsUpdated').textContent=up?('更新于 '+up.replace('T',' ').slice(5,16)):'已就绪';renderOverallBlock();renderProjectBlock();if(!weeklyData)loadWeeklyReport()}
 function renderOverallBlock(){renderOverallKpi();$('opsOverallCharts').innerHTML=opsRange==='1d'?'':renderOverallCharts()}
 function renderProjectBlock(){renderProjectKpi();$('opsProjectCharts').innerHTML=opsRange==='1d'?'':renderOpsCharts()}
 function opsKpiCard(definition,value,period='',missing=false){
