@@ -470,6 +470,47 @@ body{background:var(--bg);color:rgba(0,0,0,.9)}
 .radar-freshness .rf-dot{width:6px;height:6px;border-radius:50%;background:#3f9d6e;box-shadow:0 0 0 3px rgba(63,157,110,.15)}
 .radar-freshness.old .rf-dot{background:#e8825a;box-shadow:0 0 0 3px rgba(232,130,90,.15)}
 @media(max-width:900px){.radar-overview{grid-template-columns:repeat(2,1fr)}}
+.ai-fab{position:fixed;right:24px;bottom:24px;width:56px;height:56px;border-radius:18px;background:linear-gradient(135deg,#1f2937,#3d5a8a);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 24px rgba(31,41,55,.28);z-index:9000;transition:transform .2s,box-shadow .2s}
+.ai-fab:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 12px 30px rgba(31,41,55,.34)}
+.ai-fab-dot{position:absolute;top:10px;right:10px;width:8px;height:8px;border-radius:50%;background:#7fe3a6;border:2px solid #1f2937}
+.ai-panel{position:fixed;right:24px;bottom:92px;width:390px;height:min(620px,calc(100vh - 120px));display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 20px 60px rgba(20,25,35,.18);z-index:9001;opacity:0;pointer-events:none;transform:translateY(16px) scale(.97);transform-origin:bottom right;transition:opacity .2s,transform .24s;overflow:hidden}
+.ai-panel.open{opacity:1;pointer-events:auto;transform:translateY(0) scale(1)}
+.ai-panel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;background:linear-gradient(120deg,#1f2937,#2f3f5b 60%,#3d5a8a);color:#fff}
+.ai-panel-title{display:flex;align-items:center;gap:10px}
+.ai-logo{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);font-size:19px}
+.ai-panel-title b{display:block;font-size:14px;letter-spacing:-.01em}
+.ai-panel-title small{display:block;font-size:10.5px;opacity:.72;margin-top:1px}
+.ai-panel-actions{display:flex;gap:4px}
+.ai-icon-btn{width:28px;height:28px;border:0;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-size:14px;line-height:1;transition:background .15s}
+.ai-icon-btn:hover{background:rgba(255,255,255,.24)}
+.ai-quick{display:flex;gap:6px;flex-wrap:wrap;padding:12px 16px 4px}
+.ai-quick button{border:1px solid #dfe4ea;background:#f8fafc;color:#4b5563;border-radius:999px;padding:5px 11px;font-size:11px;cursor:pointer;transition:all .15s}
+.ai-quick button:hover{border-color:#5b7cd6;color:#3d5a8a;background:#eef3ff}
+.ai-messages{flex:1;overflow-y:auto;padding:10px 16px 14px;display:flex;flex-direction:column;gap:12px}
+.ai-welcome{text-align:center;padding:24px 10px;color:var(--text)}
+.ai-welcome-icon{width:46px;height:46px;margin:0 auto 10px;border-radius:14px;background:linear-gradient(135deg,#eef3ff,#e5ecfb);color:#3d5a8a;display:flex;align-items:center;justify-content:center;font-size:24px}
+.ai-welcome b{font-size:14px}
+.ai-welcome p{font-size:12px;line-height:1.7;color:var(--worktable-muted);margin:8px 0 0}
+.ai-msg{display:flex;gap:8px;max-width:100%}
+.ai-msg.user{flex-direction:row-reverse}
+.ai-avatar{width:28px;height:28px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.ai-msg.assistant .ai-avatar{background:#eef3ff;color:#3d5a8a}
+.ai-msg.user .ai-avatar{background:#1f2937;color:#fff}
+.ai-bubble{padding:9px 12px;border-radius:12px;font-size:12.5px;line-height:1.65;max-width:calc(100% - 40px);white-space:pre-wrap;word-break:break-word}
+.ai-msg.assistant .ai-bubble{background:#f4f6f9;border:1px solid #e9edf2;border-top-left-radius:3px}
+.ai-msg.user .ai-bubble{background:linear-gradient(135deg,#2f3f5b,#3d5a8a);color:#fff;border-top-right-radius:3px}
+.ai-typing{display:inline-flex;gap:4px;align-items:center;padding:12px}
+.ai-typing i{width:6px;height:6px;border-radius:50%;background:#9aa7b8;animation:aiBlink 1.2s infinite}
+.ai-typing i:nth-child(2){animation-delay:.2s}.ai-typing i:nth-child(3){animation-delay:.4s}
+@keyframes aiBlink{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+.ai-input-wrap{display:flex;gap:8px;align-items:flex-end;padding:10px 14px;border-top:1px solid var(--line)}
+.ai-input-wrap textarea{flex:1;resize:none;border:1px solid #dfe4ea;border-radius:12px;padding:9px 12px;font-size:12.5px;font-family:inherit;line-height:1.5;outline:none;max-height:100px;transition:border-color .15s}
+.ai-input-wrap textarea:focus{border-color:#5b7cd6;box-shadow:0 0 0 3px rgba(91,124,214,.1)}
+.ai-send{width:36px;height:36px;border:0;border-radius:11px;background:linear-gradient(135deg,#2f3f5b,#3d5a8a);color:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:transform .15s,opacity .15s}
+.ai-send:hover{transform:scale(1.06)}
+.ai-send:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.ai-foot{text-align:center;font-size:10px;color:var(--worktable-muted);padding:0 0 10px}
+@media(max-width:560px){.ai-panel{right:10px;left:10px;width:auto;bottom:82px}.ai-fab{right:16px;bottom:16px}}
 
 .vid-grid{display:flex;flex-direction:column;gap:16px}
 /* 资讯阅读版：纸面层级，栏目与文章共用排版 */
@@ -3536,7 +3577,7 @@ function metricHtml(v,label){return `<div class="metric"><b>${v!=null?esc(v):'�
 function openProduct(existing){let p=existing||{},types=productTypes();modal(`<h3>${existing?'编辑竞品':'新增竞品'}</h3><div class="field"><label>名称</label><input id="mName" value="${esc(p.name||'')}"></div><div class="field"><label>公司</label><input id="mCompany" value="${esc(p.company||'')}"></div><div class="field"><label>类型</label><input id="mType" list="typeList" value="${esc(p.type||'')}" placeholder="例如：协同办公"><datalist id="typeList">${types.map(t=>`<option value="${esc(t)}">`).join('')}</datalist></div><div class="field"><label>官网</label><input id="mUrl" value="${esc(p.official_url||'')}" placeholder="https://"></div><div class="field"><label>关键词（逗号分隔）</label><input id="mKeywords" value="${esc((p.keywords||[]).join(', '))}"></div><div class="field"><label>备注</label><textarea id="mNote" rows="3">${esc(p.note||'')}</textarea></div><div class="modal-actions"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="saveProduct(${existing?`'${p.id}'`:'null'})">${existing?'保存':'创建'}</button></div>`)}
 async function saveProduct(id){let name=$('mName').value.trim();if(!name)return;let body={name,company:$('mCompany').value.trim(),type:$('mType').value.trim()||'未分类',official_url:$('mUrl').value.trim(),keywords:$('mKeywords').value.split(',').map(s=>s.trim()).filter(Boolean),note:$('mNote').value.trim()};if(id){await api('/api/products/'+id,'PUT',body);radarProductId=id}else{let created=await api('/api/products','POST',body);radarProductId=created.id||'all'}closeModal();await load('radar');showView('radar',document.querySelector('[data-view=radar]'))}
 function editProduct(id){let p=data.products.find(x=>x.id===id);if(p)openProduct(p)}
-async function removeProduct(id){if(!confirm('确认删除该竞品？'))return;await api('/api/products/'+id,'DELETE');if(radarProductId===id)radarProductId='all';await load('radar')}
+async function removeProduct(id){let p=data.products.find(x=>x.id===id);if(!confirm('确认从监控列表删除「'+(p?p.name:'该竞品')+'」？\n\n历史动态会保留，可从「全部动态」查看。'))return;await api('/api/products/'+id,'DELETE');if(radarProductId===id)radarProductId='all';await load('radar')}
 let writeDraftId=null,writeTimer=null,writePending=null,writeClosing=false,writeDraftTitle='';
 function focusQuickNote(){if(!$('home').classList.contains('active'))showView('home',document.querySelector('[data-view=home]'));setTimeout(expandWrite,0)}
 function expandWrite(existing){if(document.body.classList.contains('write-mode'))return;document.body.classList.add('write-mode');let stage=$('writeStage');stage.setAttribute('aria-hidden','false');writeDraftId=existing?existing.id:null;writeDraftTitle=existing?((existing.title||'').trim()):'';$('writePad').innerHTML=existing?(existing.content||''):'';$('writeStatus').textContent=existing?'编辑中，自动保存':'写点什么，也可以粘贴图片';requestAnimationFrame(()=>stage.classList.add('show'));setTimeout(()=>$('writePad').focus(),40)}
@@ -3766,6 +3807,15 @@ function renderDonutChart(data){let total=data.reduce((a,b)=>a+(b.value||0),0);i
 function renderBarChart(data){if(!data||!data.length)return opsEmpty();let max=Math.max.apply(null,data.map(d=>d.value||0));let html=data.map((d,i)=>{let pct=d.pct!=null?d.pct:((d.value||0)/max*100);let w=Math.max((d.value||0)/max*100,2);return '<div class="ops-bar-row"><span class="ops-bar-label" title="'+esc(d.name)+'">'+esc(d.name)+'</span><div class="ops-bar-track"><div class="ops-bar-fill" style="width:'+w+'%"></div></div><span class="ops-bar-val">'+opsFmt(d.value)+'</span><span class="ops-bar-pct">'+(pct!=null?Number(pct).toFixed(1)+'%':'')+'</span></div>'}).join('');return '<div class="ops-chart-body"><div class="ops-bars">'+html+'</div></div>'}
 /* 全局兜底：富文本正文（笔记/待办详情）里直接写入的 <img> 无法逐个加 onerror，
    用事件委托统一处理失效图片，避免控制台反复报资源加载错误、页面留破图标。 */
+let aiMessages=[],aiBusy=false;
+const AI_QUICK=['最近有哪些竞品动态？','我有哪些待办？','查一下 KM 好文','看下 IMate 运营数据'];
+function initAIPanel(){let q=$('aiQuick');if(q)q.innerHTML=AI_QUICK.map(x=>`<button type="button" onclick="$('aiInput').value=${JSON.stringify(x)};sendAIChat()">${esc(x)}</button>`).join('')}
+function toggleAIPanel(){let p=$('aiPanel');if(!p)return;let open=!p.classList.contains('open');p.classList.toggle('open',open);p.setAttribute('aria-hidden',String(!open));if(open){initAIPanel();setTimeout(()=>$('aiInput').focus(),80)}}
+function clearAIChat(){aiMessages=[];let el=$('aiMessages');if(el)el.innerHTML='<div class="ai-welcome"><div class="ai-welcome-icon">✦</div><b>你好，我是工作台助手</b><p>我可以帮你查待办、笔记、知识库，也能查鹰眼竞品动态、KM 好文、学堂直播和运营数据。试试下面的问题 👇</p></div>';initAIPanel()}
+function aiAppend(role,content){let el=$('aiMessages');if(!el)return;let welcome=el.querySelector('.ai-welcome');if(welcome)welcome.remove();let wrap=document.createElement('div');wrap.className='ai-msg '+role;wrap.innerHTML=`<div class="ai-avatar">${role==='user'?'我':'✦'}</div><div class="ai-bubble">${esc(content)}</div>`;el.appendChild(wrap);el.scrollTop=el.scrollHeight;return wrap}
+async function sendAIChat(){if(aiBusy)return;let inp=$('aiInput');if(!inp)return;let text=inp.value.trim();if(!text)return;inp.value='';aiBusy=true;let btn=$('aiSendBtn');if(btn)btn.disabled=true;aiAppend('user',text);aiMessages.push({role:'user',content:text});let typing=document.createElement('div');typing.className='ai-msg assistant';typing.innerHTML='<div class="ai-avatar">✦</div><div class="ai-bubble"><span class="ai-typing"><i></i><i></i><i></i></span></div>';$('aiMessages').appendChild(typing);$('aiMessages').scrollTop=$('aiMessages').scrollHeight;try{let res=await api('/api/ai/chat','POST',{messages:aiMessages});typing.remove();let reply=res&&res.reply?res.reply:(res&&res.error?'抱歉，'+res.error:'（无回复）');aiAppend('assistant',reply);aiMessages.push({role:'assistant',content:reply});if(aiMessages.length>24)aiMessages=aiMessages.slice(-24)}catch(e){typing.remove();aiAppend('assistant','调用失败：'+e.message)}finally{aiBusy=false;if(btn)btn.disabled=false}}
 document.addEventListener('error',function(e){let img=e.target;if(!img||img.tagName!=='IMG'||img.dataset.brokenHandled)return;img.dataset.brokenHandled='1';if(img.closest('.note-detail,.task-note,#mContent,.kb-doc')){img.style.display='none';let tip=document.createElement('span');tip.textContent='🖼️ 图片已失效';tip.style.cssText='display:inline-block;padding:4px 10px;border-radius:6px;background:rgba(150,150,150,.15);color:#999;font-size:12px;';img.insertAdjacentElement('afterend',tip)}},true);
 </script>
+<div id="aiFab" class="ai-fab" title="AI 助手" onclick="toggleAIPanel()"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 1 5 5v1a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z"/><path d="M12 13v3a4 4 0 0 0 8 0v-1"/><path d="M4 15v1a4 4 0 0 0 8 0v-3"/></svg><span class="ai-fab-dot"></span></div>
+<div id="aiPanel" class="ai-panel" aria-hidden="true"><div class="ai-panel-head"><div class="ai-panel-title"><span class="ai-logo">✦</span><div><b>工作台助手</b><small>查内外数据 · 操作控制台</small></div></div><div class="ai-panel-actions"><button type="button" class="ai-icon-btn" onclick="clearAIChat()" title="清空对话">↺</button><button type="button" class="ai-icon-btn" onclick="toggleAIPanel()" title="收起">✕</button></div></div><div class="ai-quick" id="aiQuick"></div><div class="ai-messages" id="aiMessages"><div class="ai-welcome"><div class="ai-welcome-icon">✦</div><b>你好，我是工作台助手</b><p>我可以帮你查待办、笔记、知识库，也能查鹰眼竞品动态、KM 好文、学堂直播和运营数据。试试下面的问题 👇</p></div></div><div class="ai-input-wrap"><textarea id="aiInput" rows="1" placeholder="问我任何事，例如：最近有哪些竞品动态？" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIChat()}"></textarea><button type="button" class="ai-send" id="aiSendBtn" onclick="sendAIChat()">➤</button></div><div class="ai-foot">由混元驱动 · 数据来自你的工作台</div></div>
 </body></html>

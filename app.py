@@ -4756,6 +4756,57 @@ def _tool_hot(args):
     return json.dumps({"category": cat, "count": len(rows), "items": rows}, ensure_ascii=False)
 
 
+def _tool_radar(args):
+    """查鹰眼竞品动态（内网竞品情报）。"""
+    q = (args.get("keyword") or "").strip()
+    limit = min(int(args.get("limit") or 10), 30)
+    items = read_json("products_updates", {"items": []}).get("items", []) or []
+    if q:
+        items = [x for x in items if q in (x.get("title") or "") + (x.get("product") or "") + (x.get("view") or "")]
+    items = sorted(items, key=lambda x: (x.get("date") or ""), reverse=True)[:limit]
+    rows = [{"date": x.get("date", ""), "product": x.get("product", ""), "title": x.get("title", ""), "type": x.get("type", ""), "view": _trunc(x.get("view", ""), 200)} for x in items]
+    return json.dumps({"count": len(rows), "items": rows}, ensure_ascii=False)
+
+
+def _tool_km(args):
+    """查 KM 好文（内网精选文章）。"""
+    q = (args.get("keyword") or "").strip()
+    limit = min(int(args.get("limit") or 10), 30)
+    d = read_json("km_hot", {"days": []})
+    days = d.get("days", []) if isinstance(d, dict) else []
+    items = []
+    if isinstance(days, list):
+        for day in days:
+            for x in (day.get("items") or []):
+                items.append(x)
+    elif isinstance(days, dict):
+        for arr in days.values():
+            items += arr if isinstance(arr, list) else []
+    if q:
+        items = [x for x in items if q in (x.get("title") or "") + (x.get("note") or "")]
+    rows = [{"date": x.get("date", ""), "title": x.get("title", ""), "author": x.get("author", ""), "priority": x.get("priority", ""), "reason": _trunc(x.get("reason", ""), 160)} for x in items[:limit]]
+    return json.dumps({"count": len(rows), "items": rows}, ensure_ascii=False)
+
+
+def _tool_courses(args):
+    """查学堂直播（内网课程）。"""
+    q = (args.get("keyword") or "").strip()
+    limit = min(int(args.get("limit") or 10), 30)
+    d = read_json("qlearning_lives", {"items": []})
+    items = d.get("items", []) if isinstance(d, dict) else []
+    if q:
+        items = [x for x in items if q in (x.get("title") or "") + (x.get("teacher") or "")]
+    rows = [{"date": x.get("date", ""), "title": x.get("title", ""), "teacher": x.get("teacher", ""), "status": x.get("status", "")} for x in items[:limit]]
+    return json.dumps({"count": len(rows), "items": rows}, ensure_ascii=False)
+
+
+def _tool_ops(args):
+    """查 IMate 运营数据概览（内网灯塔数据）。"""
+    d = read_json("imate_ops", {})
+    kpi = d.get("kpi", {}) if isinstance(d, dict) else {}
+    return json.dumps({"updated_at": d.get("updated_at", ""), "kpi": kpi}, ensure_ascii=False)
+
+
 def _tool_videos(args):
     """查视频订阅（B站/YouTube UP 主）的最新视频。"""
     q = (args.get("keyword") or "").strip()
@@ -4784,6 +4835,10 @@ _TOOLS = [
     {"type": "function", "function": {"name": "query_media", "description": "查询书影音（我的库）", "parameters": {"type": "object", "properties": {"keyword": {"type": "string", "description": "关键词，留空则返回全部"}}, "required": []}}},
     {"type": "function", "function": {"name": "query_hot", "description": "查询豆瓣热门榜单（电影/图书/电视剧/综艺/音乐）", "parameters": {"type": "object", "properties": {"category": {"type": "string", "enum": ["movie", "book", "tv", "show", "music"], "description": "榜单分类"}, "limit": {"type": "integer", "description": "条数"}}, "required": ["category", "limit"]}}},
     {"type": "function", "function": {"name": "query_videos", "description": "查询视频订阅（B站/YouTube UP 主）的最新视频", "parameters": {"type": "object", "properties": {"keyword": {"type": "string", "description": "关键词，留空则返回最新"}, "limit": {"type": "integer", "description": "条数"}}, "required": ["limit"]}}},
+    {"type": "function", "function": {"name": "query_radar", "description": "查询鹰眼竞品动态（内网竞品情报，WorkBuddy/Jira/CrewAI 等）", "parameters": {"type": "object", "properties": {"keyword": {"type": "string", "description": "关键词，留空则返回最新"}, "limit": {"type": "integer", "description": "条数"}}, "required": ["limit"]}}},
+    {"type": "function", "function": {"name": "query_km", "description": "查询 KM 好文（内网精选文章）", "parameters": {"type": "object", "properties": {"keyword": {"type": "string", "description": "关键词，留空则返回最新"}, "limit": {"type": "integer", "description": "条数"}}, "required": ["limit"]}}},
+    {"type": "function", "function": {"name": "query_courses", "description": "查询学堂直播（内网课程）", "parameters": {"type": "object", "properties": {"keyword": {"type": "string", "description": "关键词"}, "limit": {"type": "integer", "description": "条数"}}, "required": ["limit"]}}},
+    {"type": "function", "function": {"name": "query_ops", "description": "查询 IMate 运营数据概览（内网灯塔数据，DAU/用户数等）", "parameters": {"type": "object", "properties": {}}}},
 ]
 
 _TOOL_FNS = {
@@ -4795,10 +4850,14 @@ _TOOL_FNS = {
     "query_media": _tool_media,
     "query_hot": _tool_hot,
     "query_videos": _tool_videos,
+    "query_radar": _tool_radar,
+    "query_km": _tool_km,
+    "query_courses": _tool_courses,
+    "query_ops": _tool_ops,
 }
 
 _SYSTEM_PROMPT = (
-    "你是用户个人工作台里的 AI 助手。你可以通过调用工具查询用户的工作台数据（待办、笔记、知识库、新闻、书签、书影音、豆瓣热榜、视频订阅）。"
+    "你是用户个人工作台里的 AI 助手。你可以通过调用工具查询用户的各类数据：外网数据（待办、笔记、知识库、新闻、书签、书影音、豆瓣热榜、视频订阅）和内网数据（鹰眼竞品动态、KM 好文、学堂直播、IMate 运营数据）。"
     "当用户的问题涉及这些数据时，请务必先调用对应工具获取数据，再基于真实数据回答。"
     "回答用简洁自然的中文，直接给出结果，不要啰嗦、不要编造工具返回之外的信息。"
 )
