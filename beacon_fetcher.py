@@ -191,11 +191,14 @@ KPI_CARDS = [
 
 # 趋势：字段名 -> (cardId, 日期 key, [系列 key...], 是否支持切换, 口径说明)
 TREND_CARDS = {
-    "projects": ("line_ih7xeb30", "stat_period", ["project_count"], True, "周期内项目趋势"),
-    "active_users": ("line_m5e5qb51", "dim_0", ["index_0"], False, "进入协作页面人数"),
-    "node_users": ("line_6p7xjkbk", "stat_period", ["node_count"], True, "创建工作流节点任务数"),
-    "tasks": ("line_e8tdacih", "stat_period", ["new_issue_count", "executed_issue_count"], True, "任务新建情况"),
-    "success_rate": ("line_kr2bal8l", "stat_period", ["workflow_success_rate", "node_success_rate"], True, "工作流/节点执行成功率"),
+    # 元组: (cardId, 日期key, [原始字段...], 是否切换, 口径说明, {原始字段:前端字段}, 缩放系数)
+    "projects": ("line_ih7xeb30", "stat_period", ["project_count"], True, "周期内项目趋势", {}, 1),
+    "active_users": ("line_m5e5qb51", "dim_0", ["index_0"], False, "进入协作页面人数", {"index_0": "active_user_count"}, 1),
+    "node_users": ("line_m5e5qb51", "dim_0", ["index_0"], True, "进入协作页面人数（活跃人数趋势）", {"index_0": "active_user_count"}, 1),
+    "tasks": ("line_y2b5h4x5", "stat_period", ["workflow_trigger_count", "workflow_finished_count"], True, "工作流触发/完成数",
+              {"workflow_trigger_count": "new_issue_count", "workflow_finished_count": "executed_issue_count"}, 1),
+    "success_rate": ("line_kr2bal8l", "stat_period", ["workflow_success_rate"], True, "任务端到端成功率",
+                     {"workflow_success_rate": "success_rate"}, 100),
 }
 
 # 分布：字段名 -> (cardId, 名称 key, 值 key, 是否支持切换, 口径说明)
@@ -207,18 +210,25 @@ DIST_CARDS = {
 }
 
 
-def _normalize_trend(rows, date_key, series):
+def _normalize_trend(rows, date_key, series, rename=None, scale=1):
+    rename = rename or {}
     pts = []
     for r in rows:
         # 新看板图卡多为周粒度，日期键可能是 stat_period（形如 2026-11-16 ~ 2026-11-22）
         date_val = r.get(date_key) or r.get("stat_period") or r.get("dt") or r.get("stat_date")
         pt = {"date": date_val}
         for s in series:
-            pt[s] = r.get(s)
+            value = r.get(s)
+            if scale != 1 and isinstance(value, (int, float)):
+                value = round(value * scale, 2)
+            pt[rename.get(s, s)] = value
         pts.append(pt)
-    pts = [p for p in pts if p.get("date")]
-    pts.sort(key=lambda p: p["date"])
-    return pts
+    # 过滤周聚合汇总行（日期形如 "2026-11-16 ~ 2026-11-22"），只保留明细日期点；
+    # 纯周粒度图卡（如项目趋势、成功率）过滤后为空，则回退保留周数据。
+    daily = [p for p in pts if p.get("date") and "~" not in str(p["date"])]
+    result = daily if daily else [p for p in pts if p.get("date")]
+    result.sort(key=lambda p: p["date"])
+    return result
 
 
 def _normalize_dist(field, rows):
@@ -268,7 +278,7 @@ def build_snapshot():
         jobs.append((f"kpi:{field}:7d", card_id, var7))
         if sw:
             jobs.append((f"kpi:{field}:30d", card_id, var30))
-    for field, (card_id, _dk, _series, sw, _desc) in TREND_CARDS.items():
+    for field, (card_id, _dk, _series, sw, _desc, _rename, _scale) in TREND_CARDS.items():
         jobs.append((f"trend:{field}:7d", card_id, var7))
         if sw:
             jobs.append((f"trend:{field}:30d", card_id, var30))
@@ -297,11 +307,11 @@ def build_snapshot():
 
     # ---- 组装趋势 ----
     trends = {}
-    for field, (_card_id, dk, series, sw, desc) in TREND_CARDS.items():
+    for field, (_card_id, dk, series, sw, desc, rename, scale) in TREND_CARDS.items():
         definitions[field] = desc
-        t7 = _normalize_trend(results.get(f"trend:{field}:7d", []), dk, series)
+        t7 = _normalize_trend(results.get(f"trend:{field}:7d", []), dk, series, rename, scale)
         if sw:
-            t30 = _normalize_trend(results.get(f"trend:{field}:30d", []), dk, series)
+            t30 = _normalize_trend(results.get(f"trend:{field}:30d", []), dk, series, rename, scale)
             trends[field] = {"7d": t7, "30d": t30}
         else:
             trends[field] = {"7d": t7}
