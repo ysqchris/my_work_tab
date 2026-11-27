@@ -2671,7 +2671,10 @@ def _km_key(item):
 
 
 def _km_order(item):
-    return -_resource_count(item.get("hot")), -_resource_count(item.get("read_count"))
+    # 同一天内：最新抓取的排前面；热度/阅读作为次要排序。
+    fetched = str(item.get("fetched_at") or "")
+    return (0 if fetched else 1, -_resource_count(item.get("hot")),
+            -_resource_count(item.get("read_count")))
 
 
 def _live_order(item):
@@ -4165,6 +4168,7 @@ def _km_fetch_once(slot_hour=9):
     updated_at = _now()
     days = {}
     for item in items:
+        item["fetched_at"] = updated_at
         item_day = _resource_day(item.get("date"), updated_at[:10])
         days.setdefault(item_day, []).append(item)
 
@@ -4193,8 +4197,7 @@ def _km_fetch_once(slot_hour=9):
                 if old and not old.get("url") and item.get("url"):
                     merged.pop(item_key, None)
                 merged[merge_key(item, old)] = item
-            existing_days[item_day] = sorted(
-                merged.values(), key=lambda x: str(x.get("date") or ""))
+            existing_days[item_day] = sorted(merged.values(), key=_km_order)
         return {**document, "days": existing_days, "updated_at": updated_at}
 
     db.update_json_doc("km_hot", merge)

@@ -1073,6 +1073,7 @@ function renderKmHot(){
         <div class="km-entry-title"><span class="km-rank${index<3?' r'+(index+1):''}" aria-hidden="true">${index+1}</span>${resourceLink(article.url,article.title)}</div>
         ${reason?`<p class="km-reason">${esc(reason)}</p>`:''}
         <div class="km-meta">${article.author?`<span>${esc(article.author)}</span>`:''}
+          ${article.fetched_at?`<span title="抓取时间">抓于 ${esc(article.fetched_at.slice(11,16))}</span>`:''}
           ${article.headline?'<span class="km-headline">头条</span>':''}${metrics.join('')}
         </div>
       </div>
