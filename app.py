@@ -30,6 +30,7 @@ import auth
 import beacon_fetcher
 import social_news
 import cloud_proxy
+import qlearning_fetcher
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 
@@ -4023,6 +4024,87 @@ def _start_ops_scheduler():
 
 
 _start_ops_scheduler()
+
+
+# ===================== 学堂直播：直连 QLearning MCP 自抓（内网数据存 With 本地） =====================
+# 数据源：QLearning MCP getLiveReplayList（TAI_IT_TOKEN 鉴权）。
+# 这是内网数据，不写轻量云：qlearning_lives 不在 cloud_proxy 代理名单中，落 With 本地库。
+_QL_TZ = datetime.timezone(datetime.timedelta(hours=8))
+
+
+def _qlearning_fetch_once():
+    """抓一次直播回看列表并按 startTime 分天写入本地 qlearning_lives。"""
+    items = qlearning_fetcher.fetch_lives(size=100)
+    if not items:
+        print("[qlearning] 抓取结果为空，跳过写入", flush=True)
+        return False
+    updated_at = _now()
+    days = {}
+    for item in items:
+        day = _resource_day(item.get("startTime"), updated_at[:10])
+        days.setdefault(day, []).append(item)
+    for day in days:
+        days[day].sort(key=lambda x: str(x.get("startTime") or ""))
+
+    def merge(document):
+        existing_days = _resource_history(document, live=True)
+        for day, batch in days.items():
+            merged = {str(it.get("id") or it.get("href")): it
+                      for it in existing_days.get(day, [])}
+            for item in batch:
+                merged[str(item.get("id") or item.get("href"))] = item
+            existing_days[day] = sorted(merged.values(),
+                                        key=lambda x: str(x.get("startTime") or ""))
+        return {**document, "days": existing_days,
+                "updated_at": updated_at, "items": items}
+
+    db.update_json_doc("qlearning_lives", merge)
+    _invalidate_json_cache("qlearning_lives")
+    print(f"[qlearning] 直播抓取完成，共 {len(items)} 条，{len(days)} 天", flush=True)
+    return True
+
+
+def _qlearning_next_delay_seconds():
+    """到下一个 9:00（东八区）的秒数，错峰于其他内网数据抓取。"""
+    now = datetime.datetime.now(_QL_TZ)
+    target = datetime.datetime(now.year, now.month, now.day, 9, 0, 0, tzinfo=_QL_TZ)
+    if target <= now:
+        target += datetime.timedelta(days=1)
+    return int((target - now).total_seconds())
+
+
+def _qlearning_scheduler_loop():
+    while True:
+        time.sleep(_qlearning_next_delay_seconds())
+        try:
+            if db.try_acquire_daily_lock("qlearning_lives", _now()[:10]):
+                _qlearning_fetch_once()
+            else:
+                print("[qlearning] 今日已抓取，跳过", flush=True)
+        except Exception as e:
+            print(f"[qlearning] 定时抓取失败: {e}", flush=True)
+
+
+def _start_qlearning_scheduler():
+    if not qlearning_fetcher.get_token():
+        print("[qlearning] 未配置 TAI_IT_TOKEN，跳过学堂直播抓取", flush=True)
+        return
+
+    def _boot():
+        try:
+            updated = (read_json("qlearning_lives", {}).get("updated_at") or "")[:10]
+            if updated != _now()[:10] and db.try_acquire_daily_lock("qlearning_lives", _now()[:10]):
+                _qlearning_fetch_once()
+        except Exception as e:
+            print(f"[qlearning] 启动抓取失败: {e}", flush=True)
+
+    threading.Thread(target=_boot, daemon=True, name="qlearning-boot-fetch").start()
+    threading.Thread(target=_qlearning_scheduler_loop, daemon=True,
+                     name="qlearning-scheduler").start()
+    print("[qlearning] 已启动：每日 9:00 抓取学堂直播（存 With 本地）", flush=True)
+
+
+_start_qlearning_scheduler()
 
 
 # ===================== 产品洞察（每日 3 个值得深入思考的话题） =====================
