@@ -4115,7 +4115,7 @@ _start_qlearning_scheduler()
 
 
 def _km_fetch_once():
-    items = km_fetcher.fetch_hot(period=2, limit=10)
+    items = km_fetcher.fetch_hot(period=2, limit=30)
     if not items:
         print("[km] 抓取结果为空，跳过写入", flush=True)
         return False
@@ -4133,7 +4133,8 @@ def _km_fetch_once():
             for item in batch:
                 key = str(item.get("url") or item.get("id"))
                 old = merged.get(key)
-                if old and old.get("recommendation"):
+                # 新抓取（含 AI 打分）优先；仅当本次没有打分时才沿用旧数据打分。
+                if old and old.get("recommendation") and not item.get("recommendation"):
                     item["recommendation"] = old["recommendation"]
                 merged[key] = item
             existing_days[day] = sorted(

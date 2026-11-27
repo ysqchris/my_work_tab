@@ -21,6 +21,11 @@ import urllib.request
 BASE = "https://km.mcp.woa.com"
 TZ8 = datetime.timezone(datetime.timedelta(hours=8))
 
+# AI 打分：OpenAI 兼容 chat/completions（复用工作台现有 DeepSeek 配置）
+AI_API_KEY = ""
+AI_BASE_URL = ""
+AI_MODEL = ""
+
 
 def _load_env():
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
@@ -39,6 +44,10 @@ def _load_env():
 
 
 _load_env()
+
+AI_API_KEY = (os.environ.get("AI_API_KEY", "") or "").strip()
+AI_BASE_URL = (os.environ.get("AI_BASE_URL", "") or "https://api.deepseek.com").rstrip("/")
+AI_MODEL = (os.environ.get("AI_MODEL", "") or "deepseek-chat").strip()
 
 
 def get_token():
@@ -135,8 +144,8 @@ def _article_id(url):
     return hashlib.md5((url or "").encode()).hexdigest()[:12]
 
 
-def fetch_hot(period=2, limit=10):
-    """返回热榜文章列表，字段与工作台 km_hot 数据存储结构兼容。"""
+def fetch_raw_hot(period=2, limit=30):
+    """抓取 KM 热榜原始候选（不做筛选）。"""
     if not get_token():
         print("[km] 未配置 TAI_IT_TOKEN，跳过抓取", flush=True)
         return []
@@ -158,12 +167,11 @@ def fetch_hot(period=2, limit=10):
         gm = re.match(r"#\d+\s+(.+?)\s+https?://", km)
         if gm:
             group = gm.group(1).strip()
-        date = f.get("创建时间", "")[:10]
         articles.append({
             "id": _article_id(url),
             "title": title,
             "author": f.get("作者", ""),
-            "date": date,
+            "date": f.get("创建时间", "")[:10],
             "url": url,
             "tags": [t.strip() for t in f.get("标签", "").split("|") if t.strip()],
             "read_count": _to_int(f.get("阅读", "0")),
@@ -174,8 +182,110 @@ def fetch_hot(period=2, limit=10):
             "group": group,
             "headline": f.get("KM头条", "") == "是",
             "recommended": f.get("KM推荐", "") == "是",
+            "summary": f.get("导语", ""),
         })
     return articles
+
+
+# AI 打分规则：来自用户明确的 KM 好文筛选偏好（2026-11-27）。
+AI_SCORE_SYSTEM = """你在替一位做 imate / MA 数字同事（Agent 协作产品）的用户，从 KM 每日文章噪音里筛出值得读的几篇。
+你不是搬运热榜，是私人信息过滤器。严格按下面三档口味判断：
+
+【必选核心】Agent 协作方向的产品与落地案例（最优先）
+- 命中主题：Agent / 智能体 / Multi-Agent / 数字同事 / MCP / AI 工作流 / Agent 工程 / 大模型应用
+- 加分项：实战案例（有落地场景、有数据效果，比如"告警 Agent 体系"这类）；KM 头条 / KM 推荐 / 高阅读高收藏
+【顺带保留】AI 新技术、新产品分享
+- 多模态、推理模型、编程助手、AI 产品新形态等
+- 但门槛是"硬核且浅显易懂"：有场景、有例子、有结论、讲人话；满屏术语公式源码的直接不要
+【一律排除】
+- 纯新闻资讯、活动通知、有奖征集、招聘
+- 纯产品宣传公告（没干货的那种）
+- 纯论文/学术推导、读起来吃力的
+
+输出 JSON 数组，每个候选都要有一项（包括要排除的），字段：
+  id: 候选项里给的 id（原样返回，不要改）
+  keep: 是否值得保留（true/false）
+  score: 0-100 的整数。100=今日最值得读（核心主题+实战案例/对标价值）；90+核心主题+头条推荐；80-89 核心主题或顺带保留里的优质项；70-79 顺带保留且浅显；<70 或排除项给低分
+  priority: 是否重点推荐（布尔，通常 score>=90 才为 true）
+  reason: 一句话中文理由，说明为什么保留或排除（排除也要写清原因）
+只输出 JSON 数组，不要 Markdown 代码块，不要其它文字。"""
+
+
+def _call_ai(messages, max_tokens=3000, timeout=90):
+    """调用 OpenAI 兼容 chat/completions；失败抛异常。"""
+    if not AI_API_KEY:
+        raise RuntimeError("AI_API_KEY 未配置")
+    payload = {
+        "model": AI_MODEL,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": 0.2,
+        "response_format": {"type": "json_object"},
+    }
+    req = urllib.request.Request(
+        AI_BASE_URL + "/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json",
+                 "Authorization": "Bearer " + AI_API_KEY},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    return data["choices"][0]["message"]["content"]
+
+
+def _ai_score(articles):
+    """用 AI 给候选打分，返回 (保留的文章列表, 打分明细)。失败时降级全量保留。"""
+    if not articles:
+        return [], {}
+    if not AI_API_KEY:
+        print("[km] 未配置 AI_API_KEY，跳过 AI 打分，保留原始热榜", flush=True)
+        return articles, {}
+    candidates = [{
+        "id": a["id"], "title": a["title"], "summary": a.get("summary", "")[:200],
+        "tags": a.get("tags", []), "headline": a.get("headline", False),
+        "recommended": a.get("recommended", False),
+        "read_count": a.get("read_count", 0), "hot": a.get("hot", 0),
+    } for a in articles]
+    try:
+        content = _call_ai([
+            {"role": "system", "content": AI_SCORE_SYSTEM},
+            {"role": "user", "content": json.dumps(candidates, ensure_ascii=False)},
+        ])
+        obj = json.loads(content)
+        scores = obj.get("items", obj) if isinstance(obj, dict) else obj
+        by_id = {str(s.get("id")): s for s in scores if isinstance(s, dict)}
+    except Exception as e:
+        print(f"[km] AI 打分失败，保留原始热榜: {e}", flush=True)
+        return articles, {}
+
+    picked = []
+    for a in articles:
+        s = by_id.get(str(a["id"]))
+        if not s or not s.get("keep"):
+            continue
+        score = s.get("score")
+        score = int(score) if isinstance(score, (int, float)) else 0
+        reason = str(s.get("reason") or "").strip()
+        a["recommendation"] = {
+            "score": max(0, min(100, score)),
+            "priority": bool(s.get("priority")),
+            "reason": reason[:120],
+        }
+        picked.append(a)
+    picked.sort(key=lambda x: -(x.get("recommendation", {}).get("score") or 0))
+    return picked, {"total": len(articles), "kept": len(picked)}
+
+
+def fetch_hot(period=2, limit=30, curate=True):
+    """抓取热榜，默认用 AI 按用户口味精选并打分（curate=False 可关闭）。"""
+    raw = fetch_raw_hot(period=period, limit=limit)
+    if not curate:
+        return raw
+    picked, stat = _ai_score(raw)
+    if stat:
+        print(f"[km] AI 精选：{stat['total']} 篇候选中保留 {stat['kept']} 篇", flush=True)
+    return picked
 
 
 if __name__ == "__main__":
